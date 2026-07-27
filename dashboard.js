@@ -34,8 +34,8 @@ let setorAtivoAntesDaBusca = 'painel-central';
 
 // Gestão de Datas e Calendário
 const dataAtualReal = new Date();
-const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)
-let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada
+const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)[cite: 6]
+let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada[cite: 6]
 let mesExibido = dataAtualReal.getMonth();
 let anoExibido = dataAtualReal.getFullYear();
 
@@ -66,9 +66,78 @@ function formatarDataChave(dateObj) {
     return `${ano}-${mes}-${dia}`;
 }
 
+// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO DA MADRUGADA (MODAL CUSTOMIZADO) ---
+function verificarBloqueioPlantao() {
+    const agora = new Date();
+    const horaAtual = agora.getHours();
+    const dataHojeRealStr = formatarDataChave(agora);
+
+    // Se o usuário estiver tentando mexer no dia de hoje, mas ainda são antes das 07:00h
+    if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "BLOQUEIO DE SEGURANÇA DO PLANTÃO";
+            const minutosStr = String(agora.getMinutes()).padStart(2, '0');
+            const horaStr = String(horaAtual).padStart(2, '0');
+            
+            textoBox.innerHTML = `
+                Ainda são <strong>${horaStr}:${minutosStr}h</strong>.<br>` +
+                `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
+            modal.style.display = 'flex';
+        }
+        return true; // Bloqueado
+    }
+    return false; // Liberado
+}
+
+function fecharModalBloqueio() {
+    const modal = document.getElementById('modal-bloqueio-plantao');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// --- FUNÇÃO DE CONFIRMAÇÃO CUSTOMIZADA (SUBSTITUI O CONFIRM NATIVO) ---
+function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('modal-confirmacao-sistema');
+        const txtMsg = document.getElementById('mensagem-confirmacao');
+        const txtTitulo = document.getElementById('titulo-confirmacao');
+        const btnSim = document.getElementById('btn-aceitar-confirmacao');
+        const btnNao = document.getElementById('btn-cancelar-confirmacao');
+
+        if (!modal) {
+            resolve(confirm(mensagem)); 
+            return;
+        }
+
+        txtMsg.textContent = mensagem;
+        txtTitulo.textContent = titulo;
+        modal.style.display = 'flex';
+
+        const novoBtnSim = btnSim.cloneNode(true);
+        const novoBtnNao = btnNao.cloneNode(true);
+        btnSim.parentNode.replaceChild(novoBtnSim, btnSim);
+        btnNao.parentNode.replaceChild(novoBtnNao, btnNao);
+
+        novoBtnSim.onclick = () => {
+            modal.style.display = 'none';
+            resolve(true);
+        };
+
+        novoBtnNao.onclick = () => {
+            modal.style.display = 'none';
+            resolve(false);
+        };
+    });
+}
+
 // --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS ---
 async function salvarContadoresMensais() {
-    const mesAnoChave = dataSelecionadaStr.substring(0, 7); // Ex: "2026-07"
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7); // Ex: "2026-07"[cite: 6]
     localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
     localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
 }
@@ -218,6 +287,8 @@ function obterMinutosPlantao(horaStr) {
 
 // --- ADICIONAR E REMOVER HORÁRIOS EXTRAS ORDENADOS CRONOLOGICAMENTE ---
 function adicionarHorarioExtraOrdenado(btn) {
+    if (verificarBloqueioPlantao()) return;
+
     const tableContainer = btn.closest('.table-responsive');
     const tbody = tableContainer.querySelector('.vitals-table tbody');
     const abaPai = btn.closest('.tab-pane');
@@ -333,7 +404,10 @@ function adicionarHorarioExtraOrdenado(btn) {
 }
 
 async function removerLinhaExtraDireta(btnX) {
-    if (confirm("Deseja remover esta aferição de horário extra?")) {
+    if (verificarBloqueioPlantao()) return;
+
+    const confirmado = await mostrarConfirmacaoCustomizada("Deseja remover esta aferição de horário extra?", "REMOVER HORÁRIO");
+    if (confirmado) {
         const linha = btnX.closest('tr');
         linha.remove();
         atualizarPainelCentral();
@@ -585,15 +659,23 @@ async function iniciarNovoPlantao() {
     const minutoAtual = agora.getMinutes();
 
     if (horaAtual < 7 || horaAtual >= 12) {
-        alert(
-            `🚫 AÇÃO NÃO PERMITIDA!\n\n` +
-            `Horário atual: ${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h.\n` +
-            `O novo plantão só pode ser iniciado entre as 07:00h e as 11:59h da manhã.`
-        );
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "AÇÃO NÃO PERMITIDA";
+            textoBox.innerHTML = `
+                Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>` +
+                `O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.
+            `;
+            modal.style.display = 'flex';
+        }
         return;
     }
 
-    if (!confirm("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e limpará as tabelas para a nova jornada.")) {
+    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e limpará as tabelas para a nova jornada.", "INICIAR NOVO PLANTÃO");
+    if (!confirmado) {
         return;
     }
 
@@ -638,11 +720,27 @@ async function iniciarNovoPlantao() {
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
-    alert(`Novo Plantão das 07h iniciado com sucesso para o dia ${agora.toLocaleDateString('pt-BR')}!`);
+    
+    // Alerta estilizado de sucesso
+    const modal = document.getElementById('modal-bloqueio-plantao');
+    const textoBox = document.getElementById('mensagem-bloqueio-texto');
+    const tituloBox = document.getElementById('titulo-modal-aviso');
+    if (modal && textoBox) {
+        if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!`;
+        modal.style.display = 'flex';
+    }
 }
 
 // --- ESCALA E CÁLCULO DE SINAIS VITAIS ---
 async function tratarMudancaVitais(event) {
+    if (verificarBloqueioPlantao()) {
+        const el = event.target;
+        if (el.type === 'checkbox') el.checked = false;
+        else el.value = '';
+        return;
+    }
+
     const elemento = event.target;
 
     if (elemento.classList.contains('dtnasc-input')) {
@@ -1059,6 +1157,8 @@ function executarBuscaGlobal() {
 
 // --- GESTÃO DE LEITOS, ALTAS E ÓBITOS ---
 async function adicionarPaciente(botaoAdicionar) {
+    if (verificarBloqueioPlantao()) return;
+
     const abaAtual = botaoAdicionar.closest('.tab-pane');
     if (!abaAtual) return;
 
@@ -1078,19 +1178,23 @@ async function adicionarPaciente(botaoAdicionar) {
 }
 
 async function removerCardPaciente(botaoExcluir) {
+    if (verificarBloqueioPlantao()) return;
+
     const card = botaoExcluir.closest('.patient-card');
     if (!card) return;
 
     const container = card.parentElement;
     
     if (container.querySelectorAll('.patient-card').length > 1) {
-        if (confirm("Deseja excluir?")) {
+        const confirmado = await mostrarConfirmacaoCustomizada('Deseja excluir este leito?', 'EXCLUIR LEITO');
+        if (confirmado) {
             card.remove();
             atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     } else {
-        if (confirm("Este é o único leito do setor. Deseja apenas limpar os dados dele?")) {
+        const confirmado = await mostrarConfirmacaoCustomizada('Este é o único leito do setor. Deseja apenas limpar os dados dele?', 'LIMPAR LEITO');
+        if (confirmado) {
             limparCardPaciente(card);
             atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
@@ -1100,6 +1204,8 @@ async function removerCardPaciente(botaoExcluir) {
 
 // --- FUNÇÕES DE TRANSFERÊNCIA INTERNA ---
 function abrirModalTransfInterna(botao) {
+    if (verificarBloqueioPlantao()) return;
+
     cardAtualTransfInterna = botao.closest('.patient-card');
     document.getElementById('modal-transf-interna').style.display = 'flex';
 }
@@ -1187,46 +1293,54 @@ function acumularIndicadoresDoCard(card) {
 }
 
 async function darAltaPaciente(botaoAlta) {
-    if (confirm('ATENÇÃO: Realmente dar alta para o paciente e limpar leito?')) {
-        const card = botaoAlta.closest('.patient-card');
-        const container = card.parentElement;
+    if (verificarBloqueioPlantao()) return;
 
-        acumularIndicadoresDoCard(card);
-        contadoresSaidas.alta++;
-        salvarContadoresMensais();
+    const confirmado = await mostrarConfirmacaoCustomizada('ATENÇÃO: Realmente dar alta para o paciente e limpar leito?', 'ALTA HOSPITALAR');
+    if (!confirmado) return;
 
-        if (container.querySelectorAll('.patient-card').length > 1) {
-            card.remove();
-        } else {
-            limparCardPaciente(card);
-        }
+    const card = botaoAlta.closest('.patient-card');
+    const container = card.parentElement;
 
-        atualizarPainelCentral();
-        await salvarDadosDoDia(dataSelecionadaStr);
+    acumularIndicadoresDoCard(card);
+    contadoresSaidas.alta++;
+    salvarContadoresMensais();
+
+    if (container.querySelectorAll('.patient-card').length > 1) {
+        card.remove();
+    } else {
+        limparCardPaciente(card);
     }
+
+    atualizarPainelCentral();
+    await salvarDadosDoDia(dataSelecionadaStr);
 }
 
 async function registrarObitoPaciente(botaoObito) {
-    if (confirm('ATENÇÃO: Confirmar registro de ÓBITO do paciente e liberação do leito?')) {
-        const card = botaoObito.closest('.patient-card');
-        const container = card.parentElement;
+    if (verificarBloqueioPlantao()) return;
 
-        acumularIndicadoresDoCard(card);
-        contadoresSaidas.obito++;
-        salvarContadoresMensais();
+    const confirmado = await mostrarConfirmacaoCustomizada('ATENÇÃO: Confirmar registro de ÓBITO do paciente e liberação do leito?', 'REGISTRO DE ÓBITO');
+    if (!confirmado) return;
 
-        if (container.querySelectorAll('.patient-card').length > 1) {
-            card.remove();
-        } else {
-            limparCardPaciente(card);
-        }
+    const card = botaoObito.closest('.patient-card');
+    const container = card.parentElement;
 
-        atualizarPainelCentral();
-        await salvarDadosDoDia(dataSelecionadaStr);
+    acumularIndicadoresDoCard(card);
+    contadoresSaidas.obito++;
+    salvarContadoresMensais();
+
+    if (container.querySelectorAll('.patient-card').length > 1) {
+        card.remove();
+    } else {
+        limparCardPaciente(card);
     }
+
+    atualizarPainelCentral();
+    await salvarDadosDoDia(dataSelecionadaStr);
 }
 
 function abrirModalTransfExterna(botao) {
+    if (verificarBloqueioPlantao()) return;
+
     cardAtualTransf = botao.closest('.patient-card');
     document.getElementById('modal-transf-externa').style.display = 'flex';
 }
@@ -1517,12 +1631,10 @@ function abrirModalRelatorioGerencial() {
         if (nome) totalAtivos++;
     });
 
-    // Pega o ano e o mês da string "2026-07"
     const partesData = dataSelecionadaStr.split('-');
     const ano = partesData[0];
     const mesNum = partesData[1];
     
-    // Converte o número do mês para o nome correspondente em português
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
     
