@@ -66,13 +66,30 @@ function formatarDataChave(dateObj) {
     return `${ano}-${mes}-${dia}`;
 }
 
-// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO DA MADRUGADA (MODAL CUSTOMIZADO) ---
+// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO E DIAS ANTERIORES ---
 function verificarBloqueioPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    // Se o usuário estiver tentando mexer no dia de hoje, mas ainda são antes das 07:00h
+    // 1. Bloqueio se a data selecionada for ANTERIOR à data de hoje (Modo Somente Leitura)
+    if (dataSelecionadaStr < dataHojeRealStr) {
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "MODO SOMENTE LEITURA";
+            textoBox.innerHTML = `
+                Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>` +
+                `Por motivos de segurança e integridade dos dados, <strong>não é permitida a edição</strong> de plantões passados.
+            `;
+            modal.style.display = 'flex';
+        }
+        return true;
+    }
+
+    // 2. Bloqueio de madrugada do dia atual (antes das 07:00h)
     if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -88,9 +105,10 @@ function verificarBloqueioPlantao() {
                 `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
             modal.style.display = 'flex';
         }
-        return true; // Bloqueado
+        return true;
     }
-    return false; // Liberado
+
+    return false;
 }
 
 function fecharModalBloqueio() {
@@ -100,7 +118,7 @@ function fecharModalBloqueio() {
     }
 }
 
-// --- FUNÇÃO DE CONFIRMAÇÃO CUSTOMIZADA (SUBSTITUI O CONFIRM NATIVO) ---
+// --- FUNÇÃO DE CONFIRMAÇÃO CUSTOMIZADA ---
 function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     return new Promise((resolve) => {
         const modal = document.getElementById('modal-confirmacao-sistema');
@@ -251,9 +269,7 @@ function atualizarBadgeIdade(inputData) {
     let meses = hoje.getMonth() - nasc.getMonth();
     let dias = hoje.getDate() - nasc.getDate();
 
-    if (dias < 0) {
-        meses--;
-    }
+    if (dias < 0) meses--;
     if (meses < 0) {
         anos--;
         meses += 12;
@@ -278,14 +294,13 @@ function atualizarBadgeIdade(inputData) {
 function obterMinutosPlantao(horaStr) {
     const [h, m] = horaStr.split(':').map(Number);
     let minutosTotais = h * 60 + m;
-    // Se for entre 00:00 e 06:59, considera como continuação do plantão do dia corrente
     if (h < 7) {
         minutosTotais += 24 * 60;
     }
     return minutosTotais;
 }
 
-// --- ADICIONAR E REMOVER HORÁRIOS EXTRAS ORDENADOS CRONOLOGICAMENTE ---
+// --- ADICIONAR E REMOVER HORÁRIOS EXTRAS ---
 function adicionarHorarioExtraOrdenado(btn) {
     if (verificarBloqueioPlantao()) return;
 
@@ -387,7 +402,6 @@ function adicionarHorarioExtraOrdenado(btn) {
 
         if (textoHora && textoHora.includes(':')) {
             const minutosTr = obterMinutosPlantao(textoHora);
-
             if (minutosNovos < minutosTr) {
                 tbody.insertBefore(novaLinha, tr);
                 inserido = true;
@@ -698,7 +712,12 @@ async function iniciarNovoPlantao() {
 
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
-            ...p,
+            setor: p.setor,
+            nome: p.nome || "",
+            dtNasc: p.dtNasc || "",
+            prontuario: p.prontuario || "",
+            tec: p.tec || "",
+            isento: p.isento || false,
             vitais: p.vitais.map(v => {
                 const inputs = Array.isArray(v) ? v : v.inputs;
                 return {
@@ -721,13 +740,12 @@ async function iniciarNovoPlantao() {
 
     await carregarDadosDoDia(dataSelecionadaStr);
     
-    // Alerta estilizado de sucesso
     const modal = document.getElementById('modal-bloqueio-plantao');
     const textoBox = document.getElementById('mensagem-bloqueio-texto');
     const tituloBox = document.getElementById('titulo-modal-aviso');
     if (modal && textoBox) {
         if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!`;
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>! Os pacientes foram mantidos nos leitos.`;
         modal.style.display = 'flex';
     }
 }
@@ -771,7 +789,7 @@ async function tratarMudancaVitais(event) {
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
-// --- HELPER PARA IDENTIFICAR FAIXA ETÁRIA EXATA CONFORME FOTO DO POP ---
+// --- FAIXA ETÁRIA PEWS ---
 function obterFaixaEtariaPews(dataNascStr) {
     if (!dataNascStr) return "1-3 anos";
 
@@ -791,7 +809,7 @@ function obterFaixaEtariaPews(dataNascStr) {
     return "> 12 anos";
 }
 
-// --- CÁLCULO DE PEWS (ATUALIZADO CONFORME TABELA OFICIAL) ---
+// --- CÁLCULO PEWS ---
 function atualizarLinhaPews(linha) {
     const card = linha.closest('.patient-card');
     const dtNasc = card ? card.querySelector('.dtnasc-input')?.value : "";
@@ -808,91 +826,58 @@ function atualizarLinhaPews(linha) {
     let pFR = 0;
     let pTemp = 0;
 
-    // --- FREQUÊNCIA CARDÍACA ---
     if (fc > 0) {
         if (faixaEtaria === "< 3 meses") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 220) pFC = 3;
+            if (fc <= 89 || fc >= 220) pFC = 3;
             else if (fc >= 180 && fc <= 219) pFC = 2;
             else if (fc >= 160 && fc <= 179) pFC = 1;
-            else if (fc >= 90 && fc <= 159) pFC = 0;
         } else if (faixaEtaria === "3 meses a 11m29d") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 210) pFC = 3;
+            if (fc <= 89 || fc >= 210) pFC = 3;
             else if (fc >= 170 && fc <= 209) pFC = 2;
             else if (fc >= 160 && fc <= 169) pFC = 1;
-            else if (fc >= 90 && fc <= 159) pFC = 0;
         } else if (faixaEtaria === "1-3 anos") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 200) pFC = 3;
+            if (fc <= 89 || fc >= 200) pFC = 3;
             else if (fc >= 160 && fc <= 199) pFC = 2;
             else if (fc >= 140 && fc <= 159) pFC = 1;
-            else if (fc >= 90 && fc <= 139) pFC = 0;
         } else if (faixaEtaria === "4-7 anos") {
-            if (fc <= 60) pFC = 3;
-            else if (fc >= 190) pFC = 3;
+            if (fc <= 60 || fc >= 190) pFC = 3;
             else if (fc >= 150 && fc <= 189) pFC = 2;
-            else if (fc >= 111 && fc <= 149) pFC = 1;
-            else if (fc >= 70 && fc <= 110) pFC = 0;
-            else if (fc >= 61 && fc <= 69) pFC = 1; // faixa amarela baixa
-        } else { // 8-12 anos ou mais
-            if (fc <= 60) pFC = 3;
-            else if (fc >= 170) pFC = 3;
+            else if ((fc >= 111 && fc <= 149) || (fc >= 61 && fc <= 69)) pFC = 1;
+        } else {
+            if (fc <= 60 || fc >= 170) pFC = 3;
             else if (fc >= 130 && fc <= 169) pFC = 2;
-            else if (fc >= 101 && fc <= 129) pFC = 1;
-            else if (fc >= 66 && fc <= 100) pFC = 0;
-            else if (fc >= 60 && fc <= 65) pFC = 1;
+            else if ((fc >= 101 && fc <= 129) || (fc >= 60 && fc <= 65)) pFC = 1;
         }
     }
 
-    // --- FREQUÊNCIA RESPIRATÓRIA ---
     if (fr > 0) {
         if (faixaEtaria === "< 3 meses") {
-            if (fr <= 25) pFR = 3;
-            else if (fr >= 90) pFR = 3;
+            if (fr <= 25 || fr >= 90) pFR = 3;
             else if (fr >= 79 && fr <= 89) pFR = 2;
-            else if (fr >= 60 && fr <= 78) pFR = 1;
-            else if (fr >= 30 && fr <= 59) pFR = 0;
-            else if (fr >= 26 && fr <= 29) pFR = 1;
+            else if ((fr >= 60 && fr <= 78) || (fr >= 26 && fr <= 29)) pFR = 1;
         } else if (faixaEtaria === "3 meses a 11m29d") {
-            if (fr <= 20) pFR = 3;
-            else if (fr >= 80) pFR = 3;
+            if (fr <= 20 || fr >= 80) pFR = 3;
             else if (fr >= 69 && fr <= 79) pFR = 2;
-            else if (fr >= 54 && fr <= 68) pFR = 1;
-            else if (fr >= 30 && fr <= 53) pFR = 0;
-            else if (fr >= 21 && fr <= 29) pFR = 1;
+            else if ((fr >= 54 && fr <= 68) || (fr >= 21 && fr <= 29)) pFR = 1;
         } else if (faixaEtaria === "1-3 anos") {
-            if (fr <= 15) pFR = 3;
-            else if (fr >= 70) pFR = 3;
+            if (fr <= 15 || fr >= 70) pFR = 3;
             else if (fr >= 59 && fr <= 69) pFR = 2;
-            else if (fr >= 40 && fr <= 58) pFR = 1;
-            else if (fr >= 20 && fr <= 39) pFR = 0;
-            else if (fr >= 16 && fr <= 19) pFR = 1;
+            else if ((fr >= 40 && fr <= 58) || (fr >= 16 && fr <= 19)) pFR = 1;
         } else if (faixaEtaria === "4-7 anos") {
-            if (fr <= 15) pFR = 3;
-            else if (fr >= 60) pFR = 3;
+            if (fr <= 15 || fr >= 60) pFR = 3;
             else if (fr >= 49 && fr <= 59) pFR = 2;
-            else if (fr >= 30 && fr <= 48) pFR = 1;
-            else if (fr >= 20 && fr <= 29) pFR = 0;
-            else if (fr >= 16 && fr <= 19) pFR = 1;
-        } else { // 8-12 anos ou mais
-            if (fr <= 10) pFR = 3;
-            else if (fr >= 50) pFR = 3;
+            else if ((fr >= 30 && fr <= 48) || (fr >= 16 && fr <= 19)) pFR = 1;
+        } else {
+            if (fr <= 10 || fr >= 50) pFR = 3;
             else if (fr >= 39 && fr <= 49) pFR = 2;
-            else if (fr >= 26 && fr <= 38) pFR = 1;
-            else if (fr >= 18 && fr <= 25) pFR = 0;
-            else if (fr >= 11 && fr <= 17) pFR = 1;
+            else if ((fr >= 26 && fr <= 38) || (fr >= 11 && fr <= 17)) pFR = 1;
         }
     }
 
-    // --- TEMPERATURA ---
     if (linha.querySelector('.pews-temp')?.value !== "") {
-        if (temp < 35) pTemp = 3;
-        else if (temp >= 40) pTemp = 3;
+        if (temp < 35 || temp >= 40) pTemp = 3;
         else if (temp >= 39.1 && temp <= 39.9) pTemp = 2;
-        else if (temp >= 38.1 && temp <= 39.0) pTemp = 1;
-        else if (temp >= 36.1 && temp <= 38.0) pTemp = 0;
-        else if (temp >= 35.1 && temp <= 36.0) pTemp = 1;
+        else if ((temp >= 35.1 && temp <= 36.0) || (temp >= 38.1 && temp <= 39.0)) pTemp = 1;
     }
 
     const pNews = linha.querySelector('.news-input');
@@ -901,23 +886,22 @@ function atualizarLinhaPews(linha) {
     const totalPews = pFC + pFR + comp + vomitos + nebulizador + pTemp;
     pNews.value = totalPews;
 
-    // --- FLUXOGRAMA DE CONDUTAS OFICIAL PEWS ---
     if (totalPews <= 1) {
         pNews.style.backgroundColor = "#e6ffe6"; pNews.style.color = "#28a745";
-        tdStatus.innerHTML = `<span class="status-badge status-estavel">🟢 ESCORE ${totalPews} (SEM RISCO): Reavaliar a cada 4h / Seguir Plano Terapêutico</span>`;
+        tdStatus.innerHTML = `<span class="status-badge status-estavel">🟢 ESCORE ${totalPews} (SEM RISCO)</span>`;
     } else if (totalPews === 2) {
         pNews.style.backgroundColor = "#fff3cd"; pNews.style.color = "#856404";
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">🟡 ESCORE 2 (BAIXO RISCO): Solicitar avaliação do Enfermeiro (Reavaliar em 3h)</span>`;
-    } else if (totalPews >= 3 && totalPews <= 4) {
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404;">🟡 ESCORE 2 (BAIXO RISCO)</span>`;
+    } else if (totalPews <= 4) {
         pNews.style.backgroundColor = "#ffe8cc"; pNews.style.color = "#d97706";
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe8cc; color:#d97706; border:1px solid #fbd38d;">🟠 ESCORE ${totalPews} (MÉDIO RISCO): Avaliação do pediatra em 30 min (Reavaliar em 1h)</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe8cc; color:#d97706;">🟠 ESCORE ${totalPews} (MÉDIO RISCO)</span>`;
     } else {
         pNews.style.backgroundColor = "#ffe6e6"; pNews.style.color = "#dc3545";
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ESCORE ${totalPews} (ALTO RISCO): Acionar Enfermeiro/Médico imediato (Time de Resposta Rápida)</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545;">🚨 ESCORE ${totalPews} (ALTO RISCO)</span>`;
     }
 }
 
-// --- CÁLCULO DO NEWS2 / SEPSE COM ISENÇÃO TOTAL DE ALERTAS AUTOMÁTICOS ---
+// --- CÁLCULO NEWS2 / CLINICA ---
 function atualizarLinhaClinica(linha) {
     const card = linha.closest('.patient-card');
     const isentoEscore = card ? card.querySelector('.isento-relatorio')?.checked : false;
@@ -949,28 +933,23 @@ function atualizarLinhaClinica(linha) {
     if (qtdPreenchida === 0 && abertoProtocoloManual !== "Sim") {
         pNews.value = "";
         pNews.style.backgroundColor = "transparent";
-        pNews.style.borderColor = "var(--borda)";
         pNews.style.color = "";
         tdStatus.innerHTML = "";
         return;
     }
 
-    // SE ESTIVER ISENTO DE ESCORE
     if (isentoEscore) {
         pNews.value = ""; 
         pNews.style.backgroundColor = "transparent";
         pNews.style.color = "";
-
-        // Só assume sepse/alerta se o profissional marcar manualmente "Sim" no select de protocolo
         if (abertoProtocoloManual === "Sim") {
-            tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALERTA SEPSE (MANUAL)</span>`;
+            tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545;">🚨 ALERTA SEPSE (MANUAL)</span>`;
         } else {
-            tdStatus.innerHTML = `<span class="status-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1;">⚡ ISENTO DE ESCORE</span>`;
+            tdStatus.innerHTML = `<span class="status-badge" style="background:#f1f5f9; color:#475569;">⚡ ISENTO DE ESCORE</span>`;
         }
         return;
     }
 
-    // --- CÁLCULO NORMAL (CASO NÃO ESTEJA ISENTO) ---
     let score = 0;
     if (pFr.value !== "") {
         if (fr <= 8 || fr >= 25) score += 3;
@@ -1027,7 +1006,7 @@ function atualizarLinhaClinica(linha) {
 
     pNews.value = score;
 
-    if (score === 0 || score <= 3) {
+    if (score <= 3) {
         pNews.style.backgroundColor = "#e6ffe6"; pNews.style.color = "#28a745";
     } else if (score <= 5) {
         pNews.style.backgroundColor = "#fff3cd"; pNews.style.color = "#856404";
@@ -1036,13 +1015,13 @@ function atualizarLinhaClinica(linha) {
     }
 
     if (isAlertaSepse) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALERTA SEPSE</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545;">🚨 ALERTA SEPSE</span>`;
     } else if (score >= 6) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALTO RISCO</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545;">🚨 ALTO RISCO</span>`;
     } else if (score >= 4) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">🟡 MÉDIO RISCO</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404;">🟡 MÉDIO RISCO</span>`;
     } else if (score >= 1) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;">🟢 BAIXO RISCO</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#d1ecf1; color:#0c5460;">🟢 BAIXO RISCO</span>`;
     } else {
         tdStatus.innerHTML = `<span class="status-badge status-estavel">✔️ ESTÁVEL</span>`;
     }
@@ -1093,7 +1072,7 @@ function mudarSetor(idSetor) {
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
+        if (li.getAttribute('onclick') && li.getAttribute('onclick'].includes(idSetor)) {
             li.classList.add('active');
         }
     });
@@ -1124,14 +1103,9 @@ function executarBuscaGlobal() {
 
     todasAbasEnfermaria.forEach(aba => {
         let encontrouNaAba = false;
-        const cardsDaAba = aba.querySelectorAll('.patient-card');
-
-        cardsDaAba.forEach(card => {
-            const inputNome = card.querySelector('.nome-input');
-            const inputTec = card.querySelector('.tec-input');
-
-            const valorNome = inputNome ? inputNome.value.toLowerCase().trim() : "";
-            const valorTec = inputTec ? inputTec.value.toLowerCase().trim() : "";
+        aba.querySelectorAll('.patient-card').forEach(card => {
+            const valorNome = card.querySelector('.nome-input')?.value.toLowerCase().trim() || "";
+            const valorTec = card.querySelector('.tec-input')?.value.toLowerCase().trim() || "";
 
             let exibir = false;
             if (tipoFiltro === "paciente" && valorNome.includes(termoFiltro)) exibir = true;
@@ -1202,10 +1176,9 @@ async function removerCardPaciente(botaoExcluir) {
     }
 }
 
-// --- FUNÇÕES DE TRANSFERÊNCIA INTERNA ---
+// --- TRANSFERÊNCIA INTERNA ---
 function abrirModalTransfInterna(botao) {
     if (verificarBloqueioPlantao()) return;
-
     cardAtualTransfInterna = botao.closest('.patient-card');
     document.getElementById('modal-transf-interna').style.display = 'flex';
 }
@@ -1340,7 +1313,6 @@ async function registrarObitoPaciente(botaoObito) {
 
 function abrirModalTransfExterna(botao) {
     if (verificarBloqueioPlantao()) return;
-
     cardAtualTransf = botao.closest('.patient-card');
     document.getElementById('modal-transf-externa').style.display = 'flex';
 }
@@ -1404,7 +1376,7 @@ function limparCardPaciente(card) {
     });
 }
 
-// --- GRÁFICO DE OCUPAÇÃO DIÁRIA ---
+// --- GRÁFICO DE OCUPAÇÃO ---
 function inicializarGraficoOcupacao() {
     const ctx = document.getElementById('graficoOcupacao');
     if (!ctx) return;
@@ -1467,7 +1439,6 @@ function atualizarDadosGrafico(totalInternadosHoje) {
     if (elTotalMes) elTotalMes.textContent = totalMes;
 }
 
-// --- ATUALIZAR CONTADORES NO MENU LATERAL ---
 function atualizarContadoresMenuLateral() {
     const setoresIds = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'];
 
@@ -1489,7 +1460,7 @@ function atualizarContadoresMenuLateral() {
     });
 }
 
-// --- PAINEL CENTRAL / DASHBOARD METRICS ---
+// --- PAINEL CENTRAL ---
 function atualizarPainelCentral() {
     let totalPacientes = 0;
     let totalSepseAtiva = 0;
@@ -1539,15 +1510,10 @@ function atualizarPainelCentral() {
                 }
 
                 if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
-                    if (newsVal <= 1) {
-                        cntEstavelAtivo++;
-                    } else if (newsVal === 2) {
-                        cntBaixoAtivo++;
-                    } else if (newsVal >= 3 && newsVal <= 4) {
-                        cntMedioAtivo++;
-                    } else if (newsVal >= 5) {
-                        cntAltoAtivo++;
-                    }
+                    if (newsVal <= 1) cntEstavelAtivo++;
+                    else if (newsVal === 2) cntBaixoAtivo++;
+                    else if (newsVal >= 3 && newsVal <= 4) cntMedioAtivo++;
+                    else if (newsVal >= 5) cntAltoAtivo++;
                 }
             });
 
@@ -1576,14 +1542,14 @@ function atualizarPainelCentral() {
                 </div>`;
         } else {
             containerProtocolos.innerHTML = listaProtocolosAtivos.map(p => `
-                <div style="background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <strong style="color: #991b1b; font-size: 0.9rem; text-transform: uppercase;">${p.nome}</strong> 
                         <span style="color: #64748b; font-size: 0.75rem; font-weight: 600;">(${p.setor})</span><br>
                         <span style="color: #475569; font-size: 0.78rem;">Abertura: <strong>${p.dataHora}</strong></span>
                     </div>
                     <div>
-                        <span style="background: #dc3545; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">
+                        <span style="background: #dc3545; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold;">
                             Vigência: ${p.vigencia}
                         </span>
                     </div>
