@@ -912,6 +912,29 @@
         </div>
     </div>
 
+   <!-- MODAL DE AVISO / ALERTA DO SISTEMA -->
+<div id="modal-bloqueio-plantao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+        <div id="icone-modal-aviso" style="font-size: 2.5rem; margin-bottom: 10px;">🚫</div>
+        <h3 id="titulo-modal-aviso" style="color: #dc3545; margin-bottom: 15px; font-size: 1.25rem;">BLOQUEIO DE SEGURANÇA DO PLANTÃO</h3>
+        <p id="mensagem-bloqueio-texto" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
+        <button type="button" onclick="fecharModalBloqueio()" style="background: #0056b3; color: #ffffff; border: none; padding: 10px 25px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s;">Entendido</button>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIRMAÇÃO PERSONALIZADO -->
+<div id="modal-confirmacao-sistema" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 10px;">⚠️</div>
+        <h3 id="titulo-confirmacao" style="color: #0056b3; margin-bottom: 15px; font-size: 1.25rem;">CONFIRMAÇÃO</h3>
+        <p id="mensagem-confirmacao" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
+        <div style="display: flex; justify-content: center; gap: 10px;">
+            <button type="button" id="btn-cancelar-confirmacao" style="background: #64748b; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Cancelar</button>
+            <button type="button" id="btn-aceitar-confirmacao" style="background: #dc3545; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
     <!-- Script de Inicialização -->
     <script src="dashboard.js"></script>
     <script>
