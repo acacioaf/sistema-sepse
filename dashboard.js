@@ -1176,8 +1176,11 @@ function acumularIndicadoresDoCard(card) {
         }
 
         const tdStatusElement = tr.querySelector('.status-cell');
-        if (tdStatusElement && (tdStatusElement.innerHTML.includes('ALTO RISCO') || tdStatusElement.innerHTML.includes('Time de Resposta Rápida'))) {
-            indicadoresMensais.sepse++;
+        if (tdStatusElement) {
+            const htmlStatus = tdStatusElement.innerHTML;
+            if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
+                indicadoresMensais.sepse++;
+            }
         }
     });
     salvarContadoresMensais();
