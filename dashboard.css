@@ -397,3 +397,33 @@ input[type=number] {
     font-weight: bold;
     border-radius: 4px;
 }
+
+/* Ajuste definitivo para o horário extra e o botão de exclusão ficarem lado a lado */
+.time-col {
+    white-space: nowrap !important;
+}
+
+.time-col .cell-hora-extra, 
+.time-col div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+
+.time-col .btn-del-linha {
+    background-color: #ff4d4d !important;
+    color: #000 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 9px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+}
