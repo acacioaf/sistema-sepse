@@ -225,12 +225,12 @@ function adicionarHorarioExtraOrdenado(btn) {
 
     if (isPediatria) {
         novaLinha.innerHTML = `
-            <td class="time-col">
-                <div class="cell-hora-extra">
-                    <span>${horaFormatada}</span>
-                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário extra">✖</button>
-                </div>
-            </td>
+           <td class="time-col" style="text-align: center; vertical-align: middle;">
+    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+        <span>${horaFormatada}</span>
+        <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
+    </div>
+</td>
             <td><input type="number" class="pews-fc"></td>
             <td><input type="number" class="pews-fr"></td>
             <td>
