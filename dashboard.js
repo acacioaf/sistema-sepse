@@ -1049,7 +1049,7 @@ async function removerCardPaciente(botaoExcluir) {
     const container = card.parentElement;
     
     if (container.querySelectorAll('.patient-card').length > 1) {
-        if (confirm("Deseja realmente remover este card de paciente criado por engano?")) {
+        if (confirm("Deseja excluir essa tabela?")) {
             card.remove();
             atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
