@@ -214,7 +214,7 @@ function adicionarHorarioExtraOrdenado(btn) {
 
     const agora = new Date();
     const horaPadrao = `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
-    const novoHorario = prompt("Digite o horário extra (ex: 09:30, 14:15):", horaPadrao);
+    const novoHorario = prompt("Digite o horário extra (ex: 09:30, 23:45):", horaPadrao);
 
     if (!novoHorario || novoHorario.trim() === "") return;
     const horaFormatada = novoHorario.trim();
@@ -225,12 +225,12 @@ function adicionarHorarioExtraOrdenado(btn) {
 
     if (isPediatria) {
         novaLinha.innerHTML = `
-           <td class="time-col" style="text-align: center; vertical-align: middle;">
-    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-        <span>${horaFormatada}</span>
-        <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
-    </div>
-</td>
+            <td class="time-col" style="text-align: center; vertical-align: middle;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span>${horaFormatada}</span>
+                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
+                </div>
+            </td>
             <td><input type="number" class="pews-fc"></td>
             <td><input type="number" class="pews-fr"></td>
             <td>
@@ -269,10 +269,10 @@ function adicionarHorarioExtraOrdenado(btn) {
         `;
     } else {
         novaLinha.innerHTML = `
-            <td class="time-col">
-                <div class="cell-hora-extra">
+            <td class="time-col" style="text-align: center; vertical-align: middle;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
                     <span>${horaFormatada}</span>
-                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário extra">✖</button>
+                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
                 </div>
             </td>
             <td><input type="number"></td>
@@ -295,15 +295,33 @@ function adicionarHorarioExtraOrdenado(btn) {
         `;
     }
 
+    // Função para calcular minutos ajustada para o ciclo de plantão das 07:00
+    function obterMinutosPlantao(horaStr) {
+        const [h, m] = horaStr.split(':').map(Number);
+        let minutosTotais = h * 60 + m;
+        // Se for entre 00:00 e 06:59, considera como continuação do plantão (adiciona 24h em minutos)
+        if (h < 7) {
+            minutosTotais += 24 * 60;
+        }
+        return minutosTotais;
+    }
+
+    const minutosNovos = obterMinutosPlantao(horaFormatada);
     const linhasExistentes = Array.from(tbody.querySelectorAll('tr'));
     let inserido = false;
 
     for (let tr of linhasExistentes) {
-        const horaTr = tr.getAttribute('data-hora') || tr.querySelector('.time-col')?.textContent.trim();
-        if (horaTr && horaFormatada < horaTr) {
-            tbody.insertBefore(novaLinha, tr);
-            inserido = true;
-            break;
+        const spanHora = tr.querySelector('.time-col span') || tr.querySelector('.time-col');
+        const textoHora = spanHora ? spanHora.textContent.trim() : "";
+
+        if (textoHora && textoHora.includes(':')) {
+            const minutosTr = obterMinutosPlantao(textoHora);
+
+            if (minutosNovos < minutosTr) {
+                tbody.insertBefore(novaLinha, tr);
+                inserido = true;
+                break;
+            }
         }
     }
 
@@ -312,15 +330,6 @@ function adicionarHorarioExtraOrdenado(btn) {
     }
 
     salvarDadosDoDia(dataSelecionadaStr);
-}
-
-async function removerLinhaExtraDireta(btnX) {
-    if (confirm("Deseja remover esta aferição de horário extra?")) {
-        const linha = btnX.closest('tr');
-        linha.remove();
-        atualizarPainelCentral();
-        await salvarDadosDoDia(dataSelecionadaStr);
-    }
 }
 
 // --- PERSISTÊNCIA NA NUVEM (SUPABASE) ---
@@ -445,7 +454,12 @@ async function carregarDadosDoDia(dataChave) {
 
                     if (p.setor === 'enf-pediatria') {
                         novaLinha.innerHTML = `
-                            <td class="time-col"><div class="cell-hora-extra"><span>${hora}</span><button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)">✖</button></div></td>
+                            <td class="time-col" style="text-align: center; vertical-align: middle;">
+                                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span>${hora}</span>
+                                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
+                                </div>
+                            </td>
                             <td><input type="number" class="pews-fc"></td>
                             <td><input type="number" class="pews-fr"></td>
                             <td>
@@ -484,7 +498,12 @@ async function carregarDadosDoDia(dataChave) {
                         `;
                     } else {
                         novaLinha.innerHTML = `
-                            <td class="time-col"><div class="cell-hora-extra"><span>${hora}</span><button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)">✖</button></div></td>
+                            <td class="time-col" style="text-align: center; vertical-align: middle;">
+                                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span>${hora}</span>
+                                    <button type="button" class="btn-del-linha" onclick="removerLinhaExtraDireta(this)" title="Remover horário" style="background: #ff4d4d; color: #000; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0;">✖</button>
+                                </div>
+                            </td>
                             <td><input type="number"></td>
                             <td><input type="number" step="0.1"></td>
                             <td><input type="number"></td>
@@ -505,14 +524,21 @@ async function carregarDadosDoDia(dataChave) {
                         `;
                     }
 
+                    const [hNovoC, mNovoC] = hora.split(':').map(Number);
+                    const minutosNovosC = hNovoC * 60 + mNovoC;
+
                     const linhasExistentes = Array.from(tbody.querySelectorAll('tr'));
                     let inserido = false;
                     for (let tr of linhasExistentes) {
-                        const horaTr = tr.getAttribute('data-hora') || tr.querySelector('.time-col')?.textContent.trim();
-                        if (horaTr && hora < horaTr) {
-                            tbody.insertBefore(novaLinha, tr);
-                            inserido = true;
-                            break;
+                        const horaTr = tr.getAttribute('data-hora') || tr.querySelector('.time-col span')?.textContent.trim();
+                        if (horaTr && horaTr.includes(':')) {
+                            const [hTrC, mTrC] = horaTr.split(':').map(Number);
+                            const minutosTrC = hTrC * 60 + mTrC;
+                            if (minutosNovosC < minutosTrC) {
+                                tbody.insertBefore(novaLinha, tr);
+                                inserido = true;
+                                break;
+                            }
                         }
                     }
                     if (!inserido) tbody.appendChild(novaLinha);
@@ -1049,7 +1075,7 @@ async function removerCardPaciente(botaoExcluir) {
     const container = card.parentElement;
     
     if (container.querySelectorAll('.patient-card').length > 1) {
-        if (confirm("Deseja excluir essa tabela?")) {
+        if (confirm("Deseja excluir?")) {
             card.remove();
             atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
