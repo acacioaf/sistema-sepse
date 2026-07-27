@@ -1,0 +1,114 @@
+/* Paleta Futurista Neon */
+:root {
+    --neon-ciano: #00ffcc;
+    --texto-claro: #e0f7fa;
+    --fundo-vidro: rgba(0, 30, 40, 0.4); /* Fundo escuro transparente */
+    --brilho-neon: 0 0 10px rgba(0, 255, 204, 0.6);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    /* Ajustado para 0.15: O fundo fica super vivo e vibrante, 
+       mas com contraste perfeito para não cansar a vista! */
+    background-image: linear-gradient(rgba(0, 15, 25, 0.08), rgba(0, 15, 25, 0.08)), url('Imagens/Fundo_sepse.png'); 
+    
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; 
+    padding-top: 15vh; 
+    height: 100vh;
+    color: var(--texto-claro);
+}
+
+/* O Cartão Futurista (Efeito Glassmorphism) */
+.login-card {
+    background-color: var(--fundo-vidro);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 30px 20px; /* <-- Reduzido de "40px 30px" para ficar mais estreito e baixo */
+    border-radius: 12px;
+    border: 1px solid var(--neon-ciano);
+    box-shadow: var(--brilho-neon), inset 0 0 15px rgba(0, 255, 204, 0.1);
+}
+
+.login-card h2 {
+    text-align: center;
+    color: var(--neon-ciano);
+    margin-bottom: 5px;
+    text-shadow: 0 0 8px rgba(0, 255, 204, 0.8); /* Letra brilhante */
+}
+
+.login-card p {
+    text-align: center;
+    color: var(--texto-claro);
+    font-size: 0.95rem;
+    margin-bottom: 30px;
+    letter-spacing: 1px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--texto-claro);
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.3); /* Fundo do input mais escuro */
+    border: 1px solid var(--neon-ciano);
+    color: white;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+/* Cor do texto de dica (placeholder) */
+.input-group input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.input-group input:focus {
+    outline: none;
+    background-color: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 12px var(--neon-ciano); /* Brilha mais ao clicar */
+}
+
+.btn-login {
+    width: 100%; /* Volta a alinhar perfeitamente com os campos de cima */
+    margin-top: 10px; /* Mantém apenas o espaço para cima */
+    padding: 10px; /* Deixei o mesmo tamanho interno das caixas de texto para ficar harmônico */
+    background-color: rgba(0, 255, 204, 0.1);
+    color: var(--neon-ciano);
+    border: 2px solid var(--neon-ciano);
+    border-radius: 6px;
+    font-size: 0.9rem; 
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    box-shadow: var(--brilho-neon);
+}
+
+.btn-login:hover {
+    background-color: var(--neon-ciano);
+    color: #002233; 
+    box-shadow: 0 0 20px var(--neon-ciano);
+}
