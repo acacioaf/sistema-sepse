@@ -205,6 +205,17 @@ function atualizarBadgeIdade(inputData) {
     }
 }
 
+// --- FUNÇÃO AUXILIAR PARA CÁLCULO DE MINUTOS NO CICLO DE PLANTÃO (07:00) ---
+function obterMinutosPlantao(horaStr) {
+    const [h, m] = horaStr.split(':').map(Number);
+    let minutosTotais = h * 60 + m;
+    // Se for entre 00:00 e 06:59, considera como continuação do plantão do dia corrente
+    if (h < 7) {
+        minutosTotais += 24 * 60;
+    }
+    return minutosTotais;
+}
+
 // --- ADICIONAR E REMOVER HORÁRIOS EXTRAS ORDENADOS CRONOLOGICAMENTE ---
 function adicionarHorarioExtraOrdenado(btn) {
     const tableContainer = btn.closest('.table-responsive');
@@ -295,17 +306,6 @@ function adicionarHorarioExtraOrdenado(btn) {
         `;
     }
 
-    // Função para calcular minutos ajustada para o ciclo de plantão das 07:00
-    function obterMinutosPlantao(horaStr) {
-        const [h, m] = horaStr.split(':').map(Number);
-        let minutosTotais = h * 60 + m;
-        // Se for entre 00:00 e 06:59, considera como continuação do plantão (adiciona 24h em minutos)
-        if (h < 7) {
-            minutosTotais += 24 * 60;
-        }
-        return minutosTotais;
-    }
-
     const minutosNovos = obterMinutosPlantao(horaFormatada);
     const linhasExistentes = Array.from(tbody.querySelectorAll('tr'));
     let inserido = false;
@@ -330,6 +330,15 @@ function adicionarHorarioExtraOrdenado(btn) {
     }
 
     salvarDadosDoDia(dataSelecionadaStr);
+}
+
+async function removerLinhaExtraDireta(btnX) {
+    if (confirm("Deseja remover esta aferição de horário extra?")) {
+        const linha = btnX.closest('tr');
+        linha.remove();
+        atualizarPainelCentral();
+        await salvarDadosDoDia(dataSelecionadaStr);
+    }
 }
 
 // --- PERSISTÊNCIA NA NUVEM (SUPABASE) ---
@@ -524,16 +533,16 @@ async function carregarDadosDoDia(dataChave) {
                         `;
                     }
 
-                    const [hNovoC, mNovoC] = hora.split(':').map(Number);
-                    const minutosNovosC = hNovoC * 60 + mNovoC;
-
+                    const minutosNovosC = obterMinutosPlantao(hora);
                     const linhasExistentes = Array.from(tbody.querySelectorAll('tr'));
                     let inserido = false;
+
                     for (let tr of linhasExistentes) {
-                        const horaTr = tr.getAttribute('data-hora') || tr.querySelector('.time-col span')?.textContent.trim();
-                        if (horaTr && horaTr.includes(':')) {
-                            const [hTrC, mTrC] = horaTr.split(':').map(Number);
-                            const minutosTrC = hTrC * 60 + mTrC;
+                        const spanHora = tr.querySelector('.time-col span') || tr.querySelector('.time-col');
+                        const textoHora = spanHora ? spanHora.textContent.trim() : "";
+
+                        if (textoHora && textoHora.includes(':')) {
+                            const minutosTrC = obterMinutosPlantao(textoHora);
                             if (minutosNovosC < minutosTrC) {
                                 tbody.insertBefore(novaLinha, tr);
                                 inserido = true;
