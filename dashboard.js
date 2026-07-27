@@ -1505,3 +1505,78 @@ function atualizarPainelCentral() {
     atualizarDadosGrafico(totalPacientes);
     atualizarContadoresMenuLateral();
 }
+
+function abrirModalRelatorioGerencial() {
+    const modal = document.getElementById('modal-relatorio-gerencial');
+    const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
+    if (!modal || !conteudoBox) return;
+
+    let totalAtivos = 0;
+    document.querySelectorAll('.patient-card').forEach(card => {
+        const nome = card.querySelector('.nome-input')?.value.trim();
+        if (nome) totalAtivos++;
+    });
+
+    // Pega o ano e o mês da string "2026-07"
+    const partesData = dataSelecionadaStr.split('-');
+    const ano = partesData[0];
+    const mesNum = partesData[1];
+    
+    // Converte o número do mês para o nome correspondente em português
+    const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
+    
+    let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `• Pacientes com protocolos ativos no Plantão: ${totalAtivos}\n`;
+    textoRelatorio += `• Total de Alertas de Sepse: ${indicadoresMensais.sepse}\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `Total de escores News:\n`;
+    textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
+    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+    textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
+    textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `Transferencias, altas e obítos:\n`;
+    textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+    textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+    textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+    textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+    textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+    textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+    textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
+
+    conteudoBox.textContent = textoRelatorio;
+    modal.style.display = 'flex';
+}
+
+function fecharModalRelatorioGerencial() {
+    const modal = document.getElementById('modal-relatorio-gerencial');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function imprimirRelatorioGerencial() {
+    const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
+    const janelaImpressao = window.open('', '_blank');
+    if (janelaImpressao) {
+        janelaImpressao.document.write(`<html><head><title>Relatório Mensal</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
+        janelaImpressao.document.close();
+        janelaImpressao.focus();
+        setTimeout(() => {
+            janelaImpressao.print();
+            janelaImpressao.close();
+        }, 250);
+    }
+}
+
+function copiarResumoGerencial() {
+    const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
+    navigator.clipboard.writeText(conteudo).then(() => {
+        alert("Resumo copiado com sucesso para a área de transferência!");
+    }).catch(err => {
+        console.error("Erro ao copiar:", err);
+        alert("Não foi possível copiar automaticamente.");
+    });
+}
