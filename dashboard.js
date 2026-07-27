@@ -679,10 +679,8 @@ async function iniciarNovoPlantao() {
         return;
     }
 
-    // Salva o estado atual antes de mudar a data
     await salvarDadosDoDia(dataSelecionadaStr);
 
-    // Pega os dados do dia anterior (ex: dia 26)
     const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -691,7 +689,6 @@ async function iniciarNovoPlantao() {
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
-    // Muda a data de referência para hoje (dia 27)
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
@@ -699,25 +696,19 @@ async function iniciarNovoPlantao() {
     await carregarContadoresMensais(dataSelecionadaStr);
     renderizarCalendario();
 
-    // Migra os pacientes mantendo nome, dtNasc, prontuário, técnico e isenção, limpando apenas os horários/vitais
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
-            setor: p.setor,
-            nome: p.nome || "",
-            dtNasc: p.dtNasc || "",
-            prontuario: p.prontuario || "",
-            isento: p.isento || false,
+            ...p,
             vitais: p.vitais.map(v => {
                 const inputs = Array.isArray(v) ? v : v.inputs;
                 return {
                     hora: v.hora || "",
                     isExtra: v.isExtra || false,
-                    inputs: inputs.map(() => "") // Limpa os valores das tabelas para o novo plantão
+                    inputs: inputs.map(() => "")
                 };
             })
         }));
 
-        // Salva imediatamente os pacientes migrados no banco para o dia 27
         await _supabase
             .from('plantoes')
             .upsert({ 
@@ -728,18 +719,7 @@ async function iniciarNovoPlantao() {
             }, { onConflict: 'data_chave' });
     }
 
-    // Carrega na tela os dados do novo dia
     await carregarDadosDoDia(dataSelecionadaStr);
-    
-    const modal = document.getElementById('modal-bloqueio-plantao');
-    const textoBox = document.getElementById('mensagem-bloqueio-texto');
-    const tituloBox = document.getElementById('titulo-modal-aviso');
-    if (modal && textoBox) {
-        if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>! Os pacientes internados foram mantidos nos leitos.`;
-        modal.style.display = 'flex';
-    }
-}
     
     // Alerta estilizado de sucesso
     const modal = document.getElementById('modal-bloqueio-plantao');
