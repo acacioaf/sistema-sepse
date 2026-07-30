@@ -34,8 +34,8 @@ let setorAtivoAntesDaBusca = 'painel-central';
 
 // Gestão de Datas e Calendário
 const dataAtualReal = new Date();
-const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)[span_0](start_span)[span_0](end_span)
-let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada[span_1](start_span)[span_1](end_span)
+const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)
+let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada
 let mesExibido = dataAtualReal.getMonth();
 let anoExibido = dataAtualReal.getFullYear();
 
@@ -66,13 +66,30 @@ function formatarDataChave(dateObj) {
     return `${ano}-${mes}-${dia}`;
 }
 
-// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO DA MADRUGADA (MODAL CUSTOMIZADO) ---
+// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO E DIAS ANTERIORES ---
 function verificarBloqueioPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    // Se o usuário estiver tentando mexer no dia de hoje, mas ainda são antes das 07:00h
+    // 1. Bloqueio se a data selecionada for ANTERIOR à data de hoje (Modo Somente Leitura)
+    if (dataSelecionadaStr < dataHojeRealStr) {
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "MODO SOMENTE LEITURA";
+            textoBox.innerHTML = `
+                Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>` +
+                `Por motivos de segurança e integridade dos dados, <strong>não é permitida a edição</strong> de plantões passados.
+            `;
+            modal.style.display = 'flex';
+        }
+        return true; // Bloqueado
+    }
+
+    // 2. Bloqueio de madrugada do dia atual (antes das 07:00h)
     if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -90,6 +107,7 @@ function verificarBloqueioPlantao() {
         }
         return true; // Bloqueado
     }
+
     return false; // Liberado
 }
 
@@ -137,7 +155,7 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
 
 // --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS ---
 async function salvarContadoresMensais() {
-    const mesAnoChave = dataSelecionadaStr.substring(0, 7); // Ex: "2026-07[span_2](start_span)"[span_2](end_span)
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
     localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
 }
@@ -652,7 +670,7 @@ async function carregarDadosDoDia(dataChave) {
     atualizarPainelCentral();
 }
 
-// --- INICIAR NOVO PLANTÃO ---
+// --- INICIAR NOVO PLANTÃO COM MIGRAÇÃO DE PACIENTES ---
 async function iniciarNovoPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
@@ -679,8 +697,10 @@ async function iniciarNovoPlantao() {
         return;
     }
 
+    // Salva o estado atual antes de mudar a data
     await salvarDadosDoDia(dataSelecionadaStr);
 
+    // Pega os dados do dia anterior
     const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -689,6 +709,7 @@ async function iniciarNovoPlantao() {
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
+    // Muda a data de referência para o dia atual (agora)
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
@@ -696,19 +717,26 @@ async function iniciarNovoPlantao() {
     await carregarContadoresMensais(dataSelecionadaStr);
     renderizarCalendario();
 
+    // Migra os pacientes mantendo cadastros, limpando apenas os horários/vitais
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
-            ...p,
+            setor: p.setor,
+            nome: p.nome || "",
+            dtNasc: p.dtNasc || "",
+            prontuario: p.prontuario || "",
+            tec: p.tec || "",
+            isento: p.isento || false,
             vitais: p.vitais.map(v => {
                 const inputs = Array.isArray(v) ? v : v.inputs;
                 return {
                     hora: v.hora || "",
                     isExtra: v.isExtra || false,
-                    inputs: inputs.map(() => "")
+                    inputs: inputs.map(() => "") // Limpa os valores das tabelas
                 };
             })
         }));
 
+        // Salva imediatamente no Supabase
         await _supabase
             .from('plantoes')
             .upsert({ 
@@ -719,15 +747,15 @@ async function iniciarNovoPlantao() {
             }, { onConflict: 'data_chave' });
     }
 
+    // Carrega os novos dados do dia
     await carregarDadosDoDia(dataSelecionadaStr);
     
-    // Alerta estilizado de sucesso
     const modal = document.getElementById('modal-bloqueio-plantao');
     const textoBox = document.getElementById('mensagem-bloqueio-texto');
     const tituloBox = document.getElementById('titulo-modal-aviso');
     if (modal && textoBox) {
         if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!`;
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>! Os pacientes internados foram mantidos nos leitos.`;
         modal.style.display = 'flex';
     }
 }
@@ -834,7 +862,7 @@ function atualizarLinhaPews(linha) {
             else if (fc >= 150 && fc <= 189) pFC = 2;
             else if (fc >= 111 && fc <= 149) pFC = 1;
             else if (fc >= 70 && fc <= 110) pFC = 0;
-            else if (fc >= 61 && fc <= 69) pFC = 1; // faixa amarela baixa
+            else if (fc >= 61 && fc <= 69) pFC = 1; 
         } else { // 8-12 anos ou mais
             if (fc <= 60) pFC = 3;
             else if (fc >= 170) pFC = 3;
