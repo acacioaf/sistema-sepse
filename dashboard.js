@@ -156,15 +156,13 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     });
 }
 
-// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS (AGORA NO SUPABASE) ---
+// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS (COM SUPABASE) ---
 async function salvarContadoresMensais() {
     const mesAnoChave = dataSelecionadaStr.substring(0, 7); 
     
-    // Mantém backup local
     localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
     localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
 
-    // Salva na nuvem (Supabase) criando uma linha de Estatísticas
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     const objEstatisticas = {
         saidas: contadoresSaidas,
@@ -187,7 +185,10 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
-    // 1. Tenta buscar da nuvem (Supabase)
+    // Zera os contadores atuais para evitar misturar meses
+    Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
+    Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
+
     const { data, error } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -201,25 +202,19 @@ async function carregarContadoresMensais(dataChave) {
         if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
         if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
         
-        // Sincroniza o localStorage local
         localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
         localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
     } else {
-        // 2. Se não existir na nuvem, busca do localStorage (fallback)
         const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
         if (rawSaidas) {
             const salvos = JSON.parse(rawSaidas);
             Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
-        } else {
-            Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
         }
 
         const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
         if (rawInd) {
             const salvosInd = JSON.parse(rawInd);
             Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
-        } else {
-            Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
         }
     }
 }
@@ -273,9 +268,9 @@ function renderizarCalendario() {
             dataSelecionadaStr = dataIso;
             const mesNovo = dataSelecionadaStr.substring(0, 7);
             
+            // CARREGA CORRETAMENTE OS CONTADORES DO MÊS DA DATA SELECIONADA
             await carregarContadoresMensais(dataSelecionadaStr);
             
-            // Se o usuário clicar em um dia de um mês diferente, recarrega o histórico do gráfico
             if (mesAnterior !== mesNovo) {
                 await carregarHistoricoMesGrafico(mesNovo);
             }
@@ -344,7 +339,6 @@ function atualizarBadgeIdade(inputData) {
     }
 }
 
-// --- FUNÇÃO AUXILIAR PARA CÁLCULO DE MINUTOS NO CICLO DE PLANTÃO (07:00) ---
 function obterMinutosPlantao(horaStr) {
     const [h, m] = horaStr.split(':').map(Number);
     let minutosTotais = h * 60 + m;
@@ -486,7 +480,6 @@ async function removerLinhaExtraDireta(btnX) {
 
 // --- PERSISTÊNCIA NA NUVEM (SUPABASE) ---
 async function salvarDadosDoDia(dataChave) {
-    // Evita salvar sobrepondo estatísticas
     if (dataChave.startsWith('STATS-')) return;
 
     const dadosGerais = [];
@@ -751,10 +744,8 @@ async function iniciarNovoPlantao() {
         return;
     }
 
-    // Salva o estado atual antes de mudar a data
     await salvarDadosDoDia(dataSelecionadaStr);
 
-    // Pega os dados do dia anterior
     const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -765,7 +756,6 @@ async function iniciarNovoPlantao() {
 
     const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
     
-    // Muda a data de referência para o dia atual (agora)
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
@@ -779,7 +769,6 @@ async function iniciarNovoPlantao() {
     
     renderizarCalendario();
 
-    // Migra os pacientes mantendo cadastros, limpando apenas os horários/vitais
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
             setor: p.setor,
@@ -793,12 +782,11 @@ async function iniciarNovoPlantao() {
                 return {
                     hora: v.hora || "",
                     isExtra: v.isExtra || false,
-                    inputs: inputs.map(() => "") // Limpa os valores das tabelas
+                    inputs: inputs.map(() => "") 
                 };
             })
         }));
 
-        // Salva imediatamente no Supabase
         await _supabase
             .from('plantoes')
             .upsert({ 
@@ -809,7 +797,6 @@ async function iniciarNovoPlantao() {
             }, { onConflict: 'data_chave' });
     }
 
-    // Carrega os novos dados do dia
     await carregarDadosDoDia(dataSelecionadaStr);
     
     const modal = document.getElementById('modal-bloqueio-plantao');
@@ -861,7 +848,6 @@ async function tratarMudancaVitais(event) {
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
-// --- HELPER PARA IDENTIFICAR FAIXA ETÁRIA EXATA CONFORME FOTO DO POP ---
 function obterFaixaEtariaPews(dataNascStr) {
     if (!dataNascStr) return "1-3 anos";
 
@@ -881,7 +867,6 @@ function obterFaixaEtariaPews(dataNascStr) {
     return "> 12 anos";
 }
 
-// --- CÁLCULO DE PEWS (ATUALIZADO CONFORME TABELA OFICIAL) ---
 function atualizarLinhaPews(linha) {
     const card = linha.closest('.patient-card');
     const dtNasc = card ? card.querySelector('.dtnasc-input')?.value : "";
@@ -898,7 +883,6 @@ function atualizarLinhaPews(linha) {
     let pFR = 0;
     let pTemp = 0;
 
-    // --- FREQUÊNCIA CARDÍACA ---
     if (fc > 0) {
         if (faixaEtaria === "< 3 meses") {
             if (fc <= 89) pFC = 3;
@@ -925,7 +909,7 @@ function atualizarLinhaPews(linha) {
             else if (fc >= 111 && fc <= 149) pFC = 1;
             else if (fc >= 70 && fc <= 110) pFC = 0;
             else if (fc >= 61 && fc <= 69) pFC = 1; 
-        } else { // 8-12 anos ou mais
+        } else {
             if (fc <= 60) pFC = 3;
             else if (fc >= 170) pFC = 3;
             else if (fc >= 130 && fc <= 169) pFC = 2;
@@ -935,7 +919,6 @@ function atualizarLinhaPews(linha) {
         }
     }
 
-    // --- FREQUÊNCIA RESPIRATÓRIA ---
     if (fr > 0) {
         if (faixaEtaria === "< 3 meses") {
             if (fr <= 25) pFR = 3;
@@ -965,7 +948,7 @@ function atualizarLinhaPews(linha) {
             else if (fr >= 30 && fr <= 48) pFR = 1;
             else if (fr >= 20 && fr <= 29) pFR = 0;
             else if (fr >= 16 && fr <= 19) pFR = 1;
-        } else { // 8-12 anos ou mais
+        } else {
             if (fr <= 10) pFR = 3;
             else if (fr >= 50) pFR = 3;
             else if (fr >= 39 && fr <= 49) pFR = 2;
@@ -975,7 +958,6 @@ function atualizarLinhaPews(linha) {
         }
     }
 
-    // --- TEMPERATURA ---
     if (linha.querySelector('.pews-temp')?.value !== "") {
         if (temp < 35) pTemp = 3;
         else if (temp >= 40) pTemp = 3;
@@ -991,7 +973,6 @@ function atualizarLinhaPews(linha) {
     const totalPews = pFC + pFR + comp + vomitos + nebulizador + pTemp;
     pNews.value = totalPews;
 
-    // --- FLUXOGRAMA DE CONDUTAS OFICIAL PEWS ---
     if (totalPews <= 1) {
         pNews.style.backgroundColor = "#e6ffe6"; pNews.style.color = "#28a745";
         tdStatus.innerHTML = `<span class="status-badge status-estavel">🟢 ESCORE ${totalPews} (SEM RISCO): Reavaliar a cada 4h / Seguir Plano Terapêutico</span>`;
@@ -1007,7 +988,6 @@ function atualizarLinhaPews(linha) {
     }
 }
 
-// --- CÁLCULO DO NEWS2 / SEPSE COM ISENÇÃO TOTAL DE ALERTAS AUTOMÁTICOS ---
 function atualizarLinhaClinica(linha) {
     const card = linha.closest('.patient-card');
     const isentoEscore = card ? card.querySelector('.isento-relatorio')?.checked : false;
@@ -1045,13 +1025,11 @@ function atualizarLinhaClinica(linha) {
         return;
     }
 
-    // SE ESTIVER ISENTO DE ESCORE
     if (isentoEscore) {
         pNews.value = ""; 
         pNews.style.backgroundColor = "transparent";
         pNews.style.color = "";
 
-        // Só assume sepse/alerta se o profissional marcar manualmente "Sim" no select de protocolo
         if (abertoProtocoloManual === "Sim") {
             tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALERTA SEPSE (MANUAL)</span>`;
         } else {
@@ -1060,7 +1038,6 @@ function atualizarLinhaClinica(linha) {
         return;
     }
 
-    // --- CÁLCULO NORMAL (CASO NÃO ESTEJA ISENTO) ---
     let score = 0;
     if (pFr.value !== "") {
         if (fr <= 8 || fr >= 25) score += 3;
@@ -1153,7 +1130,6 @@ function removerDestaquesLaranja(linha) {
     });
 }
 
-// --- NAVEGAÇÃO DE SETORES & BUSCA ---
 function mudarSetor(idSetor) {
     const campoBusca = document.getElementById('filtro-global');
     if (!campoBusca || campoBusca.value.trim() === "") {
@@ -1183,7 +1159,7 @@ function mudarSetor(idSetor) {
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
+        if (li.getAttribute('onclick') && li.getAttribute('onclick'].includes(idSetor)) {
             li.classList.add('active');
         }
     });
@@ -1245,7 +1221,6 @@ function executarBuscaGlobal() {
     });
 }
 
-// --- GESTÃO DE LEITOS, ALTAS E ÓBITOS ---
 async function adicionarPaciente(botaoAdicionar) {
     if (verificarBloqueioPlantao()) return;
 
@@ -1292,7 +1267,6 @@ async function removerCardPaciente(botaoExcluir) {
     }
 }
 
-// --- FUNÇÕES DE TRANSFERÊNCIA INTERNA ---
 function abrirModalTransfInterna(botao) {
     if (verificarBloqueioPlantao()) return;
 
@@ -1505,7 +1479,6 @@ async function carregarHistoricoMesGrafico(mesAnoStr) {
 
     if (!error && data) {
         data.forEach(plantao => {
-            // Ignora a linha de estatísticas (STATS-...) no gráfico
             if (!plantao.data_chave.startsWith('STATS-')) {
                 const dia = parseInt(plantao.data_chave.split('-')[2], 10);
                 if (dia >= 1 && dia <= 31) {
@@ -1568,7 +1541,6 @@ function atualizarDadosGrafico(totalInternadosHoje) {
     if (elTotalMes) elTotalMes.textContent = totalMes;
 }
 
-// --- ATUALIZAR CONTADORES NO MENU LATERAL ---
 function atualizarContadoresMenuLateral() {
     const setoresIds = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'];
 
