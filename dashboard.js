@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Carrega os contadores salvos do mês atual antes de renderizar
     await carregarContadoresMensais(dataSelecionadaStr);
+    
+    // PREENCHE O HISTÓRICO DO GRÁFICO PUXANDO DO SUPABASE
+    await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
     // Inicialização do gráfico, calendário e carregamento do plantão do dia
     inicializarGraficoOcupacao();
@@ -224,9 +227,17 @@ function renderizarCalendario() {
         a.onclick = async (e) => {
             e.preventDefault();
             await salvarDadosDoDia(dataSelecionadaStr);
+            
+            const mesAnterior = dataSelecionadaStr.substring(0, 7);
             dataSelecionadaStr = dataIso;
+            const mesNovo = dataSelecionadaStr.substring(0, 7);
             
             await carregarContadoresMensais(dataSelecionadaStr);
+            
+            // Se o usuário clicar em um dia de um mês diferente, recarrega o histórico do gráfico
+            if (mesAnterior !== mesNovo) {
+                await carregarHistoricoMesGrafico(mesNovo);
+            }
 
             renderizarCalendario();
             await carregarDadosDoDia(dataIso);
@@ -296,7 +307,6 @@ function atualizarBadgeIdade(inputData) {
 function obterMinutosPlantao(horaStr) {
     const [h, m] = horaStr.split(':').map(Number);
     let minutosTotais = h * 60 + m;
-    // Se for entre 00:00 e 06:59, considera como continuação do plantão do dia corrente
     if (h < 7) {
         minutosTotais += 24 * 60;
     }
@@ -709,12 +719,20 @@ async function iniciarNovoPlantao() {
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
+    const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
+    
     // Muda a data de referência para o dia atual (agora)
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
+    const mesNovoInic = dataSelecionadaStr.substring(0, 7);
     
     await carregarContadoresMensais(dataSelecionadaStr);
+    
+    if (mesAnteriorInic !== mesNovoInic) {
+        await carregarHistoricoMesGrafico(mesNovoInic);
+    }
+    
     renderizarCalendario();
 
     // Migra os pacientes mantendo cadastros, limpando apenas os horários/vitais
@@ -1432,7 +1450,32 @@ function limparCardPaciente(card) {
     });
 }
 
-// --- GRÁFICO DE OCUPAÇÃO DIÁRIA ---
+// --- BUSCA HISTÓRICO MENSAL DO GRÁFICO (NOVA FUNÇÃO) ---
+async function carregarHistoricoMesGrafico(mesAnoStr) {
+    historicoOcupacaoDiaria.fill(0);
+
+    // Puxa do Supabase todos os plantões do mês (ex: "2026-07")
+    const { data, error } = await _supabase
+        .from('plantoes')
+        .select('data_chave, dados_json')
+        .eq('mes_ano', mesAnoStr);
+
+    if (!error && data) {
+        data.forEach(plantao => {
+            const dia = parseInt(plantao.data_chave.split('-')[2], 10);
+            if (dia >= 1 && dia <= 31) {
+                // Conta quantos pacientes válidos tem naquele dia
+                let contagem = 0;
+                if (plantao.dados_json && Array.isArray(plantao.dados_json)) {
+                    contagem = plantao.dados_json.length;
+                }
+                historicoOcupacaoDiaria[dia - 1] = contagem;
+            }
+        });
+    }
+}
+
+// --- GRÁFICO DE OCUPAÇÃO DIÁRIA (CORRIGIDO) ---
 function inicializarGraficoOcupacao() {
     const ctx = document.getElementById('graficoOcupacao');
     if (!ctx) return;
@@ -1467,24 +1510,10 @@ function inicializarGraficoOcupacao() {
 function atualizarDadosGrafico(totalInternadosHoje) {
     if (!meuGraficoOcupacao) return;
 
-    const partesData = dataSelecionadaStr.split('-');
-    const ano = partesData[0];
-    const mes = partesData[1];
-    const totalDiasNoMes = new Date(ano, mes, 0).getDate();
-
-    for (let dia = 1; dia <= 31; dia++) {
-        if (dia <= totalDiasNoMes) {
-            const diaStr = String(dia).padStart(2, '0');
-            const chaveData = `${ano}-${mes}-${diaStr}`;
-
-            if (chaveData === dataSelecionadaStr) {
-                historicoOcupacaoDiaria[dia - 1] = totalInternadosHoje;
-            } else {
-                historicoOcupacaoDiaria[dia - 1] = 0;
-            }
-        } else {
-            historicoOcupacaoDiaria[dia - 1] = 0;
-        }
+    // Atualiza apenas o dia selecionado, PRESERVANDO o histórico dos outros dias
+    const diaAtual = parseInt(dataSelecionadaStr.split('-')[2], 10);
+    if (diaAtual >= 1 && diaAtual <= 31) {
+        historicoOcupacaoDiaria[diaAtual - 1] = totalInternadosHoje;
     }
 
     meuGraficoOcupacao.data.datasets[0].data = historicoOcupacaoDiaria;
