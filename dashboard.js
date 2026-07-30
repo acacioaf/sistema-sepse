@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
-    // Carrega os contadores salvos do mês atual antes de renderizar
+    // Carrega os contadores salvos na nuvem do mês atual antes de renderizar
     await carregarContadoresMensais(dataSelecionadaStr);
     
     // PREENCHE O HISTÓRICO DO GRÁFICO PUXANDO DO SUPABASE
@@ -156,30 +156,71 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     });
 }
 
-// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS ---
+// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS (AGORA NO SUPABASE) ---
 async function salvarContadoresMensais() {
-    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7); 
+    
+    // Mantém backup local
     localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
     localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
+
+    // Salva na nuvem (Supabase) criando uma linha de Estatísticas
+    const chaveEstatistica = `STATS-${mesAnoChave}`;
+    const objEstatisticas = {
+        saidas: contadoresSaidas,
+        indicadores: indicadoresMensais
+    };
+
+    const { error } = await _supabase
+        .from('plantoes')
+        .upsert({ 
+            data_chave: chaveEstatistica, 
+            dados_json: objEstatisticas, 
+            mes_ano: mesAnoChave,
+            updated_at: new Date()
+        }, { onConflict: 'data_chave' });
+
+    if (error) console.error("Erro ao salvar estatísticas:", error.message);
 }
 
 async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
+    const chaveEstatistica = `STATS-${mesAnoChave}`;
     
-    const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
-    if (rawSaidas) {
-        const salvos = JSON.parse(rawSaidas);
-        Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
-    } else {
-        Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
-    }
+    // 1. Tenta buscar da nuvem (Supabase)
+    const { data, error } = await _supabase
+        .from('plantoes')
+        .select('dados_json')
+        .eq('data_chave', chaveEstatistica)
+        .maybeSingle();
 
-    const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
-    if (rawInd) {
-        const salvosInd = JSON.parse(rawInd);
-        Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+    if (data && data.dados_json) {
+        const salvosSaidas = data.dados_json.saidas;
+        const salvosInd = data.dados_json.indicadores;
+        
+        if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
+        if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+        
+        // Sincroniza o localStorage local
+        localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
+        localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
     } else {
-        Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
+        // 2. Se não existir na nuvem, busca do localStorage (fallback)
+        const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
+        if (rawSaidas) {
+            const salvos = JSON.parse(rawSaidas);
+            Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
+        } else {
+            Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
+        }
+
+        const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
+        if (rawInd) {
+            const salvosInd = JSON.parse(rawInd);
+            Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+        } else {
+            Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
+        }
     }
 }
 
@@ -445,6 +486,9 @@ async function removerLinhaExtraDireta(btnX) {
 
 // --- PERSISTÊNCIA NA NUVEM (SUPABASE) ---
 async function salvarDadosDoDia(dataChave) {
+    // Evita salvar sobrepondo estatísticas
+    if (dataChave.startsWith('STATS-')) return;
+
     const dadosGerais = [];
 
     document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
@@ -1450,11 +1494,10 @@ function limparCardPaciente(card) {
     });
 }
 
-// --- BUSCA HISTÓRICO MENSAL DO GRÁFICO (NOVA FUNÇÃO) ---
+// --- BUSCA HISTÓRICO MENSAL DO GRÁFICO ---
 async function carregarHistoricoMesGrafico(mesAnoStr) {
     historicoOcupacaoDiaria.fill(0);
 
-    // Puxa do Supabase todos os plantões do mês (ex: "2026-07")
     const { data, error } = await _supabase
         .from('plantoes')
         .select('data_chave, dados_json')
@@ -1462,20 +1505,22 @@ async function carregarHistoricoMesGrafico(mesAnoStr) {
 
     if (!error && data) {
         data.forEach(plantao => {
-            const dia = parseInt(plantao.data_chave.split('-')[2], 10);
-            if (dia >= 1 && dia <= 31) {
-                // Conta quantos pacientes válidos tem naquele dia
-                let contagem = 0;
-                if (plantao.dados_json && Array.isArray(plantao.dados_json)) {
-                    contagem = plantao.dados_json.length;
+            // Ignora a linha de estatísticas (STATS-...) no gráfico
+            if (!plantao.data_chave.startsWith('STATS-')) {
+                const dia = parseInt(plantao.data_chave.split('-')[2], 10);
+                if (dia >= 1 && dia <= 31) {
+                    let contagem = 0;
+                    if (plantao.dados_json && Array.isArray(plantao.dados_json)) {
+                        contagem = plantao.dados_json.length;
+                    }
+                    historicoOcupacaoDiaria[dia - 1] = contagem;
                 }
-                historicoOcupacaoDiaria[dia - 1] = contagem;
             }
         });
     }
 }
 
-// --- GRÁFICO DE OCUPAÇÃO DIÁRIA (CORRIGIDO) ---
+// --- GRÁFICO DE OCUPAÇÃO DIÁRIA ---
 function inicializarGraficoOcupacao() {
     const ctx = document.getElementById('graficoOcupacao');
     if (!ctx) return;
@@ -1510,7 +1555,6 @@ function inicializarGraficoOcupacao() {
 function atualizarDadosGrafico(totalInternadosHoje) {
     if (!meuGraficoOcupacao) return;
 
-    // Atualiza apenas o dia selecionado, PRESERVANDO o histórico dos outros dias
     const diaAtual = parseInt(dataSelecionadaStr.split('-')[2], 10);
     if (diaAtual >= 1 && diaAtual <= 31) {
         historicoOcupacaoDiaria[diaAtual - 1] = totalInternadosHoje;
