@@ -182,19 +182,19 @@ async function carregarContadoresMensais(dataChave) {
         const salvosSaidas = data.dados_json.saidas;
         const salvosInd = data.dados_json.indicadores;
         
-        if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k] || 0; });
-        if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k] || 0; });
+        if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
+        if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
     } else {
         const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
         if (rawSaidas) {
             const salvos = JSON.parse(rawSaidas);
-            Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k] || 0; });
+            Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
         }
 
         const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
         if (rawInd) {
             const salvosInd = JSON.parse(rawInd);
-            Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k] || 0; });
+            Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
         }
     }
 }
@@ -1274,7 +1274,7 @@ async function darAltaPaciente(botaoAlta) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.alta++;
-    await salvarContadoresMensais();
+    salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1297,7 +1297,7 @@ async function registrarObitoPaciente(botaoObito) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.obito++;
-    await salvarContadoresMensais();
+    salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1331,7 +1331,7 @@ async function confirmarTransfExterna() {
         acumularIndicadoresDoCard(cardAtualTransf);
         if (destinoFinal && contadoresSaidas.hasOwnProperty(destinoFinal)) {
             contadoresSaidas[destinoFinal]++;
-            await salvarContadoresMensais();
+            salvarContadoresMensais();
         }
 
         if (container.querySelectorAll('.patient-card').length > 1) {
@@ -1343,19 +1343,6 @@ async function confirmarTransfExterna() {
     fecharModalTransf();
     await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
-}
-
-// FUNÇÃO ÚTIL PARA ZERAR/RESETAR AS SAÍDAS E INDICADORES DO MÊS ATUAL SE NECESSÁRIO
-async function zerarEstatisticasMesAtual() {
-    const confirmado = await mostrarConfirmacaoCustomizada("Deseja zerar os contadores de saídas e indicadores acumulados deste mês?", "ZERAR ESTATÍSTICAS");
-    if (!confirmado) return;
-
-    Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
-    Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
-
-    await salvarContadoresMensais();
-    await atualizarPainelCentral();
-    alert("Estatísticas do mês zeradas com sucesso!");
 }
 
 function limparCardPaciente(card) {
@@ -1546,6 +1533,7 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
+                    // AJUSTE: Vigência exata de 24 horas (exclui registros antigos como o do dia 28)
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1715,12 +1703,12 @@ function abrirModalRelatorioGerencial() {
     textoRelatorio += `--------------------------------------------------\n`;
     textoRelatorio += `Total de escores News:\n`;
     textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
-    textoResidual = `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
     textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
     textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
     textoRelatorio += `--------------------------------------------------\n`;
     textoRelatorio += `Transferencias, altas e obítos:\n`;
-    textoRelatorio += `- Alta Hospitalار: ${contadoresSaidas.alta}\n`;
+    textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
     textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
     textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
     textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
