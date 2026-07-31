@@ -49,6 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     inicializarGraficoOcupacao();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
+    
+    // CORREÇÃO: Garante a atualização imediata do painel central ao carregar a página
+    await atualizarPainelCentral();
 });
 
 function formatarDataChave(dateObj) {
@@ -499,7 +502,7 @@ async function carregarDadosDoDia(dataChave) {
     });
 
     if (!data || !data.dados_json || error) {
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         return;
     }
 
@@ -658,7 +661,7 @@ async function carregarDadosDoDia(dataChave) {
         });
     });
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
 }
 
 async function iniciarNovoPlantao() {
@@ -780,7 +783,7 @@ async function tratarMudancaVitais(event) {
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
         }
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
         return;
     }
@@ -795,7 +798,7 @@ async function tratarMudancaVitais(event) {
         atualizarLinhaClinica(linha);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1078,7 +1081,7 @@ function mudarSetor(idSetor) {
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        if (li.getAttribute('onclick') && li.getAttribute('onclick'].includes(idSetor)) {
+        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
             li.classList.add('active');
         }
     });
@@ -1157,7 +1160,7 @@ async function adicionarPaciente(botaoAdicionar) {
     novoCard.style.display = 'block';
 
     container.appendChild(novoCard);
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1173,14 +1176,14 @@ async function removerCardPaciente(botaoExcluir) {
         const confirmado = await mostrarConfirmacaoCustomizada('Deseja excluir este leito?', 'EXCLUIR LEITO');
         if (confirmado) {
             card.remove();
-            atualizarPainelCentral();
+            await atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     } else {
         const confirmado = await mostrarConfirmacaoCustomizada('Este é o único leito do setor. Deseja apenas limpar os dados dele?', 'LIMPAR LEITO');
         if (confirmado) {
             limparCardPaciente(card);
-            atualizarPainelCentral();
+            await atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     }
@@ -1226,7 +1229,7 @@ async function confirmarTransfInterna() {
         }
 
         fecharModalTransfInterna();
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
     }
 }
@@ -1294,7 +1297,7 @@ async function darAltaPaciente(botaoAlta) {
         limparCardPaciente(card);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1317,7 +1320,7 @@ async function registrarObitoPaciente(botaoObito) {
         limparCardPaciente(card);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1353,7 +1356,7 @@ async function confirmarTransfExterna() {
         }
     }
     fecharModalTransf();
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1545,7 +1548,7 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // AJUSTE: Vigência reduzida para 24 horas
+                    // Vigência de 24 horas estrita
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1568,7 +1571,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (janela de 24h) abertos em dias anteriores do mês
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (janela de 24h)
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1592,7 +1595,6 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                                    // AJUSTE: Vigência reduzida para 24 horas aqui também
                                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
@@ -1625,7 +1627,6 @@ async function atualizarPainelCentral() {
 
     const containerProtocolos = document.getElementById('container-protocolos-ativos');
     if (containerProtocolos) {
-        // Atualiza também o cabeçalho descritivo do box para refletir 24h
         const headerBoxProtocolos = containerProtocolos.previousElementSibling;
         if (headerBoxProtocolos && headerBoxProtocolos.tagName === 'H3') {
             headerBoxProtocolos.textContent = "PROTOCOLOS ATIVOS DE SEPSE (VIGÊNCIA 24H)";
@@ -1654,13 +1655,23 @@ async function atualizarPainelCentral() {
         }
     }
 
-    document.getElementById('dash-pacientes').textContent = totalPacientes;
+    const elDashPacientes = document.getElementById('dash-pacientes');
+    if (elDashPacientes) elDashPacientes.textContent = totalPacientes;
     
-    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
-    document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
-    document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
-    document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
-    document.getElementById('dash-alto').textContent = indicadoresMensais.alto + cntAltoAtivo;
+    const elDashSepse = document.getElementById('dash-sepse');
+    if (elDashSepse) elDashSepse.textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
+    
+    const elDashEstavel = document.getElementById('dash-estavel');
+    if (elDashEstavel) elDashEstavel.textContent = indicadoresMensais.estavel + cntEstavelAtivo;
+    
+    const elDashBaixo = document.getElementById('dash-baixo');
+    if (elDashBaixo) elDashBaixo.textContent = indicadoresMensais.baixo + cntBaixoAtivo;
+    
+    const elDashMedio = document.getElementById('dash-medio');
+    if (elDashMedio) elDashMedio.textContent = indicadoresMensais.medio + cntMedioAtivo;
+    
+    const elDashAlto = document.getElementById('dash-alto');
+    if (elDashAlto) elDashAlto.textContent = indicadoresMensais.alto + cntAltoAtivo;
 
     const elAlta = document.getElementById('saida-alta');
     const elHcUfu = document.getElementById('saida-hc-ufu');
