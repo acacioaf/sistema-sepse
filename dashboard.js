@@ -16,7 +16,6 @@ const contadoresSaidas = {
     obito: 0
 };
 
-// Acumuladores mensais de indicadores do setor
 let indicadoresMensais = {
     sepse: 0,
     estavel: 0,
@@ -28,40 +27,30 @@ let indicadoresMensais = {
 let cardAtualTransf = null;
 let cardAtualTransfInterna = null;
 let meuGraficoOcupacao = null;
-
-// Variável para memorizar a enfermaria ativa antes de iniciar uma busca
 let setorAtivoAntesDaBusca = 'painel-central';
 
-// Gestão de Datas e Calendário
 const dataAtualReal = new Date();
-const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)
-let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada
+const dataHojeStr = formatarDataChave(dataAtualReal);
+let dataSelecionadaStr = dataHojeStr;
 let mesExibido = dataAtualReal.getMonth();
 let anoExibido = dataAtualReal.getFullYear();
 
-// Histórico de ocupação diária do mês (dias 1 a 31)
 const historicoOcupacaoDiaria = Array(31).fill(0);
 
 document.addEventListener("DOMContentLoaded", async () => {
     const mainContent = document.querySelector(".content");
 
-    // Delegação de eventos para capturar alterações em tempo real
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
-    // Carrega os contadores salvos na nuvem do mês atual antes de renderizar
     await carregarContadoresMensais(dataSelecionadaStr);
-    
-    // PREENCHE O HISTÓRICO DO GRÁFICO PUXANDO DO SUPABASE
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
-    // Inicialização do gráfico, calendário e carregamento do plantão do dia
     inicializarGraficoOcupacao();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
 });
 
-// Helper para formatar data em AAAA-MM-DD
 function formatarDataChave(dateObj) {
     const ano = dateObj.getFullYear();
     const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -69,13 +58,11 @@ function formatarDataChave(dateObj) {
     return `${ano}-${mes}-${dia}`;
 }
 
-// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO E DIAS ANTERIORES ---
 function verificarBloqueioPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    // 1. Bloqueio se a data selecionada for ANTERIOR à data de hoje (Modo Somente Leitura)
     if (dataSelecionadaStr < dataHojeRealStr) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -89,10 +76,9 @@ function verificarBloqueioPlantao() {
             `;
             modal.style.display = 'flex';
         }
-        return true; // Bloqueado
+        return true;
     }
 
-    // 2. Bloqueio de madrugada do dia atual (antes das 07:00h)
     if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -108,20 +94,17 @@ function verificarBloqueioPlantao() {
                 `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
             modal.style.display = 'flex';
         }
-        return true; // Bloqueado
+        return true;
     }
 
-    return false; // Liberado
+    return false;
 }
 
 function fecharModalBloqueio() {
     const modal = document.getElementById('modal-bloqueio-plantao');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
-// --- FUNÇÃO DE CONFIRMAÇÃO CUSTOMIZADA (SUBSTITUI O CONFIRM NATIVO) ---
 function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     return new Promise((resolve) => {
         const modal = document.getElementById('modal-confirmacao-sistema');
@@ -156,7 +139,7 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     });
 }
 
-// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS (COM SUPABASE) ---
+// --- PERSISTÊNCIA E LEITURA SEGURA DOS CONTADORES MENSAIS ---
 async function salvarContadoresMensais() {
     const mesAnoChave = dataSelecionadaStr.substring(0, 7); 
     
@@ -185,9 +168,11 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
+    // Zera os contadores antes de puxar[cite: 5]
     Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
     Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
 
+    // 1. Tenta buscar a linha STATS oficial do mês na nuvem[cite: 5]
     const { data, error } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -200,10 +185,8 @@ async function carregarContadoresMensais(dataChave) {
         
         if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
         if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
-        
-        localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
-        localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
     } else {
+        // 2. Fallback robusto: se não houver STATS, tenta recuperar do localStorage[cite: 5]
         const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
         if (rawSaidas) {
             const salvos = JSON.parse(rawSaidas);
@@ -267,7 +250,6 @@ function renderizarCalendario() {
             dataSelecionadaStr = dataIso;
             const mesNovo = dataSelecionadaStr.substring(0, 7);
             
-            // GARANTE QUE OS CONTADORES DO MÊS SEJAM CARREGADOS ANTES DE RENDERIZAR
             await carregarContadoresMensais(dataSelecionadaStr);
             
             if (mesAnterior !== mesNovo) {
@@ -294,7 +276,6 @@ function mudarMes(delta) {
     renderizarCalendario();
 }
 
-// --- CÁLCULO E EXIBIÇÃO DA IDADE DA CRIANÇA ---
 function atualizarBadgeIdade(inputData) {
     const card = inputData.closest('.patient-card');
     if (!card) return;
@@ -315,9 +296,7 @@ function atualizarBadgeIdade(inputData) {
     let meses = hoje.getMonth() - nasc.getMonth();
     let dias = hoje.getDate() - nasc.getDate();
 
-    if (dias < 0) {
-        meses--;
-    }
+    if (dias < 0) meses--;
     if (meses < 0) {
         anos--;
         meses += 12;
@@ -325,29 +304,18 @@ function atualizarBadgeIdade(inputData) {
 
     let totalMeses = (hoje.getFullYear() - nasc.getFullYear()) * 12 + (hoje.getMonth() - nasc.getMonth());
 
-    if (totalMeses < 1) {
-        badge.textContent = "< 1m";
-    } else if (totalMeses < 12) {
-        badge.textContent = `${totalMeses}m`;
-    } else {
-        if (meses > 0) {
-            badge.textContent = `${anos}a ${meses}m`;
-        } else {
-            badge.textContent = `${anos}a`;
-        }
-    }
+    if (totalMeses < 1) badge.textContent = "< 1m";
+    else if (totalMeses < 12) badge.textContent = `${totalMeses}m`;
+    else badge.textContent = meses > 0 ? `${anos}a ${meses}m` : `${anos}a`;
 }
 
 function obterMinutosPlantao(horaStr) {
     const [h, m] = horaStr.split(':').map(Number);
     let minutosTotais = h * 60 + m;
-    if (h < 7) {
-        minutosTotais += 24 * 60;
-    }
+    if (h < 7) minutosTotais += 24 * 60;
     return minutosTotais;
 }
 
-// --- ADICIONAR E REMOVER HORÁRIOS EXTRAS ORDENADOS CRONOLOGICAMENTE ---
 function adicionarHorarioExtraOrdenado(btn) {
     if (verificarBloqueioPlantao()) return;
 
@@ -449,7 +417,6 @@ function adicionarHorarioExtraOrdenado(btn) {
 
         if (textoHora && textoHora.includes(':')) {
             const minutosTr = obterMinutosPlantao(textoHora);
-
             if (minutosNovos < minutosTr) {
                 tbody.insertBefore(novaLinha, tr);
                 inserido = true;
@@ -458,10 +425,7 @@ function adicionarHorarioExtraOrdenado(btn) {
         }
     }
 
-    if (!inserido) {
-        tbody.appendChild(novaLinha);
-    }
-
+    if (!inserido) tbody.appendChild(novaLinha);
     salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -477,7 +441,6 @@ async function removerLinhaExtraDireta(btnX) {
     }
 }
 
-// --- PERSISTÊNCIA NA NUVEM (SUPABASE) ---
 async function salvarDadosDoDia(dataChave) {
     if (dataChave.startsWith('STATS-')) return;
 
@@ -501,10 +464,7 @@ async function salvarDadosDoDia(dataChave) {
             });
 
             if (nome.trim() !== "") {
-                dadosGerais.push({
-                    setor: idSetor,
-                    nome, dtNasc, prontuario, tec, isento, vitais
-                });
+                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, vitais });
             }
         });
     });
@@ -520,9 +480,7 @@ async function salvarDadosDoDia(dataChave) {
             updated_at: new Date()
         }, { onConflict: 'data_chave' });
 
-    if (error) {
-        console.error("Erro ao salvar no Supabase:", error.message);
-    }
+    if (error) console.error("Erro ao salvar no Supabase:", error.message);
 }
 
 async function carregarDadosDoDia(dataChave) {
@@ -532,15 +490,12 @@ async function carregarDadosDoDia(dataChave) {
         .eq('data_chave', dataChave)
         .maybeSingle();
 
-    // Limpa todas as abas antes de popular
     document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
         const container = aba.querySelector('.patients-container');
         if (!container) return;
 
         const cards = container.querySelectorAll('.patient-card');
-        for (let i = 1; i < cards.length; i++) {
-            cards[i].remove();
-        }
+        for (let i = 1; i < cards.length; i++) cards[i].remove();
         if (cards[0]) limparCardPaciente(cards[0]);
     });
 
@@ -704,11 +659,9 @@ async function carregarDadosDoDia(dataChave) {
         });
     });
 
-    // ATUALIZA O PAINEL CENTRAL APÓS CARREGAR OS DADOS DO DIA
     atualizarPainelCentral();
 }
 
-// --- INICIAR NOVO PLANTÃO COM MIGRAÇÃO DE PACIENTES ---
 async function iniciarNovoPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
@@ -731,9 +684,7 @@ async function iniciarNovoPlantao() {
     }
 
     const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e limpará as tabelas para a nova jornada.", "INICIAR NOVO PLANTÃO");
-    if (!confirmado) {
-        return;
-    }
+    if (!confirmado) return;
 
     await salvarDadosDoDia(dataSelecionadaStr);
 
@@ -800,7 +751,6 @@ async function iniciarNovoPlantao() {
     }
 }
 
-// --- ESCALA E CÁLCULO DE SINAIS VITAIS ---
 async function tratarMudancaVitais(event) {
     if (verificarBloqueioPlantao()) {
         const el = event.target;
@@ -1150,8 +1100,7 @@ function mudarSetor(idSetor) {
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        const onclickAttr = li.getAttribute('onclick');
-        if (onclickAttr && onclickAttr.includes(idSetor)) {
+        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
             li.classList.add('active');
         }
     });
