@@ -1471,7 +1471,7 @@ function atualizarContadoresMenuLateral() {
 // --- PAINEL CENTRAL / DASHBOARD METRICS ---
 async function atualizarPainelCentral() {
     let totalPacientes = 0;
-    let totalSepseAtiva = 0;
+    let totalSepseAtivaNoDia = 0;
 
     let cntEstavelAtivo = 0;
     let cntBaixoAtivo = 0;
@@ -1479,6 +1479,7 @@ async function atualizarPainelCentral() {
     let cntAltoAtivo = 0;
 
     const listaProtocolosAtivos = [];
+    const agoraRelogio = new Date();
     
     // CORREÇÃO DA DATA DE ABERTURA: Utiliza a data selecionada no calendário formatada em PT-BR
     const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
@@ -1496,7 +1497,7 @@ async function atualizarPainelCentral() {
 
             let cardTemSepse = false;
             let cardTemProtocoloAberto = false;
-            let horaAberturaSepse = null;
+            let dataHoraAberturaStr = null;
 
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
                 const tdStatusElement = tr.querySelector('.status-cell');
@@ -1515,7 +1516,9 @@ async function atualizarPainelCentral() {
                     
                     if (abertoProtocolo === "Sim") {
                         cardTemProtocoloAberto = true;
-                        if (!horaAberturaSepse) horaAberturaSepse = horaTabela;
+                        if (!dataHoraAberturaStr) {
+                            dataHoraAberturaStr = `${dataSelecionadaStr}T${horaTabela}:00`;
+                        }
                     }
                 }
 
@@ -1533,14 +1536,35 @@ async function atualizarPainelCentral() {
             });
 
             if (cardTemSepse) {
-                totalSepseAtiva++; 
+                totalSepseAtivaNoDia++; 
 
-                if (cardTemProtocoloAberto) {
+                if (cardTemProtocoloAberto && dataHoraAberturaStr) {
+                    const dataAberturaObj = new Date(dataHoraAberturaStr);
+                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                    const diffMs = vencimentoObj - agoraRelogio;
+                    
+                    let tempoRestanteFormatado = "";
+                    let corVigencia = "#dc3545"; // Vermelho padrão
+
+                    if (diffMs > 0) {
+                        const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
+                        const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
+                        
+                        if (horasRestantes <= 12) {
+                            corVigencia = "#d97706"; // Laranja se estiver perto de vencer (menos de 12h)
+                        }
+                    } else {
+                        tempoRestanteFormatado = "⚠️ VENCIDO (Reavaliação necessária)";
+                        corVigencia = "#dc3545";
+                    }
+
                     listaProtocolosAtivos.push({
                         nome: nome,
                         setor: idSetor,
-                        dataHora: `${dataFormatadaProtocolo} às ${horaAberturaSepse || '08:00'}`,
-                        vigencia: "72h"
+                        dataHora: `${dataFormatadaProtocolo} às ${dataHoraAberturaStr.split('T')[1].substring(0, 5)}`,
+                        vigenciaTexto: tempoRestanteFormatado,
+                        corBgVigencia: corVigencia
                     });
                 }
             }
@@ -1563,8 +1587,8 @@ async function atualizarPainelCentral() {
                         <span style="color: #475569; font-size: 0.78rem;">Abertura: <strong>${p.dataHora}</strong></span>
                     </div>
                     <div>
-                        <span style="background: #dc3545; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">
-                            Vigência: ${p.vigencia}
+                        <span style="background: ${p.corBgVigencia}; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block; text-align: center;">
+                            ${p.vigenciaTexto}
                         </span>
                     </div>
                 </div>
@@ -1573,9 +1597,9 @@ async function atualizarPainelCentral() {
     }
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
-    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtiva;
-
-    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA
+    
+    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA (Sepse e Avaliação do Setor)
+    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
     document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
