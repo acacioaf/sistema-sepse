@@ -43,7 +43,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
-    // Injeta o seletor de tipo de relatório dentro do modal gerencial se já existir
     injetarSeletorTipoRelatorio();
 
     await carregarContadoresMensais(dataSelecionadaStr);
@@ -66,39 +65,35 @@ function verificarBloqueioPlantao() {
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    // Cria a string do dia anterior para tolerância da madrugada (00h às 06h59)
     const ontemObj = new Date(agora);
     ontemObj.setDate(agora.getDate() - 1);
     const dataOntemRealStr = formatarDataChave(ontemObj);
 
     // Se a data selecionada for anterior ao dia de ontem, bloqueia totalmente
     if (dataSelecionadaStr < dataOntemRealStr) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "MODO SOMENTE LEITURA";
-            textoBox.innerHTML = `
-                Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>` +
-                `Por motivos de segurança e integridade dos dados, <strong>não é permitida a edição</strong> de plantões passados.
-            `;
-            modal.style.display = 'flex';
-        }
+        mostrarModalBloqueio("MODO SOMENTE LEITURA", `Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>Por motivos de segurança, não é permitida a edição de plantões passados.`);
         return true;
     }
 
-    // Se estivermos no dia de ontem, permitimos editar livremente para lançar 00h e 04h durante a madrugada
-    if (dataSelecionadaStr === dataOntemRealStr) {
-        return false;
-    }
-
-    // Se estivermos no dia de hoje mas antes das 07h da manhã
-    if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
-        return false; // Permite o preenchimento da madrugada vigente
+    // Se estivermos visualizando o dia de ontem, mas já passou das 07h do dia de hoje (ou seja, o novo plantão já foi iniciado)
+    if (dataSelecionadaStr === dataOntemRealStr && horaAtual >= 7) {
+        mostrarModalBloqueio("PLANTÃO JÁ ENCERRADO", `O novo plantão do dia atual já foi iniciado.<br><br>O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.`);
+        return true;
     }
 
     return false;
+}
+
+function mostrarModalBloqueio(titulo, mensagem) {
+    const modal = document.getElementById('modal-bloqueio-plantao');
+    const textoBox = document.getElementById('mensagem-bloqueio-texto');
+    const tituloBox = document.getElementById('titulo-modal-aviso');
+    
+    if (modal && textoBox) {
+        if (tituloBox) tituloBox.textContent = titulo;
+        textoBox.innerHTML = mensagem;
+        modal.style.display = 'flex';
+    }
 }
 
 function fecharModalBloqueio() {
@@ -666,22 +661,11 @@ async function iniciarNovoPlantao() {
     const minutoAtual = agora.getMinutes();
 
     if (horaAtual < 7 || horaAtual >= 12) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "AÇÃO NÃO PERMITIDA";
-            textoBox.innerHTML = `
-                Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>` +
-                `O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.
-            `;
-            modal.style.display = 'flex';
-        }
+        mostrarModalBloqueio("AÇÃO NÃO PERMITIDA", `Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.`);
         return;
     }
 
-    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e limpará as tabelas para a nova jornada.", "INICIAR NOVO PLANTÃO");
+    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e migrará os dados cadastrais para o dia atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
 
     await salvarDadosDoDia(dataSelecionadaStr);
@@ -694,19 +678,11 @@ async function iniciarNovoPlantao() {
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
-    const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
-    
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
-    const mesNovoInic = dataSelecionadaStr.substring(0, 7);
     
     await carregarContadoresMensais(dataSelecionadaStr);
-    
-    if (mesAnteriorInic !== mesNovoInic) {
-        await carregarHistoricoMesGrafico(mesNovoInic);
-    }
-    
     renderizarCalendario();
 
     if (pacientesParaMigrar.length > 0) {
@@ -717,14 +693,11 @@ async function iniciarNovoPlantao() {
             prontuario: p.prontuario || "",
             tec: p.tec || "",
             isento: p.isento || false,
-            vitais: p.vitais.map(v => {
-                const inputs = Array.isArray(v) ? v : v.inputs;
-                return {
-                    hora: v.hora || "",
-                    isExtra: v.isExtra || false,
-                    inputs: inputs.map(() => "") 
-                };
-            })
+            vitais: p.vitais.map(v => ({
+                hora: v.hora || "",
+                isExtra: v.isExtra || false,
+                inputs: v.inputs.map(() => "") 
+            }))
         }));
 
         await _supabase
@@ -738,15 +711,7 @@ async function iniciarNovoPlantao() {
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
-    
-    const modal = document.getElementById('modal-bloqueio-plantao');
-    const textoBox = document.getElementById('mensagem-bloqueio-texto');
-    const tituloBox = document.getElementById('titulo-modal-aviso');
-    if (modal && textoBox) {
-        if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>! Os pacientes internados foram mantidos nos leitos.`;
-        modal.style.display = 'flex';
-    }
+    mostrarModalBloqueio("PLANTÃO INICIADO", `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes internados foram trazidos para os leitos da data atual.`);
 }
 
 async function tratarMudancaVitais(event) {
@@ -1481,6 +1446,7 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
+    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
     // 1. Processa os dados visíveis do dia selecionado
     document.querySelectorAll('.patient-card').forEach(card => {
@@ -1533,7 +1499,7 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // VIGÊNCIA AJUSTADA PARA 24 HORAS
+                    // VIGÊNCIA DE 24 HORAS
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1706,7 +1672,6 @@ async function atualizarTextoRelatorioGerencial() {
     const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
 
     if (tipo === 'diario') {
-        // Relatório estrito do dia selecionado
         let totalAtivosDia = 0;
         let alertasSepseDia = 0;
         let estavelDia = 0, baixoDia = 0, medioDia = 0, altoDia = 0;
@@ -1745,10 +1710,19 @@ async function atualizarTextoRelatorioGerencial() {
         texto += `- Baixo Risco: ${baixoDia}\n`;
         texto += `- Médio Risco: ${medioDia}\n`;
         texto += `- Alto Risco: ${altoDia}\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `Saídas e Destinos Registrados:\n`;
+        texto += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+        texto += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+        texto += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+        texto += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+        texto += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+        texto += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+        texto += `- Óbito: ${contadoresSaidas.obito}\n`;
+
         conteudoBox.textContent = texto;
 
     } else {
-        // Relatório Mensal consolidado
         let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
         textoRelatorio += `--------------------------------------------------\n`;
         textoRelatorio += `• Total de Alertas de Sepse acumulados: ${indicadoresMensais.sepse}\n`;
