@@ -273,6 +273,14 @@ body {
     background-color: #bd2130;
 }
 
+.btn-evolucao {
+    background-color: #0284c7;
+    color: #fff;
+}
+.btn-evolucao:hover {
+    background-color: #0369a1;
+}
+
 /* Tabela de Sinais Vitais Compacta */
 .table-responsive {
     padding: 10px;
