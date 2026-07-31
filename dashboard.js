@@ -43,8 +43,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
-    injetarSeletorTipoRelatorio();
-
     await carregarContadoresMensais(dataSelecionadaStr);
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
@@ -687,22 +685,29 @@ async function iniciarNovoPlantao() {
     const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso puxará os pacientes internados do dia anterior para os leitos da data atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
 
-    await salvarDadosDoDia(dataSelecionadaStr);
-
+    // Define rigorosamente a chave do dia anterior (ex: dia 30)
     const dataOntemObj = new Date(agora);
     dataOntemObj.setDate(agora.getDate() - 1);
     const dataOntemStr = formatarDataChave(dataOntemObj);
 
-    const { data: dataAnterior } = await _supabase
+    // Salva o estado atual antes de mudar a referência
+    await salvarDadosDoDia(dataSelecionadaStr);
+
+    // Busca os dados cadastrados estritamente no dia anterior
+    const { data: dataAnterior, error: erroBusca } = await _supabase
         .from('plantoes')
         .select('dados_json')
         .eq('data_chave', dataOntemStr)
         .maybeSingle();
 
-    const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
+    if (erroBusca) {
+        console.error("Erro ao buscar dados do dia anterior:", erroBusca.message);
+    }
 
+    const pacientesParaMigrar = (dataAnterior && Array.isArray(dataAnterior.dados_json)) ? dataAnterior.dados_json : [];
+
+    // Atualiza para a data de hoje
     const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
-    
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
@@ -716,6 +721,7 @@ async function iniciarNovoPlantao() {
     
     renderizarCalendario();
 
+    // Se houver pacientes no dia anterior, grava na data atual mantendo os dados cadastrais e zerando as aferições
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
             setor: p.setor,
@@ -725,7 +731,7 @@ async function iniciarNovoPlantao() {
             tec: p.tec || "",
             isento: p.isento || false,
             vitais: p.vitais.map(v => {
-                const inputs = Array.isArray(v) ? v : v.inputs;
+                const inputs = Array.isArray(v) ? v : (v.inputs || []);
                 return {
                     hora: v.hora || "",
                     isExtra: v.isExtra || false,
@@ -734,7 +740,7 @@ async function iniciarNovoPlantao() {
             })
         }));
 
-        await _supabase
+        const { error: erroUpsert } = await _supabase
             .from('plantoes')
             .upsert({ 
                 data_chave: dataSelecionadaStr, 
@@ -742,6 +748,10 @@ async function iniciarNovoPlantao() {
                 mes_ano: dataSelecionadaStr.substring(0, 7),
                 updated_at: new Date()
             }, { onConflict: 'data_chave' });
+
+        if (erroUpsert) {
+            console.error("Erro ao salvar migração no Supabase:", erroUpsert.message);
+        }
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
@@ -751,7 +761,7 @@ async function iniciarNovoPlantao() {
     const tituloBox = document.getElementById('titulo-modal-aviso');
     if (modal && textoBox) {
         if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes do plantão anterior foram puxados com sucesso.`;
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes do plantão anterior foram puxados com sucesso para os leitos.`;
         modal.style.display = 'flex';
     }
 }
@@ -1644,6 +1654,7 @@ async function atualizarPainelCentral() {
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     
+    // Atualiza os contadores globais do painel somando o dia atual + acumulado do mês
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
@@ -1670,119 +1681,46 @@ async function atualizarPainelCentral() {
     atualizarContadoresMenuLateral();
 }
 
-function injetarSeletorTipoRelatorio() {
-    const modalBox = document.querySelector('#modal-relatorio-gerencial > div');
-    if (!modalBox || document.getElementById('select-tipo-relatorio')) return;
-
-    const headerBox = modalBox.querySelector('div');
-    if (headerBox) {
-        const wrapperSelect = document.createElement('div');
-        wrapperSelect.style.cssText = "margin: 10px 0; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #003366;";
-        wrapperSelect.innerHTML = `
-            <label for="select-tipo-relatorio">Tipo de Relatório:</label>
-            <select id="select-tipo-relatorio" onchange="atualizarTextoRelatorioGerencial()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal;">
-                <option value="diario">Diário (Data Selecionada)</option>
-                <option value="mensal" selected>Mensal (Consolidado do Mês)</option>
-            </select>
-        `;
-        headerBox.insertAdjacentElement('afterend', wrapperSelect);
-    }
-}
-
-async function abrirModalRelatorioGerencial() {
+function abrirModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
-    if (!modal) return;
-    modal.style.display = 'flex';
-    atualizarTextoRelatorioGerencial();
-}
-
-async function atualizarTextoRelatorioGerencial() {
     const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
-    const selectTipo = document.getElementById('select-tipo-relatorio');
-    if (!conteudoBox) return;
+    if (!modal || !conteudoBox) return;
 
-    const tipo = selectTipo ? selectTipo.value : "mensal";
+    let totalAtivos = 0;
+    document.querySelectorAll('.patient-card').forEach(card => {
+        const nome = card.querySelector('.nome-input')?.value.trim();
+        if (nome) totalAtivos++;
+    });
+
     const partesData = dataSelecionadaStr.split('-');
     const ano = partesData[0];
     const mesNum = partesData[1];
-    const diaNum = partesData[2];
     
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
+    
+    let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `• Pacientes com protocolos ativos no Plantão: ${totalAtivos}\n`;
+    textoRelatorio += `• Total de Alertas de Sepse: ${indicadoresMensais.sepse}\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `Total de escores News:\n`;
+    textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
+    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+    textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
+    textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
+    textoRelatorio += `--------------------------------------------------\n`;
+    textoRelatorio += `Transferencias, altas e obítos:\n`;
+    textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+    textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+    textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+    textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+    textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+    textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+    textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
 
-    if (tipo === 'diario') {
-        let totalAtivosDia = 0;
-        let alertasSepseDia = 0;
-        let estavelDia = 0, baixoDia = 0, medioDia = 0, altoDia = 0;
-
-        document.querySelectorAll('.patient-card').forEach(card => {
-            const nome = card.querySelector('.nome-input')?.value.trim();
-            const isento = card.querySelector('.isento-relatorio')?.checked;
-            if (nome) {
-                totalAtivosDia++;
-                card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
-                    const inputNews = tr.querySelector('.news-input');
-                    const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
-                    const htmlStatus = tr.querySelector('.status-cell')?.innerHTML || "";
-
-                    if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
-                        if (newsVal <= 1) estavelDia++;
-                        else if (newsVal === 2) baixoDia++;
-                        else if (newsVal >= 3 && newsVal <= 4) medioDia++;
-                        else if (newsVal >= 5) altoDia++;
-                    }
-
-                    if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
-                        alertasSepseDia++;
-                    }
-                });
-            }
-        });
-
-        let texto = `Relatório Diário (${diaNum}/${mesNum}/${ano})\n`;
-        texto += `--------------------------------------------------\n`;
-        texto += `• Pacientes Internados no Plantão: ${totalAtivosDia}\n`;
-        texto += `• Alertas de Sepse no Dia: ${alertasSepseDia}\n`;
-        texto += `--------------------------------------------------\n`;
-        texto += `Escores NEWS / PEWS do Dia:\n`;
-        texto += `- Estável: ${estavelDia}\n`;
-        texto += `- Baixo Risco: ${baixoDia}\n`;
-        texto += `- Médio Risco: ${medioDia}\n`;
-        texto += `- Alto Risco: ${altoDia}\n`;
-        texto += `--------------------------------------------------\n`;
-        texto += `Saídas e Destinos Registrados:\n`;
-        texto += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
-        texto += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
-        texto += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
-        texto += `- CIP: ${contadoresSaidas["CIP"]}\n`;
-        texto += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
-        texto += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
-        texto += `- Óbito: ${contadoresSaidas.obito}\n`;
-
-        conteudoBox.textContent = texto;
-
-    } else {
-        let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
-        textoRelatorio += `--------------------------------------------------\n`;
-        textoRelatorio += `• Total de Alertas de Sepse acumulados: ${indicadoresMensais.sepse}\n`;
-        textoRelatorio += `--------------------------------------------------\n`;
-        textoRelatorio += `Total de escores acumulados no mês:\n`;
-        textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
-        textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
-        textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
-        textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
-        textoRelatorio += `--------------------------------------------------\n`;
-        textoRelatorio += `Saídas e Destinos no Mês:\n`;
-        textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
-        textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
-        textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
-        textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
-        textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
-        textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
-        textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
-
-        conteudoBox.textContent = textoRelatorio;
-    }
+    conteudoBox.textContent = textoRelatorio;
+    modal.style.display = 'flex';
 }
 
 function fecharModalRelatorioGerencial() {
@@ -1794,7 +1732,7 @@ function imprimirRelatorioGerencial() {
     const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
     const janelaImpressao = window.open('', '_blank');
     if (janelaImpressao) {
-        janelaImpressao.document.write(`<html><head><title>Relatório Clínico</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
+        janelaImpressao.document.write(`<html><head><title>Relatório Mensal</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
         janelaImpressao.document.close();
         janelaImpressao.focus();
         setTimeout(() => {
