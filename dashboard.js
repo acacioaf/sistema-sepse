@@ -16,6 +16,7 @@ const contadoresSaidas = {
     obito: 0
 };
 
+// Acumuladores mensais de indicadores do setor
 let indicadoresMensais = {
     sepse: 0,
     estavel: 0,
@@ -27,30 +28,40 @@ let indicadoresMensais = {
 let cardAtualTransf = null;
 let cardAtualTransfInterna = null;
 let meuGraficoOcupacao = null;
+
+// Variável para memorizar a enfermaria ativa antes de iniciar uma busca
 let setorAtivoAntesDaBusca = 'painel-central';
 
+// Gestão de Datas e Calendário
 const dataAtualReal = new Date();
-const dataHojeStr = formatarDataChave(dataAtualReal);
-let dataSelecionadaStr = dataHojeStr;
+const dataHojeStr = formatarDataChave(dataAtualReal); // Data real do dia de hoje (fixa)
+let dataSelecionadaStr = dataHojeStr;               // Data sendo visualizada/editada
 let mesExibido = dataAtualReal.getMonth();
 let anoExibido = dataAtualReal.getFullYear();
 
+// Histórico de ocupação diária do mês (dias 1 a 31)
 const historicoOcupacaoDiaria = Array(31).fill(0);
 
 document.addEventListener("DOMContentLoaded", async () => {
     const mainContent = document.querySelector(".content");
 
+    // Delegação de eventos para capturar alterações em tempo real
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
+    // Carrega os contadores salvos na nuvem do mês atual antes de renderizar
     await carregarContadoresMensais(dataSelecionadaStr);
+    
+    // PREENCHE O HISTÓRICO DO GRÁFICO PUXANDO DO SUPABASE
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
+    // Inicialização do gráfico, calendário e carregamento do plantão do dia
     inicializarGraficoOcupacao();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
 });
 
+// Helper para formatar data em AAAA-MM-DD
 function formatarDataChave(dateObj) {
     const ano = dateObj.getFullYear();
     const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -58,11 +69,13 @@ function formatarDataChave(dateObj) {
     return `${ano}-${mes}-${dia}`;
 }
 
+// --- VERIFICAÇÃO DE BLOQUEIO DE PLANTÃO E DIAS ANTERIORES ---
 function verificarBloqueioPlantao() {
     const agora = new Date();
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
+    // 1. Bloqueio se a data selecionada for ANTERIOR à data de hoje (Modo Somente Leitura)
     if (dataSelecionadaStr < dataHojeRealStr) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -76,9 +89,10 @@ function verificarBloqueioPlantao() {
             `;
             modal.style.display = 'flex';
         }
-        return true;
+        return true; // Bloqueado
     }
 
+    // 2. Bloqueio de madrugada do dia atual (antes das 07:00h)
     if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
@@ -94,17 +108,20 @@ function verificarBloqueioPlantao() {
                 `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
             modal.style.display = 'flex';
         }
-        return true;
+        return true; // Bloqueado
     }
 
-    return false;
+    return false; // Liberado
 }
 
 function fecharModalBloqueio() {
     const modal = document.getElementById('modal-bloqueio-plantao');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
+// --- FUNÇÃO DE CONFIRMAÇÃO CUSTOMIZADA (SUBSTITUI O CONFIRM NATIVO) ---
 function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     return new Promise((resolve) => {
         const modal = document.getElementById('modal-confirmacao-sistema');
@@ -139,7 +156,7 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     });
 }
 
-// --- PERSISTÊNCIA E LEITURA SEGURA DOS CONTADORES MENSAIS ---
+// --- PERSISTÊNCIA DOS CONTADORES E INDICADORES MENSAIS (AGORA NO SUPABASE) ---
 async function salvarContadoresMensais() {
     const mesAnoChave = dataSelecionadaStr.substring(0, 7); 
     
@@ -168,10 +185,6 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
-    Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
-    Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
-
-    // Tenta buscar a linha STATS oficial do mês na nuvem
     const { data, error } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -184,39 +197,24 @@ async function carregarContadoresMensais(dataChave) {
         
         if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
         if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+        
+        localStorage.setItem(`saidas_${mesAnoChave}`, JSON.stringify(contadoresSaidas));
+        localStorage.setItem(`indicadores_${mesAnoChave}`, JSON.stringify(indicadoresMensais));
     } else {
-        // Se não houver STATS pronta, varre todos os plantões do mês para recalcular de forma autônoma
-        const { data: todosPlantoesMes } = await _supabase
-            .from('plantoes')
-            .select('data_chave, dados_json')
-            .eq('mes_ano', mesAnoChave);
+        const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
+        if (rawSaidas) {
+            const salvos = JSON.parse(rawSaidas);
+            Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
+        } else {
+            Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
+        }
 
-        if (todosPlantoesMes) {
-            todosPlantoesMes.forEach(p => {
-                if (!p.data_chave.startsWith('STATS-') && Array.isArray(p.dados_json)) {
-                    p.dados_json.forEach(card => {
-                        if (card.vitais && Array.isArray(card.vitais)) {
-                            card.vitais.forEach(tr => {
-                                const inputs = tr.inputs || [];
-                                const newsVal = parseInt(inputs[inputs.length - 3] || tr.news || 0); // Captura o valor do News se disponível
-                                const isento = card.isento;
-
-                                // Identifica status/alertas nas strings salvas
-                                const string VitaisStr = JSON.stringify(tr);
-                                if (!isento && !isNaN(newsVal)) {
-                                    if (newsVal <= 1) indicadoresMensais.estavel++;
-                                    else if (newsVal === 2) indicadoresMensais.baixo++;
-                                    else if (newsVal >= 3 && newsVal <= 4) indicadoresMensais.medio++;
-                                    else if (newsVal >= 5) indicadoresMensais.alto++;
-                                }
-                                if (VitaisStr.includes('ALTO RISCO') || VitaisStr.includes('ALERTA SEPSE') || VitaisStr.includes('Time de Resposta Rápida')) {
-                                    indicadoresMensais.sepse++;
-                                }
-                            });
-                        }
-                    });
-                }
-            });
+        const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
+        if (rawInd) {
+            const salvosInd = JSON.parse(rawInd);
+            Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+        } else {
+            Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
         }
     }
 }
@@ -296,6 +294,7 @@ function mudarMes(delta) {
     renderizarCalendario();
 }
 
+// --- CÁLCULO E EXIBIÇÃO DA IDADE DA CRIANÇA ---
 function atualizarBadgeIdade(inputData) {
     const card = inputData.closest('.patient-card');
     if (!card) return;
@@ -456,7 +455,7 @@ async function removerLinhaExtraDireta(btnX) {
     if (confirmado) {
         const linha = btnX.closest('tr');
         linha.remove();
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
     }
 }
@@ -520,7 +519,7 @@ async function carregarDadosDoDia(dataChave) {
     });
 
     if (!data || !data.dados_json || error) {
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         return;
     }
 
@@ -679,7 +678,7 @@ async function carregarDadosDoDia(dataChave) {
         });
     });
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
 }
 
 async function iniciarNovoPlantao() {
@@ -790,7 +789,7 @@ async function tratarMudancaVitais(event) {
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
         }
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
         return;
     }
@@ -805,7 +804,7 @@ async function tratarMudancaVitais(event) {
         atualizarLinhaClinica(linha);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1167,7 +1166,7 @@ async function adicionarPaciente(botaoAdicionar) {
     novoCard.style.display = 'block';
 
     container.appendChild(novoCard);
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1183,14 +1182,14 @@ async function removerCardPaciente(botaoExcluir) {
         const confirmado = await mostrarConfirmacaoCustomizada('Deseja excluir este leito?', 'EXCLUIR LEITO');
         if (confirmado) {
             card.remove();
-            atualizarPainelCentral();
+            await atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     } else {
         const confirmado = await mostrarConfirmacaoCustomizada('Este é o único leito do setor. Deseja apenas limpar os dados dele?', 'LIMPAR LEITO');
         if (confirmado) {
             limparCardPaciente(card);
-            atualizarPainelCentral();
+            await atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     }
@@ -1236,7 +1235,7 @@ async function confirmarTransfInterna() {
         }
 
         fecharModalTransfInterna();
-        atualizarPainelCentral();
+        await atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
     }
 }
@@ -1296,7 +1295,7 @@ async function darAltaPaciente(botaoAlta) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.alta++;
-    salvarContadoresMensais();
+    await salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1304,7 +1303,7 @@ async function darAltaPaciente(botaoAlta) {
         limparCardPaciente(card);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1319,7 +1318,7 @@ async function registrarObitoPaciente(botaoObito) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.obito++;
-    salvarContadoresMensais();
+    await salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1327,7 +1326,7 @@ async function registrarObitoPaciente(botaoObito) {
         limparCardPaciente(card);
     }
 
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1353,7 +1352,7 @@ async function confirmarTransfExterna() {
         acumularIndicadoresDoCard(cardAtualTransf);
         if (destinoFinal && contadoresSaidas.hasOwnProperty(destinoFinal)) {
             contadoresSaidas[destinoFinal]++;
-            salvarContadoresMensais();
+            await salvarContadoresMensais();
         }
 
         if (container.querySelectorAll('.patient-card').length > 1) {
@@ -1363,7 +1362,7 @@ async function confirmarTransfExterna() {
         }
     }
     fecharModalTransf();
-    atualizarPainelCentral();
+    await atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1496,15 +1495,9 @@ async function atualizarPainelCentral() {
     let totalPacientes = 0;
     let totalSepseAtiva = 0;
 
-    let cntEstavelAtivo = 0;
-    let cntBaixoAtivo = 0;
-    let cntMedioAtivo = 0;
-    let cntAltoAtivo = 0;
-
     const listaProtocolosAtivos = [];
     const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
-    // Objeto temporário para somar todos os registros de escores de todos os dias salvos no mês atual
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     let estavelMesTotal = 0;
     let baixoMesTotal = 0;
@@ -1512,6 +1505,7 @@ async function atualizarPainelCentral() {
     let altoMesTotal = 0;
     let sepseMesTotal = 0;
 
+    // Busca todos os dias salvos no mês no Supabase para somar dinamicamente os indicadores do mês inteiro
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
         .select('data_chave, dados_json')
@@ -1547,7 +1541,6 @@ async function atualizarPainelCentral() {
 
     document.querySelectorAll('.patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
-        const isento = card.querySelector('.isento-relatorio')?.checked;
         const nome = inputNome ? inputNome.value.trim() : "";
 
         const abaPai = card.closest('.tab-pane');
@@ -1563,9 +1556,6 @@ async function atualizarPainelCentral() {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
                 const tdStatusElement = tr.querySelector('.status-cell');
                 const htmlStatus = tdStatusElement ? tdStatusElement.innerHTML : '';
-                
-                const inputNews = tr.querySelector('.news-input');
-                const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
                 
                 const horaTabela = tr.getAttribute('data-hora') || (tr.querySelector('.time-col') ? tr.querySelector('.time-col')?.textContent.trim() : "08:00");
                 
@@ -1586,7 +1576,6 @@ async function atualizarPainelCentral() {
                 totalSepseAtiva++; 
 
                 if (cardTemProtocoloAberto) {
-                    // CÁLCULO DA VIGÊNCIA E CONTADOR REGRESSIVO DE 72H
                     const dataAberturaObj = new Date(`${dataSelecionadaStr}T${horaAberturaSepse || '08:00'}:00`);
                     const dataVencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
                     const agoraDinamico = new Date();
@@ -1597,7 +1586,7 @@ async function atualizarPainelCentral() {
                     let badgeVigenciaHtml = `<span style="background: #dc3545; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">Vigência: 72h</span>`;
                     
                     if (horasRestantes <= 0) {
-                        badgeVigenciaHtml = `<span style="background: #7f1d1d; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block; animation: pulse 1s infinite;">⚠️ VENCIDO (>72h)</span>`;
+                        badgeVigenciaHtml = `<span style="background: #7f1d1d; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">⚠️ VENCIDO (>72h)</span>`;
                     } else if (horasRestantes <= 12) {
                         badgeVigenciaHtml = `<span style="background: #d97706; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">Restam ${horasRestantes}h (Reavaliar)</span>`;
                     } else {
@@ -1639,9 +1628,9 @@ async function atualizarPainelCentral() {
     }
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
-    document.getElementById('dash-sepse').textContent = sepseMesTotal + totalSepseAtiva;
+    document.getElementById('dash-sepse').textContent = sepseMesTotal;
 
-    // EXIBIÇÃO CORRETA DOS TOTAIS ACUMULADOS MÊS
+    // Exibe os totais acumulados mensais consolidados
     document.getElementById('dash-estavel').textContent = estavelMesTotal;
     document.getElementById('dash-baixo').textContent = baixoMesTotal;
     document.getElementById('dash-medio').textContent = medioMesTotal;
@@ -1711,7 +1700,9 @@ function abrirModalRelatorioGerencial() {
 
 function fecharModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 function imprimirRelatorioGerencial() {
