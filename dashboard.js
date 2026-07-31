@@ -139,6 +139,7 @@ function mostrarConfirmacaoCustomizada(mensagem, titulo = "CONFIRMAÇÃO") {
     });
 }
 
+// --- PERSISTÊNCIA E LEITURA SEGURA DOS CONTADORES MENSAIS ---
 async function salvarContadoresMensais() {
     const mesAnoChave = dataSelecionadaStr.substring(0, 7); 
     
@@ -197,6 +198,7 @@ async function carregarContadoresMensais(dataChave) {
     }
 }
 
+// --- RENDERIZAÇÃO DO MINI CALENDÁRIO ---
 function renderizarCalendario() {
     const grid = document.getElementById('cal-grid-dias');
     const labelMesAno = document.getElementById('mes-ano');
@@ -765,7 +767,7 @@ async function tratarMudancaVitais(event) {
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
         }
-        await atualizarPainelCentral();
+        atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
         return;
     }
@@ -780,7 +782,7 @@ async function tratarMudancaVitais(event) {
         atualizarLinhaClinica(linha);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1142,7 +1144,7 @@ async function adicionarPaciente(botaoAdicionar) {
     novoCard.style.display = 'block';
 
     container.appendChild(novoCard);
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1158,14 +1160,14 @@ async function removerCardPaciente(botaoExcluir) {
         const confirmado = await mostrarConfirmacaoCustomizada('Deseja excluir este leito?', 'EXCLUIR LEITO');
         if (confirmado) {
             card.remove();
-            await atualizarPainelCentral();
+            atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     } else {
         const confirmado = await mostrarConfirmacaoCustomizada('Este é o único leito do setor. Deseja apenas limpar os dados dele?', 'LIMPAR LEITO');
         if (confirmado) {
             limparCardPaciente(card);
-            await atualizarPainelCentral();
+            atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     }
@@ -1211,7 +1213,7 @@ async function confirmarTransfInterna() {
         }
 
         fecharModalTransfInterna();
-        await atualizarPainelCentral();
+        atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
     }
 }
@@ -1271,7 +1273,7 @@ async function darAltaPaciente(botaoAlta) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.alta++;
-    await salvarContadoresMensais();
+    salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1279,7 +1281,7 @@ async function darAltaPaciente(botaoAlta) {
         limparCardPaciente(card);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1294,7 +1296,7 @@ async function registrarObitoPaciente(botaoObito) {
 
     acumularIndicadoresDoCard(card);
     contadoresSaidas.obito++;
-    await salvarContadoresMensais();
+    salvarContadoresMensais();
 
     if (container.querySelectorAll('.patient-card').length > 1) {
         card.remove();
@@ -1302,7 +1304,7 @@ async function registrarObitoPaciente(botaoObito) {
         limparCardPaciente(card);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1328,7 +1330,7 @@ async function confirmarTransfExterna() {
         acumularIndicadoresDoCard(cardAtualTransf);
         if (destinoFinal && contadoresSaidas.hasOwnProperty(destinoFinal)) {
             contadoresSaidas[destinoFinal]++;
-            await salvarContadoresMensais();
+            salvarContadoresMensais();
         }
 
         if (container.querySelectorAll('.patient-card').length > 1) {
@@ -1338,7 +1340,7 @@ async function confirmarTransfExterna() {
         }
     }
     fecharModalTransf();
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1372,6 +1374,7 @@ function limparCardPaciente(card) {
     });
 }
 
+// --- BUSCA HISTÓRICO MENSAL DO GRÁFICO ---
 async function carregarHistoricoMesGrafico(mesAnoStr) {
     historicoOcupacaoDiaria.fill(0);
 
@@ -1396,6 +1399,7 @@ async function carregarHistoricoMesGrafico(mesAnoStr) {
     }
 }
 
+// --- GRÁFICO DE OCUPAÇÃO DIÁRIA ---
 function inicializarGraficoOcupacao() {
     const ctx = document.getElementById('graficoOcupacao');
     if (!ctx) return;
@@ -1469,52 +1473,19 @@ async function atualizarPainelCentral() {
     let totalPacientes = 0;
     let totalSepseAtiva = 0;
 
+    let cntEstavelAtivo = 0;
+    let cntBaixoAtivo = 0;
+    let cntMedioAtivo = 0;
+    let cntAltoAtivo = 0;
+
     const listaProtocolosAtivos = [];
+    
+    // CORREÇÃO DA DATA DE ABERTURA: Utiliza a data selecionada no calendário formatada em PT-BR
     const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
-
-    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
-    let estavelMesTotal = 0;
-    let baixoMesTotal = 0;
-    let medioMesTotal = 0;
-    let altoMesTotal = 0;
-    let sepseMesTotal = 0;
-
-    // BUSCA TODOS OS DIAS DO MÊS NO SUPABASE PARA CONSOLIDAR AS MÉTRICAS MENSAIS DINAMICAMENTE
-    const { data: todosPlantoesMes } = await _supabase
-        .from('plantoes')
-        .select('data_chave, dados_json')
-        .eq('mes_ano', mesAnoChave);
-
-    if (todosPlantoesMes) {
-        todosPlantoesMes.forEach(p => {
-            if (!p.data_chave.startsWith('STATS-') && Array.isArray(p.dados_json)) {
-                p.dados_json.forEach(card => {
-                    const isentoCard = card.isento;
-                    if (card.vitais && Array.isArray(card.vitais)) {
-                        card.vitais.forEach(tr => {
-                            const inputs = tr.inputs || [];
-                            const newsVal = parseInt(inputs[inputs.length - 3] || 0);
-                            const trStr = JSON.stringify(tr);
-
-                            if (!isentoCard && !isNaN(newsVal) && inputs.length > 0) {
-                                if (newsVal <= 1) estavelMesTotal++;
-                                else if (newsVal === 2) baixoMesTotal++;
-                                else if (newsVal >= 3 && newsVal <= 4) medioMesTotal++;
-                                else if (newsVal >= 5) altoMesTotal++;
-                            }
-
-                            if (trStr.includes('ALTO RISCO') || trStr.includes('Time de Resposta Rápida') || trStr.includes('ALERTA SEPSE')) {
-                                sepseMesTotal++;
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    }
 
     document.querySelectorAll('.patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
+        const isento = card.querySelector('.isento-relatorio')?.checked;
         const nome = inputNome ? inputNome.value.trim() : "";
 
         const abaPai = card.closest('.tab-pane');
@@ -1531,6 +1502,9 @@ async function atualizarPainelCentral() {
                 const tdStatusElement = tr.querySelector('.status-cell');
                 const htmlStatus = tdStatusElement ? tdStatusElement.innerHTML : '';
                 
+                const inputNews = tr.querySelector('.news-input');
+                const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
+                
                 const horaTabela = tr.getAttribute('data-hora') || (tr.querySelector('.time-col') ? tr.querySelector('.time-col')?.textContent.trim() : "08:00");
                 
                 const protocoloSelect = tr.querySelector('.protocolo-select');
@@ -1544,33 +1518,29 @@ async function atualizarPainelCentral() {
                         if (!horaAberturaSepse) horaAberturaSepse = horaTabela;
                     }
                 }
+
+                if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
+                    if (newsVal <= 1) {
+                        cntEstavelAtivo++;
+                    } else if (newsVal === 2) {
+                        cntBaixoAtivo++;
+                    } else if (newsVal >= 3 && newsVal <= 4) {
+                        cntMedioAtivo++;
+                    } else if (newsVal >= 5) {
+                        cntAltoAtivo++;
+                    }
+                }
             });
 
             if (cardTemSepse) {
                 totalSepseAtiva++; 
 
                 if (cardTemProtocoloAberto) {
-                    // CÁLCULO EXATO DA VIGÊNCIA DE 72H COM CONTADOR REGRESSIVO VISUAL
-                    const dataAberturaObj = new Date(`${dataSelecionadaStr}T${horaAberturaSepse || '08:00'}:00`);
-                    const dataVencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
-                    const agoraDinamico = new Date();
-                    
-                    const diffMilissegundos = dataVencimentoObj.getTime() - agoraDinamico.getTime();
-                    const horasRestantes = Math.floor(diffMilissegundos / (1000 * 60 * 60));
-                    
-                    let badgeVigenciaHtml = `<span style="background: #2563eb; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">Restam ${horasRestantes}h</span>`;
-                    
-                    if (horasRestantes <= 0) {
-                        badgeVigenciaHtml = `<span style="background: #7f1d1d; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">⚠️ VENCIDO (>72h)</span>`;
-                    } else if (horasRestantes <= 12) {
-                        badgeVigenciaHtml = `<span style="background: #d97706; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">Restam ${horasRestantes}h (Reavaliar)</span>`;
-                    }
-
                     listaProtocolosAtivos.push({
                         nome: nome,
                         setor: idSetor,
                         dataHora: `${dataFormatadaProtocolo} às ${horaAberturaSepse || '08:00'}`,
-                        badgeHtml: badgeVigenciaHtml
+                        vigencia: "72h"
                     });
                 }
             }
@@ -1593,7 +1563,9 @@ async function atualizarPainelCentral() {
                         <span style="color: #475569; font-size: 0.78rem;">Abertura: <strong>${p.dataHora}</strong></span>
                     </div>
                     <div>
-                        ${p.badgeHtml}
+                        <span style="background: #dc3545; color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: bold; display: inline-block;">
+                            Vigência: ${p.vigencia}
+                        </span>
                     </div>
                 </div>
             `).join('');
@@ -1601,12 +1573,13 @@ async function atualizarPainelCentral() {
     }
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
-    document.getElementById('dash-sepse').textContent = sepseMesTotal;
+    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtiva;
 
-    document.getElementById('dash-estavel').textContent = estavelMesTotal;
-    document.getElementById('dash-baixo').textContent = baixoMesTotal;
-    document.getElementById('dash-medio').textContent = medioMesTotal;
-    document.getElementById('dash-alto').textContent = altoMesTotal;
+    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA
+    document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
+    document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
+    document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
+    document.getElementById('dash-alto').textContent = indicadoresMensais.alto + cntAltoAtivo;
 
     const elAlta = document.getElementById('saida-alta');
     const elHcUfu = document.getElementById('saida-hc-ufu');
@@ -1649,13 +1622,13 @@ function abrirModalRelatorioGerencial() {
     let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
     textoRelatorio += `--------------------------------------------------\n`;
     textoRelatorio += `• Pacientes com protocolos ativos no Plantão: ${totalAtivos}\n`;
-    textoRelatorio += `• Total de Alertas de Sepse: ${document.getElementById('dash-sepse').textContent}\n`;
+    textoRelatorio += `• Total de Alertas de Sepse: ${indicadoresMensais.sepse}\n`;
     textoRelatorio += `--------------------------------------------------\n`;
     textoRelatorio += `Total de escores News:\n`;
-    textoRelatorio += `- Estável: ${document.getElementById('dash-estavel').textContent}\n`;
-    textoRelatorio += `- Baixo Risco: ${document.getElementById('dash-baixo').textContent}\n`;
-    textoRelatorio += `- Médio Risco: ${document.getElementById('dash-medio').textContent}\n`;
-    textoRelatorio += `- Alto Risco: ${document.getElementById('dash-alto').textContent}\n`;
+    textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
+    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+    textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
+    textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
     textoRelatorio += `--------------------------------------------------\n`;
     textoRelatorio += `Transferencias, altas e obítos:\n`;
     textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
