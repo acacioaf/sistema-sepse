@@ -168,11 +168,9 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
-    // Zera os contadores antes de puxar[cite: 5]
     Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
     Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
 
-    // 1. Tenta buscar a linha STATS oficial do mês na nuvem[cite: 5]
     const { data, error } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -186,7 +184,6 @@ async function carregarContadoresMensais(dataChave) {
         if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
         if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
     } else {
-        // 2. Fallback robusto: se não houver STATS, tenta recuperar do localStorage[cite: 5]
         const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
         if (rawSaidas) {
             const salvos = JSON.parse(rawSaidas);
@@ -820,92 +817,60 @@ function atualizarLinhaPews(linha) {
     const nebulizador = parseInt(linha.querySelector('.pews-nebulizador')?.value || 0);
     const temp = parseFloat(String(linha.querySelector('.pews-temp')?.value || '').replace(',', '.')) || 0;
 
-    let pFC = 0;
-    let pFR = 0;
-    let pTemp = 0;
+    let pFC = 0, pFR = 0, pTemp = 0;
 
     if (fc > 0) {
         if (faixaEtaria === "< 3 meses") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 220) pFC = 3;
+            if (fc <= 89 || fc >= 220) pFC = 3;
             else if (fc >= 180 && fc <= 219) pFC = 2;
             else if (fc >= 160 && fc <= 179) pFC = 1;
-            else if (fc >= 90 && fc <= 159) pFC = 0;
         } else if (faixaEtaria === "3 meses a 11m29d") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 210) pFC = 3;
+            if (fc <= 89 || fc >= 210) pFC = 3;
             else if (fc >= 170 && fc <= 209) pFC = 2;
             else if (fc >= 160 && fc <= 169) pFC = 1;
-            else if (fc >= 90 && fc <= 159) pFC = 0;
         } else if (faixaEtaria === "1-3 anos") {
-            if (fc <= 89) pFC = 3;
-            else if (fc >= 200) pFC = 3;
+            if (fc <= 89 || fc >= 200) pFC = 3;
             else if (fc >= 160 && fc <= 199) pFC = 2;
             else if (fc >= 140 && fc <= 159) pFC = 1;
-            else if (fc >= 90 && fc <= 139) pFC = 0;
         } else if (faixaEtaria === "4-7 anos") {
-            if (fc <= 60) pFC = 3;
-            else if (fc >= 190) pFC = 3;
+            if (fc <= 60 || fc >= 190) pFC = 3;
             else if (fc >= 150 && fc <= 189) pFC = 2;
-            else if (fc >= 111 && fc <= 149) pFC = 1;
-            else if (fc >= 70 && fc <= 110) pFC = 0;
-            else if (fc >= 61 && fc <= 69) pFC = 1; 
+            else if (fc >= 111 && fc <= 149 || (fc >= 61 && fc <= 69)) pFC = 1;
         } else {
-            if (fc <= 60) pFC = 3;
-            else if (fc >= 170) pFC = 3;
+            if (fc <= 60 || fc >= 170) pFC = 3;
             else if (fc >= 130 && fc <= 169) pFC = 2;
-            else if (fc >= 101 && fc <= 129) pFC = 1;
-            else if (fc >= 66 && fc <= 100) pFC = 0;
-            else if (fc >= 60 && fc <= 65) pFC = 1;
+            else if (fc >= 101 && fc <= 129 || (fc >= 60 && fc <= 65)) pFC = 1;
         }
     }
 
     if (fr > 0) {
         if (faixaEtaria === "< 3 meses") {
-            if (fr <= 25) pFR = 3;
-            else if (fr >= 90) pFR = 3;
+            if (fr <= 25 || fr >= 90) pFR = 3;
             else if (fr >= 79 && fr <= 89) pFR = 2;
-            else if (fr >= 60 && fr <= 78) pFR = 1;
-            else if (fr >= 30 && fr <= 59) pFR = 0;
-            else if (fr >= 26 && fr <= 29) pFR = 1;
+            else if (fr >= 60 && fr <= 78 || (fr >= 26 && fr <= 29)) pFR = 1;
         } else if (faixaEtaria === "3 meses a 11m29d") {
-            if (fr <= 20) pFR = 3;
-            else if (fr >= 80) pFR = 3;
+            if (fr <= 20 || fr >= 80) pFR = 3;
             else if (fr >= 69 && fr <= 79) pFR = 2;
-            else if (fr >= 54 && fr <= 68) pFR = 1;
-            else if (fr >= 30 && fr <= 53) pFR = 0;
-            else if (fr >= 21 && fr <= 29) pFR = 1;
+            else if (fr >= 54 && fr <= 68 || (fr >= 21 && fr <= 29)) pFR = 1;
         } else if (faixaEtaria === "1-3 anos") {
-            if (fr <= 15) pFR = 3;
-            else if (fr >= 70) pFR = 3;
+            if (fr <= 15 || fr >= 70) pFR = 3;
             else if (fr >= 59 && fr <= 69) pFR = 2;
-            else if (fr >= 40 && fr <= 58) pFR = 1;
-            else if (fr >= 20 && fr <= 39) pFR = 0;
-            else if (fr >= 16 && fr <= 19) pFR = 1;
+            else if (fr >= 40 && fr <= 58 || (fr >= 16 && fr <= 19)) pFR = 1;
         } else if (faixaEtaria === "4-7 anos") {
-            if (fr <= 15) pFR = 3;
-            else if (fr >= 60) pFR = 3;
+            if (fr <= 15 || fr >= 60) pFR = 3;
             else if (fr >= 49 && fr <= 59) pFR = 2;
-            else if (fr >= 30 && fr <= 48) pFR = 1;
-            else if (fr >= 20 && fr <= 29) pFR = 0;
-            else if (fr >= 16 && fr <= 19) pFR = 1;
+            else if (fr >= 30 && fr <= 48 || (fr >= 16 && fr <= 19)) pFR = 1;
         } else {
-            if (fr <= 10) pFR = 3;
-            else if (fr >= 50) pFR = 3;
+            if (fr <= 10 || fr >= 50) pFR = 3;
             else if (fr >= 39 && fr <= 49) pFR = 2;
-            else if (fr >= 26 && fr <= 38) pFR = 1;
-            else if (fr >= 18 && fr <= 25) pFR = 0;
-            else if (fr >= 11 && fr <= 17) pFR = 1;
+            else if (fr >= 26 && fr <= 38 || (fr >= 11 && fr <= 17)) pFR = 1;
         }
     }
 
     if (linha.querySelector('.pews-temp')?.value !== "") {
-        if (temp < 35) pTemp = 3;
-        else if (temp >= 40) pTemp = 3;
+        if (temp < 35 || temp >= 40) pTemp = 3;
         else if (temp >= 39.1 && temp <= 39.9) pTemp = 2;
-        else if (temp >= 38.1 && temp <= 39.0) pTemp = 1;
-        else if (temp >= 36.1 && temp <= 38.0) pTemp = 0;
-        else if (temp >= 35.1 && temp <= 36.0) pTemp = 1;
+        else if ((temp >= 38.1 && temp <= 39.0) || (temp >= 35.1 && temp <= 36.0)) pTemp = 1;
     }
 
     const pNews = linha.querySelector('.news-input');
@@ -1504,7 +1469,7 @@ function atualizarContadoresMenuLateral() {
 }
 
 // --- PAINEL CENTRAL / DASHBOARD METRICS ---
-function atualizarPainelCentral() {
+async function atualizarPainelCentral() {
     let totalPacientes = 0;
     let totalSepseAtiva = 0;
 
@@ -1514,7 +1479,9 @@ function atualizarPainelCentral() {
     let cntAltoAtivo = 0;
 
     const listaProtocolosAtivos = [];
-    const agora = new Date();
+    
+    // CORREÇÃO DA DATA DE ABERTURA: Utiliza a data selecionada no calendário formatada em PT-BR
+    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
     document.querySelectorAll('.patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
@@ -1569,11 +1536,10 @@ function atualizarPainelCentral() {
                 totalSepseAtiva++; 
 
                 if (cardTemProtocoloAberto) {
-                    const dataFormatada = agora.toLocaleDateString('pt-BR');
                     listaProtocolosAtivos.push({
                         nome: nome,
                         setor: idSetor,
-                        dataHora: `${dataFormatada} às ${horaAberturaSepse || '08:00'}`,
+                        dataHora: `${dataFormatadaProtocolo} às ${horaAberturaSepse || '08:00'}`,
                         vigencia: "72h"
                     });
                 }
@@ -1609,6 +1575,7 @@ function atualizarPainelCentral() {
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtiva;
 
+    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
     document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
@@ -1678,9 +1645,7 @@ function abrirModalRelatorioGerencial() {
 
 function fecharModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    if (modal) modal.style.display = 'none';
 }
 
 function imprimirRelatorioGerencial() {
