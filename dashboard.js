@@ -43,15 +43,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
+    injetarSeletorTipoRelatorio();
+
     await carregarContadoresMensais(dataSelecionadaStr);
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
     inicializarGraficoOcupacao();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
-    
-    // CORREÇÃO: Garante a atualização imediata do painel central ao carregar a página
-    await atualizarPainelCentral();
 });
 
 function formatarDataChave(dateObj) {
@@ -70,39 +69,31 @@ function verificarBloqueioPlantao() {
     ontemObj.setDate(agora.getDate() - 1);
     const dataOntemRealStr = formatarDataChave(ontemObj);
 
+    // Se a data selecionada for anterior ao dia de ontem, bloqueia totalmente
     if (dataSelecionadaStr < dataOntemRealStr) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "MODO SOMENTE LEITURA";
-            textoBox.innerHTML = `
-                Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>` +
-                `Por motivos de segurança e integridade dos dados, <strong>não é permitida a edição</strong> de plantões passados.
-            `;
-            modal.style.display = 'flex';
-        }
+        mostrarModalBloqueio("MODO SOMENTE LEITURA", `Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>Por motivos de segurança, não é permitida a edição de plantões passados.`);
         return true;
     }
 
+    // Se estivermos visualizando o dia de ontem, mas já passou das 07h do dia de hoje (ou seja, o novo plantão já foi iniciado)
     if (dataSelecionadaStr === dataOntemRealStr && horaAtual >= 7) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "PLANTÃO JÁ ENCERRADO";
-            textoBox.innerHTML = `
-                O novo plantão do dia atual já foi iniciado.<br><br>` +
-                `O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.
-            `;
-            modal.style.display = 'flex';
-        }
+        mostrarModalBloqueio("PLANTÃO JÁ ENCERRADO", `O novo plantão do dia atual já foi iniciado.<br><br>O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.`);
         return true;
     }
 
     return false;
+}
+
+function mostrarModalBloqueio(titulo, mensagem) {
+    const modal = document.getElementById('modal-bloqueio-plantao');
+    const textoBox = document.getElementById('mensagem-bloqueio-texto');
+    const tituloBox = document.getElementById('titulo-modal-aviso');
+    
+    if (modal && textoBox) {
+        if (tituloBox) tituloBox.textContent = titulo;
+        textoBox.innerHTML = mensagem;
+        modal.style.display = 'flex';
+    }
 }
 
 function fecharModalBloqueio() {
@@ -502,7 +493,7 @@ async function carregarDadosDoDia(dataChave) {
     });
 
     if (!data || !data.dados_json || error) {
-        await atualizarPainelCentral();
+        atualizarPainelCentral();
         return;
     }
 
@@ -661,7 +652,7 @@ async function carregarDadosDoDia(dataChave) {
         });
     });
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
 }
 
 async function iniciarNovoPlantao() {
@@ -670,54 +661,28 @@ async function iniciarNovoPlantao() {
     const minutoAtual = agora.getMinutes();
 
     if (horaAtual < 7 || horaAtual >= 12) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "AÇÃO NÃO PERMITIDA";
-            textoBox.innerHTML = `
-                Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>` +
-                `O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.
-            `;
-            modal.style.display = 'flex';
-        }
+        mostrarModalBloqueio("AÇÃO NÃO PERMITIDA", `Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.`);
         return;
     }
 
-    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso puxará os pacientes internados do dia anterior para os leitos da data atual.", "INICIAR NOVO PLANTÃO");
+    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e migrará os dados cadastrais para o dia atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
-
-    const dataOntemObj = new Date(agora);
-    dataOntemObj.setDate(agora.getDate() - 1);
-    const dataOntemStr = formatarDataChave(dataOntemObj);
 
     await salvarDadosDoDia(dataSelecionadaStr);
 
-    const { data: dataAnterior, error: erroBusca } = await _supabase
+    const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
-        .eq('data_chave', dataOntemStr)
+        .eq('data_chave', dataSelecionadaStr)
         .maybeSingle();
 
-    if (erroBusca) {
-        console.error("Erro ao buscar dados do dia anterior:", erroBusca.message);
-    }
+    const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
-    const pacientesParaMigrar = (dataAnterior && Array.isArray(dataAnterior.dados_json)) ? dataAnterior.dados_json : [];
-
-    const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
-    const mesNovoInic = dataSelecionadaStr.substring(0, 7);
     
     await carregarContadoresMensais(dataSelecionadaStr);
-    
-    if (mesAnteriorInic !== mesNovoInic) {
-        await carregarHistoricoMesGrafico(mesNovoInic);
-    }
-    
     renderizarCalendario();
 
     if (pacientesParaMigrar.length > 0) {
@@ -728,17 +693,14 @@ async function iniciarNovoPlantao() {
             prontuario: p.prontuario || "",
             tec: p.tec || "",
             isento: p.isento || false,
-            vitais: p.vitais.map(v => {
-                const inputs = Array.isArray(v) ? v : (v.inputs || []);
-                return {
-                    hora: v.hora || "",
-                    isExtra: v.isExtra || false,
-                    inputs: inputs.map(() => "") 
-                };
-            })
+            vitais: p.vitais.map(v => ({
+                hora: v.hora || "",
+                isExtra: v.isExtra || false,
+                inputs: v.inputs.map(() => "") 
+            }))
         }));
 
-        const { error: erroUpsert } = await _supabase
+        await _supabase
             .from('plantoes')
             .upsert({ 
                 data_chave: dataSelecionadaStr, 
@@ -746,22 +708,10 @@ async function iniciarNovoPlantao() {
                 mes_ano: dataSelecionadaStr.substring(0, 7),
                 updated_at: new Date()
             }, { onConflict: 'data_chave' });
-
-        if (erroUpsert) {
-            console.error("Erro ao salvar migração no Supabase:", erroUpsert.message);
-        }
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
-    
-    const modal = document.getElementById('modal-bloqueio-plantao');
-    const textoBox = document.getElementById('mensagem-bloqueio-texto');
-    const tituloBox = document.getElementById('titulo-modal-aviso');
-    if (modal && textoBox) {
-        if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes do plantão anterior foram puxados com sucesso para os leitos.`;
-        modal.style.display = 'flex';
-    }
+    mostrarModalBloqueio("PLANTÃO INICIADO", `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes internados foram trazidos para os leitos da data atual.`);
 }
 
 async function tratarMudancaVitais(event) {
@@ -783,7 +733,7 @@ async function tratarMudancaVitais(event) {
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
         }
-        await atualizarPainelCentral();
+        atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
         return;
     }
@@ -798,7 +748,7 @@ async function tratarMudancaVitais(event) {
         atualizarLinhaClinica(linha);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1160,7 +1110,7 @@ async function adicionarPaciente(botaoAdicionar) {
     novoCard.style.display = 'block';
 
     container.appendChild(novoCard);
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1176,14 +1126,14 @@ async function removerCardPaciente(botaoExcluir) {
         const confirmado = await mostrarConfirmacaoCustomizada('Deseja excluir este leito?', 'EXCLUIR LEITO');
         if (confirmado) {
             card.remove();
-            await atualizarPainelCentral();
+            atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     } else {
         const confirmado = await mostrarConfirmacaoCustomizada('Este é o único leito do setor. Deseja apenas limpar os dados dele?', 'LIMPAR LEITO');
         if (confirmado) {
             limparCardPaciente(card);
-            await atualizarPainelCentral();
+            atualizarPainelCentral();
             await salvarDadosDoDia(dataSelecionadaStr);
         }
     }
@@ -1229,7 +1179,7 @@ async function confirmarTransfInterna() {
         }
 
         fecharModalTransfInterna();
-        await atualizarPainelCentral();
+        atualizarPainelCentral();
         await salvarDadosDoDia(dataSelecionadaStr);
     }
 }
@@ -1297,7 +1247,7 @@ async function darAltaPaciente(botaoAlta) {
         limparCardPaciente(card);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1320,7 +1270,7 @@ async function registrarObitoPaciente(botaoObito) {
         limparCardPaciente(card);
     }
 
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1356,7 +1306,7 @@ async function confirmarTransfExterna() {
         }
     }
     fecharModalTransf();
-    await atualizarPainelCentral();
+    atualizarPainelCentral();
     await salvarDadosDoDia(dataSelecionadaStr);
 }
 
@@ -1496,6 +1446,7 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
+    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
     // 1. Processa os dados visíveis do dia selecionado
     document.querySelectorAll('.patient-card').forEach(card => {
@@ -1548,7 +1499,7 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // Vigência de 24 horas estrita
+                    // VIGÊNCIA DE 24 HORAS
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1571,7 +1522,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (janela de 24h)
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (24h) abertos recentemente
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1595,6 +1546,7 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
+                                    // VIGÊNCIA DE 24 HORAS
                                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
@@ -1627,11 +1579,6 @@ async function atualizarPainelCentral() {
 
     const containerProtocolos = document.getElementById('container-protocolos-ativos');
     if (containerProtocolos) {
-        const headerBoxProtocolos = containerProtocolos.previousElementSibling;
-        if (headerBoxProtocolos && headerBoxProtocolos.tagName === 'H3') {
-            headerBoxProtocolos.textContent = "PROTOCOLOS ATIVOS DE SEPSE (VIGÊNCIA 24H)";
-        }
-
         if (listaProtocolosAtivos.length === 0) {
             containerProtocolos.innerHTML = `
                 <div style="height: 100%; min-height: 120px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 6px; background: #ffffff;">
@@ -1655,23 +1602,13 @@ async function atualizarPainelCentral() {
         }
     }
 
-    const elDashPacientes = document.getElementById('dash-pacientes');
-    if (elDashPacientes) elDashPacientes.textContent = totalPacientes;
+    document.getElementById('dash-pacientes').textContent = totalPacientes;
     
-    const elDashSepse = document.getElementById('dash-sepse');
-    if (elDashSepse) elDashSepse.textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
-    
-    const elDashEstavel = document.getElementById('dash-estavel');
-    if (elDashEstavel) elDashEstavel.textContent = indicadoresMensais.estavel + cntEstavelAtivo;
-    
-    const elDashBaixo = document.getElementById('dash-baixo');
-    if (elDashBaixo) elDashBaixo.textContent = indicadoresMensais.baixo + cntBaixoAtivo;
-    
-    const elDashMedio = document.getElementById('dash-medio');
-    if (elDashMedio) elDashMedio.textContent = indicadoresMensais.medio + cntMedioAtivo;
-    
-    const elDashAlto = document.getElementById('dash-alto');
-    if (elDashAlto) elDashAlto.textContent = indicadoresMensais.alto + cntAltoAtivo;
+    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
+    document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
+    document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
+    document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
+    document.getElementById('dash-alto').textContent = indicadoresMensais.alto + cntAltoAtivo;
 
     const elAlta = document.getElementById('saida-alta');
     const elHcUfu = document.getElementById('saida-hc-ufu');
@@ -1693,46 +1630,120 @@ async function atualizarPainelCentral() {
     atualizarContadoresMenuLateral();
 }
 
-function abrirModalRelatorioGerencial() {
+// --- RELATÓRIO DIÁRIO E MENSAL ---
+function injetarSeletorTipoRelatorio() {
+    const modalBox = document.querySelector('#modal-relatorio-gerencial > div');
+    if (!modalBox || document.getElementById('select-tipo-relatorio')) return;
+
+    const headerBox = modalBox.querySelector('div');
+    if (headerBox) {
+        const wrapperSelect = document.createElement('div');
+        wrapperSelect.style.cssText = "margin: 10px 0; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #003366;";
+        wrapperSelect.innerHTML = `
+            <label for="select-tipo-relatorio">Tipo de Relatório:</label>
+            <select id="select-tipo-relatorio" onchange="atualizarTextoRelatorioGerencial()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal;">
+                <option value="diario">Diário (Data Selecionada)</option>
+                <option value="mensal" selected>Mensal (Consolidado do Mês)</option>
+            </select>
+        `;
+        headerBox.insertAdjacentElement('afterend', wrapperSelect);
+    }
+}
+
+async function abrirModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    atualizarTextoRelatorioGerencial();
+}
+
+async function atualizarTextoRelatorioGerencial() {
     const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
-    if (!modal || !conteudoBox) return;
+    const selectTipo = document.getElementById('select-tipo-relatorio');
+    if (!conteudoBox) return;
 
-    let totalAtivos = 0;
-    document.querySelectorAll('.patient-card').forEach(card => {
-        const nome = card.querySelector('.nome-input')?.value.trim();
-        if (nome) totalAtivos++;
-    });
-
+    const tipo = selectTipo ? selectTipo.value : "mensal";
     const partesData = dataSelecionadaStr.split('-');
     const ano = partesData[0];
     const mesNum = partesData[1];
+    const diaNum = partesData[2];
     
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
-    
-    let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `• Pacientes com protocolos ativos no Plantão: ${totalAtivos}\n`;
-    textoRelatorio += `• Total de Alertas de Sepse: ${indicadoresMensais.sepse}\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `Total de escores News:\n`;
-    textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
-    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
-    textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
-    textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `Transferencias, altas e obítos:\n`;
-    textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
-    textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
-    textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
-    textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
-    textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
-    textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
-    textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
 
-    conteudoBox.textContent = textoRelatorio;
-    modal.style.display = 'flex';
+    if (tipo === 'diario') {
+        let totalAtivosDia = 0;
+        let alertasSepseDia = 0;
+        let estavelDia = 0, baixoDia = 0, medioDia = 0, altoDia = 0;
+
+        document.querySelectorAll('.patient-card').forEach(card => {
+            const nome = card.querySelector('.nome-input')?.value.trim();
+            const isento = card.querySelector('.isento-relatorio')?.checked;
+            if (nome) {
+                totalAtivosDia++;
+                card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
+                    const inputNews = tr.querySelector('.news-input');
+                    const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
+                    const htmlStatus = tr.querySelector('.status-cell')?.innerHTML || "";
+
+                    if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
+                        if (newsVal <= 1) estavelDia++;
+                        else if (newsVal === 2) baixoDia++;
+                        else if (newsVal >= 3 && newsVal <= 4) medioDia++;
+                        else if (newsVal >= 5) altoDia++;
+                    }
+
+                    if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
+                        alertasSepseDia++;
+                    }
+                });
+            }
+        });
+
+        let texto = `Relatório Diário (${diaNum}/${mesNum}/${ano})\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `• Pacientes Internados no Plantão: ${totalAtivosDia}\n`;
+        texto += `• Alertas de Sepse no Dia: ${alertasSepseDia}\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `Escores NEWS / PEWS do Dia:\n`;
+        texto += `- Estável: ${estavelDia}\n`;
+        texto += `- Baixo Risco: ${baixoDia}\n`;
+        texto += `- Médio Risco: ${medioDia}\n`;
+        texto += `- Alto Risco: ${altoDia}\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `Saídas e Destinos Registrados:\n`;
+        texto += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+        texto += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+        texto += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+        texto += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+        texto += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+        texto += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+        texto += `- Óbito: ${contadoresSaidas.obito}\n`;
+
+        conteudoBox.textContent = texto;
+
+    } else {
+        let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `• Total de Alertas de Sepse acumulados: ${indicadoresMensais.sepse}\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `Total de escores acumulados no mês:\n`;
+        textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
+        textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+        textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
+        textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `Saídas e Destinos no Mês:\n`;
+        textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+        textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+        textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+        textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+        textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+        textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+        textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
+
+        conteudoBox.textContent = textoRelatorio;
+    }
 }
 
 function fecharModalRelatorioGerencial() {
@@ -1744,7 +1755,7 @@ function imprimirRelatorioGerencial() {
     const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
     const janelaImpressao = window.open('', '_blank');
     if (janelaImpressao) {
-        janelaImpressao.document.write(`<html><head><title>Relatório Mensal</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
+        janelaImpressao.document.write(`<html><head><title>Relatório Clínico</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
         janelaImpressao.document.close();
         janelaImpressao.focus();
         setTimeout(() => {
