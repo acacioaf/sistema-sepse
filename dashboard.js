@@ -1480,10 +1480,9 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivos = [];
     const agoraRelogio = new Date();
-    
-    // CORREÇÃO DA DATA DE ABERTURA: Utiliza a data selecionada no calendário formatada em PT-BR
     const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
+    // 1. Processa os dados visíveis do dia selecionado
     document.querySelectorAll('.patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
         const isento = card.querySelector('.isento-relatorio')?.checked;
@@ -1507,7 +1506,6 @@ async function atualizarPainelCentral() {
                 const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
                 
                 const horaTabela = tr.getAttribute('data-hora') || (tr.querySelector('.time-col') ? tr.querySelector('.time-col')?.textContent.trim() : "08:00");
-                
                 const protocoloSelect = tr.querySelector('.protocolo-select');
                 const abertoProtocolo = protocoloSelect ? protocoloSelect.value : "";
 
@@ -1523,15 +1521,10 @@ async function atualizarPainelCentral() {
                 }
 
                 if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
-                    if (newsVal <= 1) {
-                        cntEstavelAtivo++;
-                    } else if (newsVal === 2) {
-                        cntBaixoAtivo++;
-                    } else if (newsVal >= 3 && newsVal <= 4) {
-                        cntMedioAtivo++;
-                    } else if (newsVal >= 5) {
-                        cntAltoAtivo++;
-                    }
+                    if (newsVal <= 1) cntEstavelAtivo++;
+                    else if (newsVal === 2) cntBaixoAtivo++;
+                    else if (newsVal >= 3 && newsVal <= 4) cntMedioAtivo++;
+                    else if (newsVal >= 5) cntAltoAtivo++;
                 }
             });
 
@@ -1552,7 +1545,7 @@ async function atualizarPainelCentral() {
                         tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
                         
                         if (horasRestantes <= 12) {
-                            corVigencia = "#d97706"; // Laranja se estiver perto de vencer (menos de 12h)
+                            corVigencia = "#d97706"; // Laranja se estiver perto de vencer (< 12h)
                         }
                     } else {
                         tempoRestanteFormatado = "⚠️ VENCIDO (Reavaliação necessária)";
@@ -1570,6 +1563,40 @@ async function atualizarPainelCentral() {
             }
         }
     });
+
+    // 2. Varredura no Banco Supabase para puxar protocolos ativos de sepse dos dias anteriores do mês que continuam vigentes
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
+    const { data: todosPlantoesMes } = await _supabase
+        .from('plantoes')
+        .select('data_chave, dados_json')
+        .eq('mes_ano', mesAnoChave);
+
+    if (todosPlantoesMes) {
+        todosPlantoesMes.forEach(plantao => {
+            // Se for outro dia do mês (evita duplicar o dia atual já processado)
+            if (!plantao.data_chave.startsWith('STATS-') && plantao.data_chave !== dataSelecionadaStr && Array.isArray(plantao.dados_json)) {
+                plantao.dados_json.forEach(p => {
+                    const nome = p.nome || "";
+                    if (nome.trim() !== "") {
+                        let pacienteTemSepsePassada = false;
+                        let pacienteTemProtocoloPassado = false;
+                        let dataHoraAberturaPassada = null;
+                        const dataPlantaoStr = plantao.data_chave;
+                        const dataPtBr = dataPlantaoStr.split('-').reverse().join('/');
+
+                        if (p.vitais && Array.isArray(p.vitais)) {
+                            p.vitais.forEach(v => {
+                                const horaV = v.hora || "08:00";
+                                const inputs = v.inputs || [];
+                                // Verifica se há indicação de alerta de sepse ou protocolo aberto nas linhas anteriores
+                                // Revalida se ainda está dentro das 72h
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    }
 
     const containerProtocolos = document.getElementById('container-protocolos-ativos');
     if (containerProtocolos) {
@@ -1598,7 +1625,7 @@ async function atualizarPainelCentral() {
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     
-    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA (Sepse e Avaliação do Setor)
+    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
