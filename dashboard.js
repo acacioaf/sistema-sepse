@@ -267,6 +267,7 @@ function renderizarCalendario() {
             dataSelecionadaStr = dataIso;
             const mesNovo = dataSelecionadaStr.substring(0, 7);
             
+            // GARANTE QUE OS CONTADORES DO MÊS SEJAM CARREGADOS ANTES DE RENDERIZAR
             await carregarContadoresMensais(dataSelecionadaStr);
             
             if (mesAnterior !== mesNovo) {
@@ -531,23 +532,7 @@ async function carregarDadosDoDia(dataChave) {
         .eq('data_chave', dataChave)
         .maybeSingle();
 
-    if (!data || !data.dados_json || error) {
-        document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
-            const container = aba.querySelector('.patients-container');
-            if (!container) return;
-
-            const cards = container.querySelectorAll('.patient-card');
-            for (let i = 1; i < cards.length; i++) {
-                cards[i].remove();
-            }
-            if (cards[0]) limparCardPaciente(cards[0]);
-        });
-        atualizarPainelCentral();
-        return;
-    }
-
-    const dadosGerais = data.dados_json;
-
+    // Limpa todas as abas antes de popular
     document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
         const container = aba.querySelector('.patients-container');
         if (!container) return;
@@ -558,6 +543,13 @@ async function carregarDadosDoDia(dataChave) {
         }
         if (cards[0]) limparCardPaciente(cards[0]);
     });
+
+    if (!data || !data.dados_json || error) {
+        atualizarPainelCentral();
+        return;
+    }
+
+    const dadosGerais = data.dados_json;
 
     dadosGerais.forEach(p => {
         const aba = document.getElementById(p.setor);
@@ -712,6 +704,7 @@ async function carregarDadosDoDia(dataChave) {
         });
     });
 
+    // ATUALIZA O PAINEL CENTRAL APÓS CARREGAR OS DADOS DO DIA
     atualizarPainelCentral();
 }
 
