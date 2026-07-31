@@ -43,6 +43,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("input", tratarMudancaVitais);
     mainContent.addEventListener("change", tratarMudancaVitais);
 
+    // Injeta o seletor de tipo de relatório dentro do modal gerencial se já existir
+    injetarSeletorTipoRelatorio();
+
     await carregarContadoresMensais(dataSelecionadaStr);
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
@@ -63,7 +66,13 @@ function verificarBloqueioPlantao() {
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    if (dataSelecionadaStr < dataHojeRealStr) {
+    // Cria a string do dia anterior para tolerância da madrugada (00h às 06h59)
+    const ontemObj = new Date(agora);
+    ontemObj.setDate(agora.getDate() - 1);
+    const dataOntemRealStr = formatarDataChave(ontemObj);
+
+    // Se a data selecionada for anterior ao dia de ontem, bloqueia totalmente
+    if (dataSelecionadaStr < dataOntemRealStr) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
         const tituloBox = document.getElementById('titulo-modal-aviso');
@@ -79,22 +88,14 @@ function verificarBloqueioPlantao() {
         return true;
     }
 
+    // Se estivermos no dia de ontem, permitimos editar livremente para lançar 00h e 04h durante a madrugada
+    if (dataSelecionadaStr === dataOntemRealStr) {
+        return false;
+    }
+
+    // Se estivermos no dia de hoje mas antes das 07h da manhã
     if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
-        const modal = document.getElementById('modal-bloqueio-plantao');
-        const textoBox = document.getElementById('mensagem-bloqueio-texto');
-        const tituloBox = document.getElementById('titulo-modal-aviso');
-        
-        if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "BLOQUEIO DE SEGURANÇA DO PLANTÃO";
-            const minutosStr = String(agora.getMinutes()).padStart(2, '0');
-            const horaStr = String(horaAtual).padStart(2, '0');
-            
-            textoBox.innerHTML = `
-                Ainda são <strong>${horaStr}:${minutosStr}h</strong>.<br>` +
-                `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
-            modal.style.display = 'flex';
-        }
-        return true;
+        return false; // Permite o preenchimento da madrugada vigente
     }
 
     return false;
@@ -1480,7 +1481,6 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
-    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
     // 1. Processa os dados visíveis do dia selecionado
     document.querySelectorAll('.patient-card').forEach(card => {
@@ -1533,14 +1533,15 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                    // VIGÊNCIA AJUSTADA PARA 24 HORAS
+                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
                     if (diffMs > 0) {
                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
+                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
 
                         listaProtocolosAtivosMap.set(nome.toUpperCase(), {
                             nome: nome,
@@ -1555,7 +1556,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes abertos em dias anteriores do mês
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (24h) abertos recentemente
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1579,14 +1580,15 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                                    // VIGÊNCIA DE 24 HORAS
+                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
                                     if (diffMs > 0) {
                                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
+                                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
 
                                         if (!listaProtocolosAtivosMap.has(nome.toUpperCase())) {
                                             listaProtocolosAtivosMap.set(nome.toUpperCase(), {
@@ -1636,7 +1638,6 @@ async function atualizarPainelCentral() {
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     
-    // Atualiza os contadores globais do painel somando o dia atual + acumulado do mês
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
@@ -1663,46 +1664,112 @@ async function atualizarPainelCentral() {
     atualizarContadoresMenuLateral();
 }
 
-function abrirModalRelatorioGerencial() {
+// --- RELATÓRIO DIÁRIO E MENSAL ---
+function injetarSeletorTipoRelatorio() {
+    const modalBox = document.querySelector('#modal-relatorio-gerencial > div');
+    if (!modalBox || document.getElementById('select-tipo-relatorio')) return;
+
+    const headerBox = modalBox.querySelector('div');
+    if (headerBox) {
+        const wrapperSelect = document.createElement('div');
+        wrapperSelect.style.cssText = "margin: 10px 0; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #003366;";
+        wrapperSelect.innerHTML = `
+            <label for="select-tipo-relatorio">Tipo de Relatório:</label>
+            <select id="select-tipo-relatorio" onchange="atualizarTextoRelatorioGerencial()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal;">
+                <option value="diario">Diário (Data Selecionada)</option>
+                <option value="mensal" selected>Mensal (Consolidado do Mês)</option>
+            </select>
+        `;
+        headerBox.insertAdjacentElement('afterend', wrapperSelect);
+    }
+}
+
+async function abrirModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    atualizarTextoRelatorioGerencial();
+}
+
+async function atualizarTextoRelatorioGerencial() {
     const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
-    if (!modal || !conteudoBox) return;
+    const selectTipo = document.getElementById('select-tipo-relatorio');
+    if (!conteudoBox) return;
 
-    let totalAtivos = 0;
-    document.querySelectorAll('.patient-card').forEach(card => {
-        const nome = card.querySelector('.nome-input')?.value.trim();
-        if (nome) totalAtivos++;
-    });
-
+    const tipo = selectTipo ? selectTipo.value : "mensal";
     const partesData = dataSelecionadaStr.split('-');
     const ano = partesData[0];
     const mesNum = partesData[1];
+    const diaNum = partesData[2];
     
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const nomeMes = nomesMeses[parseInt(mesNum, 10) - 1] || mesNum;
-    
-    let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `• Pacientes com protocolos ativos no Plantão: ${totalAtivos}\n`;
-    textoRelatorio += `• Total de Alertas de Sepse: ${indicadoresMensais.sepse}\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `Total de escores News:\n`;
-    textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
-    textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
-    textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
-    textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
-    textoRelatorio += `--------------------------------------------------\n`;
-    textoRelatorio += `Transferencias, altas e obítos:\n`;
-    textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
-    textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
-    textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
-    textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
-    textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
-    textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
-    textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
 
-    conteudoBox.textContent = textoRelatorio;
-    modal.style.display = 'flex';
+    if (tipo === 'diario') {
+        // Relatório estrito do dia selecionado
+        let totalAtivosDia = 0;
+        let alertasSepseDia = 0;
+        let estavelDia = 0, baixoDia = 0, medioDia = 0, altoDia = 0;
+
+        document.querySelectorAll('.patient-card').forEach(card => {
+            const nome = card.querySelector('.nome-input')?.value.trim();
+            const isento = card.querySelector('.isento-relatorio')?.checked;
+            if (nome) {
+                totalAtivosDia++;
+                card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
+                    const inputNews = tr.querySelector('.news-input');
+                    const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
+                    const htmlStatus = tr.querySelector('.status-cell')?.innerHTML || "";
+
+                    if (!isento && !isNaN(newsVal) && inputNews.value.trim() !== "") {
+                        if (newsVal <= 1) estavelDia++;
+                        else if (newsVal === 2) baixoDia++;
+                        else if (newsVal >= 3 && newsVal <= 4) medioDia++;
+                        else if (newsVal >= 5) altoDia++;
+                    }
+
+                    if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
+                        alertasSepseDia++;
+                    }
+                });
+            }
+        });
+
+        let texto = `Relatório Diário (${diaNum}/${mesNum}/${ano})\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `• Pacientes Internados no Plantão: ${totalAtivosDia}\n`;
+        texto += `• Alertas de Sepse no Dia: ${alertasSepseDia}\n`;
+        texto += `--------------------------------------------------\n`;
+        texto += `Escores NEWS / PEWS do Dia:\n`;
+        texto += `- Estável: ${estavelDia}\n`;
+        texto += `- Baixo Risco: ${baixoDia}\n`;
+        texto += `- Médio Risco: ${medioDia}\n`;
+        texto += `- Alto Risco: ${altoDia}\n`;
+        conteudoBox.textContent = texto;
+
+    } else {
+        // Relatório Mensal consolidado
+        let textoRelatorio = `Relatório Mensal (${nomeMes}/${ano})\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `• Total de Alertas de Sepse acumulados: ${indicadoresMensais.sepse}\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `Total de escores acumulados no mês:\n`;
+        textoRelatorio += `- Estável: ${indicadoresMensais.estavel}\n`;
+        textoRelatorio += `- Baixo Risco: ${indicadoresMensais.baixo}\n`;
+        textoRelatorio += `- Médio Risco: ${indicadoresMensais.medio}\n`;
+        textoRelatorio += `- Alto Risco: ${indicadoresMensais.alto}\n`;
+        textoRelatorio += `--------------------------------------------------\n`;
+        textoRelatorio += `Saídas e Destinos no Mês:\n`;
+        textoRelatorio += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
+        textoRelatorio += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
+        textoRelatorio += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
+        textoRelatorio += `- CIP: ${contadoresSaidas["CIP"]}\n`;
+        textoRelatorio += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
+        textoRelatorio += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
+        textoRelatorio += `- Óbito: ${contadoresSaidas.obito}\n`;
+
+        conteudoBox.textContent = textoRelatorio;
+    }
 }
 
 function fecharModalRelatorioGerencial() {
@@ -1714,7 +1781,7 @@ function imprimirRelatorioGerencial() {
     const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
     const janelaImpressao = window.open('', '_blank');
     if (janelaImpressao) {
-        janelaImpressao.document.write(`<html><head><title>Relatório Mensal</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
+        janelaImpressao.document.write(`<html><head><title>Relatório Clínico</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
         janelaImpressao.document.close();
         janelaImpressao.focus();
         setTimeout(() => {
