@@ -49,6 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     inicializarGraficoOcupacao();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
+    
+    // CORREÇÃO: Garante a atualização imediata do painel central ao carregar a página
     await atualizarPainelCentral();
 });
 
@@ -64,7 +66,11 @@ function verificarBloqueioPlantao() {
     const horaAtual = agora.getHours();
     const dataHojeRealStr = formatarDataChave(agora);
 
-    if (dataSelecionadaStr < dataHojeRealStr) {
+    const ontemObj = new Date(agora);
+    ontemObj.setDate(agora.getDate() - 1);
+    const dataOntemRealStr = formatarDataChave(ontemObj);
+
+    if (dataSelecionadaStr < dataOntemRealStr) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
         const tituloBox = document.getElementById('titulo-modal-aviso');
@@ -80,19 +86,17 @@ function verificarBloqueioPlantao() {
         return true;
     }
 
-    if (dataSelecionadaStr === dataHojeRealStr && horaAtual < 7) {
+    if (dataSelecionadaStr === dataOntemRealStr && horaAtual >= 7) {
         const modal = document.getElementById('modal-bloqueio-plantao');
         const textoBox = document.getElementById('mensagem-bloqueio-texto');
         const tituloBox = document.getElementById('titulo-modal-aviso');
         
         if (modal && textoBox) {
-            if (tituloBox) tituloBox.textContent = "BLOQUEIO DE SEGURANÇA DO PLANTÃO";
-            const minutosStr = String(agora.getMinutes()).padStart(2, '0');
-            const horaStr = String(horaAtual).padStart(2, '0');
-            
+            if (tituloBox) tituloBox.textContent = "PLANTÃO JÁ ENCERRADO";
             textoBox.innerHTML = `
-                Ainda são <strong>${horaStr}:${minutosStr}h</strong>.<br>` +
-                `Este horário ainda pertence ao plantão do dia anterior até as 07:00h.<br><br>`;
+                O novo plantão do dia atual já foi iniciado.<br><br>` +
+                `O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.
+            `;
             modal.style.display = 'flex';
         }
         return true;
@@ -681,21 +685,28 @@ async function iniciarNovoPlantao() {
         return;
     }
 
-    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e limpará as tabelas para a nova jornada.", "INICIAR NOVO PLANTÃO");
+    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso puxará os pacientes internados do dia anterior para os leitos da data atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
+
+    const dataOntemObj = new Date(agora);
+    dataOntemObj.setDate(agora.getDate() - 1);
+    const dataOntemStr = formatarDataChave(dataOntemObj);
 
     await salvarDadosDoDia(dataSelecionadaStr);
 
-    const { data: dataAnterior } = await _supabase
+    const { data: dataAnterior, error: erroBusca } = await _supabase
         .from('plantoes')
         .select('dados_json')
-        .eq('data_chave', dataSelecionadaStr)
+        .eq('data_chave', dataOntemStr)
         .maybeSingle();
 
-    const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
+    if (erroBusca) {
+        console.error("Erro ao buscar dados do dia anterior:", erroBusca.message);
+    }
+
+    const pacientesParaMigrar = (dataAnterior && Array.isArray(dataAnterior.dados_json)) ? dataAnterior.dados_json : [];
 
     const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
-    
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
@@ -718,7 +729,7 @@ async function iniciarNovoPlantao() {
             tec: p.tec || "",
             isento: p.isento || false,
             vitais: p.vitais.map(v => {
-                const inputs = Array.isArray(v) ? v : v.inputs;
+                const inputs = Array.isArray(v) ? v : (v.inputs || []);
                 return {
                     hora: v.hora || "",
                     isExtra: v.isExtra || false,
@@ -727,7 +738,7 @@ async function iniciarNovoPlantao() {
             })
         }));
 
-        await _supabase
+        const { error: erroUpsert } = await _supabase
             .from('plantoes')
             .upsert({ 
                 data_chave: dataSelecionadaStr, 
@@ -735,6 +746,10 @@ async function iniciarNovoPlantao() {
                 mes_ano: dataSelecionadaStr.substring(0, 7),
                 updated_at: new Date()
             }, { onConflict: 'data_chave' });
+
+        if (erroUpsert) {
+            console.error("Erro ao salvar migração no Supabase:", erroUpsert.message);
+        }
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
@@ -744,7 +759,7 @@ async function iniciarNovoPlantao() {
     const tituloBox = document.getElementById('titulo-modal-aviso');
     if (modal && textoBox) {
         if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
-        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>! Os pacientes internados foram mantidos nos leitos.`;
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes do plantão anterior foram puxados com sucesso para os leitos.`;
         modal.style.display = 'flex';
     }
 }
@@ -1533,7 +1548,7 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // AJUSTE: Vigência exata de 24 horas (exclui registros antigos como o do dia 28)
+                    // Vigência de 24 horas estrita
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1556,7 +1571,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase restrita à janela de vigência de 24 horas
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (janela de 24h)
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
