@@ -1478,7 +1478,7 @@ async function atualizarPainelCentral() {
     let cntMedioAtivo = 0;
     let cntAltoAtivo = 0;
 
-    const listaProtocolosAtivos = [];
+    const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
     const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
@@ -1536,35 +1536,26 @@ async function atualizarPainelCentral() {
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
-                    let tempoRestanteFormatado = "";
-                    let corVigencia = "#dc3545"; // Vermelho padrão
-
                     if (diffMs > 0) {
                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                        
-                        if (horasRestantes <= 12) {
-                            corVigencia = "#d97706"; // Laranja se estiver perto de vencer (< 12h)
-                        }
-                    } else {
-                        tempoRestanteFormatado = "⚠️ VENCIDO (Reavaliação necessária)";
-                        corVigencia = "#dc3545";
-                    }
+                        let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
+                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
 
-                    listaProtocolosAtivos.push({
-                        nome: nome,
-                        setor: idSetor,
-                        dataHora: `${dataFormatadaProtocolo} às ${dataHoraAberturaStr.split('T')[1].substring(0, 5)}`,
-                        vigenciaTexto: tempoRestanteFormatado,
-                        corBgVigencia: corVigencia
-                    });
+                        listaProtocolosAtivosMap.set(nome.toUpperCase(), {
+                            nome: nome,
+                            setor: idSetor,
+                            dataHora: `${dataHoraAberturaStr.split('T')[0].split('-').reverse().join('/')} às ${dataHoraAberturaStr.split('T')[1].substring(0, 5)}`,
+                            vigenciaTexto: tempoRestanteFormatado,
+                            corBgVigencia: corVigencia
+                        });
+                    }
                 }
             }
         }
     });
 
-    // 2. Varredura no Banco Supabase para puxar protocolos ativos de sepse dos dias anteriores do mês que continuam vigentes
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes abertos em dias anteriores do mês
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1573,23 +1564,41 @@ async function atualizarPainelCentral() {
 
     if (todosPlantoesMes) {
         todosPlantoesMes.forEach(plantao => {
-            // Se for outro dia do mês (evita duplicar o dia atual já processado)
-            if (!plantao.data_chave.startsWith('STATS-') && plantao.data_chave !== dataSelecionadaStr && Array.isArray(plantao.dados_json)) {
+            if (!plantao.data_chave.startsWith('STATS-') && Array.isArray(plantao.dados_json)) {
+                const dataPlantaoStr = plantao.data_chave;
+                
                 plantao.dados_json.forEach(p => {
                     const nome = p.nome || "";
                     if (nome.trim() !== "") {
-                        let pacienteTemSepsePassada = false;
-                        let pacienteTemProtocoloPassado = false;
-                        let dataHoraAberturaPassada = null;
-                        const dataPlantaoStr = plantao.data_chave;
-                        const dataPtBr = dataPlantaoStr.split('-').reverse().join('/');
-
                         if (p.vitais && Array.isArray(p.vitais)) {
                             p.vitais.forEach(v => {
                                 const horaV = v.hora || "08:00";
                                 const inputs = v.inputs || [];
-                                // Verifica se há indicação de alerta de sepse ou protocolo aberto nas linhas anteriores
-                                // Revalida se ainda está dentro das 72h
+                                const isSimProtocolo = inputs.includes("Sim");
+
+                                if (isSimProtocolo) {
+                                    const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
+                                    const dataAberturaObj = new Date(dataHoraAberturaStr);
+                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                                    const diffMs = vencimentoObj - agoraRelogio;
+
+                                    if (diffMs > 0) {
+                                        const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
+                                        const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                        let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
+                                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
+
+                                        if (!listaProtocolosAtivosMap.has(nome.toUpperCase())) {
+                                            listaProtocolosAtivosMap.set(nome.toUpperCase(), {
+                                                nome: nome,
+                                                setor: p.setor ? p.setor.toUpperCase() : "LEITO",
+                                                dataHora: `${dataPlantaoStr.split('-').reverse().join('/')} às ${horaV}`,
+                                                vigenciaTexto: tempoRestanteFormatado,
+                                                corBgVigencia: corVigencia
+                                            });
+                                        }
+                                    }
+                                }
                             });
                         }
                     }
@@ -1597,6 +1606,8 @@ async function atualizarPainelCentral() {
             }
         });
     }
+
+    const listaProtocolosAtivos = Array.from(listaProtocolosAtivosMap.values());
 
     const containerProtocolos = document.getElementById('container-protocolos-ativos');
     if (containerProtocolos) {
@@ -1625,7 +1636,7 @@ async function atualizarPainelCentral() {
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     
-    // SOMA CORRETA DOS ACUMULADOS MENSAIS COM OS VALORES ATIVOS DO DIA
+    // Atualiza os contadores globais do painel somando o dia atual + acumulado do mês
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
