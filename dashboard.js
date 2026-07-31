@@ -685,15 +685,12 @@ async function iniciarNovoPlantao() {
     const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso puxará os pacientes internados do dia anterior para os leitos da data atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
 
-    // Define rigorosamente a chave do dia anterior (ex: dia 30)
     const dataOntemObj = new Date(agora);
     dataOntemObj.setDate(agora.getDate() - 1);
     const dataOntemStr = formatarDataChave(dataOntemObj);
 
-    // Salva o estado atual antes de mudar a referência
     await salvarDadosDoDia(dataSelecionadaStr);
 
-    // Busca os dados cadastrados estritamente no dia anterior
     const { data: dataAnterior, error: erroBusca } = await _supabase
         .from('plantoes')
         .select('dados_json')
@@ -706,7 +703,6 @@ async function iniciarNovoPlantao() {
 
     const pacientesParaMigrar = (dataAnterior && Array.isArray(dataAnterior.dados_json)) ? dataAnterior.dados_json : [];
 
-    // Atualiza para a data de hoje
     const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
@@ -721,7 +717,6 @@ async function iniciarNovoPlantao() {
     
     renderizarCalendario();
 
-    // Se houver pacientes no dia anterior, grava na data atual mantendo os dados cadastrais e zerando as aferições
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
             setor: p.setor,
@@ -1083,7 +1078,7 @@ function mudarSetor(idSetor) {
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
+        if (li.getAttribute('onclick') && li.getAttribute('onclick'].includes(idSetor)) {
             li.classList.add('active');
         }
     });
@@ -1498,7 +1493,6 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
-    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
     // 1. Processa os dados visíveis do dia selecionado
     document.querySelectorAll('.patient-card').forEach(card => {
@@ -1551,14 +1545,15 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                    // AJUSTE: Vigência reduzida para 24 horas
+                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
                     if (diffMs > 0) {
                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
+                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
 
                         listaProtocolosAtivosMap.set(nome.toUpperCase(), {
                             nome: nome,
@@ -1573,7 +1568,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes abertos em dias anteriores do mês
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (janela de 24h) abertos em dias anteriores do mês
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1597,14 +1592,15 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
+                                    // AJUSTE: Vigência reduzida para 24 horas aqui também
+                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
                                     if (diffMs > 0) {
                                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
+                                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
 
                                         if (!listaProtocolosAtivosMap.has(nome.toUpperCase())) {
                                             listaProtocolosAtivosMap.set(nome.toUpperCase(), {
@@ -1629,6 +1625,12 @@ async function atualizarPainelCentral() {
 
     const containerProtocolos = document.getElementById('container-protocolos-ativos');
     if (containerProtocolos) {
+        // Atualiza também o cabeçalho descritivo do box para refletir 24h
+        const headerBoxProtocolos = containerProtocolos.previousElementSibling;
+        if (headerBoxProtocolos && headerBoxProtocolos.tagName === 'H3') {
+            headerBoxProtocolos.textContent = "PROTOCOLOS ATIVOS DE SEPSE (VIGÊNCIA 24H)";
+        }
+
         if (listaProtocolosAtivos.length === 0) {
             containerProtocolos.innerHTML = `
                 <div style="height: 100%; min-height: 120px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 6px; background: #ffffff;">
@@ -1654,7 +1656,6 @@ async function atualizarPainelCentral() {
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
     
-    // Atualiza os contadores globais do painel somando o dia atual + acumulado do mês
     document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
     document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
     document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
