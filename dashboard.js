@@ -69,31 +69,39 @@ function verificarBloqueioPlantao() {
     ontemObj.setDate(agora.getDate() - 1);
     const dataOntemRealStr = formatarDataChave(ontemObj);
 
-    // Se a data selecionada for anterior ao dia de ontem, bloqueia totalmente
     if (dataSelecionadaStr < dataOntemRealStr) {
-        mostrarModalBloqueio("MODO SOMENTE LEITURA", `Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>Por motivos de segurança, não é permitida a edição de plantões passados.`);
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "MODO SOMENTE LEITURA";
+            textoBox.innerHTML = `
+                Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>` +
+                `Por motivos de segurança e integridade dos dados, <strong>não é permitida a edição</strong> de plantões passados.
+            `;
+            modal.style.display = 'flex';
+        }
         return true;
     }
 
-    // Se estivermos visualizando o dia de ontem, mas já passou das 07h do dia de hoje (ou seja, o novo plantão já foi iniciado)
     if (dataSelecionadaStr === dataOntemRealStr && horaAtual >= 7) {
-        mostrarModalBloqueio("PLANTÃO JÁ ENCERRADO", `O novo plantão do dia atual já foi iniciado.<br><br>O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.`);
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "PLANTÃO JÁ ENCERRADO";
+            textoBox.innerHTML = `
+                O novo plantão do dia atual já foi iniciado.<br><br>` +
+                `O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.
+            `;
+            modal.style.display = 'flex';
+        }
         return true;
     }
 
     return false;
-}
-
-function mostrarModalBloqueio(titulo, mensagem) {
-    const modal = document.getElementById('modal-bloqueio-plantao');
-    const textoBox = document.getElementById('mensagem-bloqueio-texto');
-    const tituloBox = document.getElementById('titulo-modal-aviso');
-    
-    if (modal && textoBox) {
-        if (tituloBox) tituloBox.textContent = titulo;
-        textoBox.innerHTML = mensagem;
-        modal.style.display = 'flex';
-    }
 }
 
 function fecharModalBloqueio() {
@@ -661,28 +669,51 @@ async function iniciarNovoPlantao() {
     const minutoAtual = agora.getMinutes();
 
     if (horaAtual < 7 || horaAtual >= 12) {
-        mostrarModalBloqueio("AÇÃO NÃO PERMITIDA", `Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.`);
+        const modal = document.getElementById('modal-bloqueio-plantao');
+        const textoBox = document.getElementById('mensagem-bloqueio-texto');
+        const tituloBox = document.getElementById('titulo-modal-aviso');
+        
+        if (modal && textoBox) {
+            if (tituloBox) tituloBox.textContent = "AÇÃO NÃO PERMITIDA";
+            textoBox.innerHTML = `
+                Horário atual: <strong>${String(horaAtual).padStart(2, '0')}:${String(minutoAtual).padStart(2, '0')}h</strong>.<br><br>` +
+                `O novo plantão só pode ser iniciado entre as <strong>07:00h</strong> e as <strong>11:59h</strong> da manhã.
+            `;
+            modal.style.display = 'flex';
+        }
         return;
     }
 
-    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso manterá os pacientes internados nos leitos e migrará os dados cadastrais para o dia atual.", "INICIAR NOVO PLANTÃO");
+    const confirmado = await mostrarConfirmacaoCustomizada("ATENÇÃO: Deseja iniciar o novo plantão das 07h? Isso puxará os pacientes internados do dia anterior para os leitos da data atual.", "INICIAR NOVO PLANTÃO");
     if (!confirmado) return;
 
     await salvarDadosDoDia(dataSelecionadaStr);
 
+    const dataOntemObj = new Date(agora);
+    dataOntemObj.setDate(agora.getDate() - 1);
+    const dataOntemStr = formatarDataChave(dataOntemObj);
+
     const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
-        .eq('data_chave', dataSelecionadaStr)
+        .eq('data_chave', dataOntemStr)
         .maybeSingle();
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
 
+    const mesAnteriorInic = dataSelecionadaStr.substring(0, 7);
+    
     dataSelecionadaStr = formatarDataChave(agora);
     mesExibido = agora.getMonth();
     anoExibido = agora.getFullYear();
+    const mesNovoInic = dataSelecionadaStr.substring(0, 7);
     
     await carregarContadoresMensais(dataSelecionadaStr);
+    
+    if (mesAnteriorInic !== mesNovoInic) {
+        await carregarHistoricoMesGrafico(mesNovoInic);
+    }
+    
     renderizarCalendario();
 
     if (pacientesParaMigrar.length > 0) {
@@ -693,11 +724,14 @@ async function iniciarNovoPlantao() {
             prontuario: p.prontuario || "",
             tec: p.tec || "",
             isento: p.isento || false,
-            vitais: p.vitais.map(v => ({
-                hora: v.hora || "",
-                isExtra: v.isExtra || false,
-                inputs: v.inputs.map(() => "") 
-            }))
+            vitais: p.vitais.map(v => {
+                const inputs = Array.isArray(v) ? v : v.inputs;
+                return {
+                    hora: v.hora || "",
+                    isExtra: v.isExtra || false,
+                    inputs: inputs.map(() => "") 
+                };
+            })
         }));
 
         await _supabase
@@ -711,7 +745,15 @@ async function iniciarNovoPlantao() {
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
-    mostrarModalBloqueio("PLANTÃO INICIADO", `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes internados foram trazidos para os leitos da data atual.`);
+    
+    const modal = document.getElementById('modal-bloqueio-plantao');
+    const textoBox = document.getElementById('mensagem-bloqueio-texto');
+    const tituloBox = document.getElementById('titulo-modal-aviso');
+    if (modal && textoBox) {
+        if (tituloBox) tituloBox.textContent = "PLANTÃO INICIADO";
+        textoBox.innerHTML = `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes do plantão anterior foram puxados com sucesso.`;
+        modal.style.display = 'flex';
+    }
 }
 
 async function tratarMudancaVitais(event) {
@@ -1499,15 +1541,14 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // VIGÊNCIA DE 24 HORAS
-                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
+                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
                     if (diffMs > 0) {
                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
+                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
 
                         listaProtocolosAtivosMap.set(nome.toUpperCase(), {
                             nome: nome,
@@ -1522,7 +1563,7 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (24h) abertos recentemente
+    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes abertos em dias anteriores do mês
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1546,15 +1587,14 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                                    // VIGÊNCIA DE 24 HORAS
-                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
+                                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (72 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
                                     if (diffMs > 0) {
                                         const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
                                         const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
                                         let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
+                                        let corVigencia = horasRestantes <= 12 ? "#d97706" : "#dc3545";
 
                                         if (!listaProtocolosAtivosMap.has(nome.toUpperCase())) {
                                             listaProtocolosAtivosMap.set(nome.toUpperCase(), {
@@ -1630,7 +1670,6 @@ async function atualizarPainelCentral() {
     atualizarContadoresMenuLateral();
 }
 
-// --- RELATÓRIO DIÁRIO E MENSAL ---
 function injetarSeletorTipoRelatorio() {
     const modalBox = document.querySelector('#modal-relatorio-gerencial > div');
     if (!modalBox || document.getElementById('select-tipo-relatorio')) return;
