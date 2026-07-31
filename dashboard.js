@@ -164,6 +164,7 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
+    // Zera os contadores antes de carregar
     Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
     Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
 
@@ -177,19 +178,39 @@ async function carregarContadoresMensais(dataChave) {
         const salvosSaidas = data.dados_json.saidas;
         const salvosInd = data.dados_json.indicadores;
         
-        if (salvosSaidas) Object.keys(salvosSaidas).forEach(k => { contadoresSaidas[k] = salvosSaidas[k]; });
-        if (salvosInd) Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+        if (salvosSaidas) {
+            Object.keys(contadoresSaidas).forEach(k => { 
+                contadoresSaidas[k] = typeof salvosSaidas[k] === 'number' ? salvosSaidas[k] : 0; 
+            });
+        }
+        if (salvosInd) {
+            Object.keys(indicadoresMensais).forEach(k => { 
+                indicadoresMensais[k] = typeof salvosInd[k] === 'number' ? salvosInd[k] : 0; 
+            });
+        }
     } else {
         const rawSaidas = localStorage.getItem(`saidas_${mesAnoChave}`);
         if (rawSaidas) {
-            const salvos = JSON.parse(rawSaidas);
-            Object.keys(salvos).forEach(k => { contadoresSaidas[k] = salvos[k]; });
+            try {
+                const salvos = JSON.parse(rawSaidas);
+                Object.keys(contadoresSaidas).forEach(k => { 
+                    contadoresSaidas[k] = typeof salvos[k] === 'number' ? salvos[k] : 0; 
+                });
+            } catch (e) {
+                localStorage.removeItem(`saidas_${mesAnoChave}`);
+            }
         }
 
         const rawInd = localStorage.getItem(`indicadores_${mesAnoChave}`);
         if (rawInd) {
-            const salvosInd = JSON.parse(rawInd);
-            Object.keys(salvosInd).forEach(k => { indicadoresMensais[k] = salvosInd[k]; });
+            try {
+                const salvosInd = JSON.parse(rawInd);
+                Object.keys(indicadoresMensais).forEach(k => { 
+                    indicadoresMensais[k] = typeof salvosInd[k] === 'number' ? salvosInd[k] : 0; 
+                });
+            } catch (e) {
+                localStorage.removeItem(`indicadores_${mesAnoChave}`);
+            }
         }
     }
 }
@@ -1049,6 +1070,8 @@ function executarBuscaGlobal() {
     if (termoFiltro === "") {
         todosBotoesAdd.forEach(btn => btn.style.display = 'flex');
         todosOsCards.forEach(card => card.style.display = 'block');
+        
+        // Restaura perfeitamente a aba onde o usuário estava antes de iniciar a busca
         mudarSetor(setorAtivoAntesDaBusca);
         return;
     }
