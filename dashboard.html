@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Biblioteca do Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         /* Aumenta a largura máxima EXCLUSIVAMENTE do Painel Central */
@@ -284,10 +284,23 @@
 </head>
 <body>
 
-    <!-- Cabeçalho do Sistema -->
-    <header class="top-header">
-        <h1>Controle de Sinais Vitais, Sepse e PEWS</h1>
-        <div class="user-info">Usuário Logado</div>
+    <!-- Cabeçalho do Sistema Otimizado com Botões -->
+    <header class="top-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 25px;">
+        <h1 style="font-size: 1.2rem; margin: 0;">Controle de Sinais Vitais</h1>
+        
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Botão da Nova Aba de Auditoria -->
+            <button onclick="mudarSetor('aba-auditoria-sepse')" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                🔍 Auditoria <span class="badge-contador" data-setor="auditoria" style="background: #ffffff; color: #003366; padding: 1px 6px; border-radius: 10px; font-size: 0.7rem;">0</span>
+            </button>
+
+            <!-- Botão de Gerar Relatório movido para o topo -->
+            <button onclick="abrirModalRelatorioGerencial()" style="background: #ffffff; color: #003366; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; font-size: 0.82rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s;">
+                📋 Gerar Relatório
+            </button>
+
+            <div class="user-info" style="font-size: 0.85rem; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">Usuário Logado</div>
+        </div>
     </header>
 
     <div class="main-container">
@@ -365,12 +378,6 @@
             <!-- ================= PAINEL CENTRAL ================= -->
             <div id="painel-central" class="tab-pane active">
                 
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                    <button onclick="abrirModalRelatorioGerencial()" style="background: linear-gradient(135deg, #0056b3 0%, #003366 100%); color: #ffffff; border: none; padding: 9px 18px; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 8px; transition: transform 0.2s;">
-                        📋 Gerar Relatório
-                    </button>
-                </div>
-
                 <div class="painel-grid">
                     
                     <div class="painel-row">
@@ -421,7 +428,7 @@
 
                     <div class="painel-row">
                         <div class="painel-card painel-card-full">
-                            <div class="painel-card-title" style="color: #003366;">Saídas e Destinos no Mês</div>
+                            <div class="painel-card-title" style="color: #003366;">Saídas e Destinos Diário</div>
                             <div class="painel-subgrid" style="grid-template-columns: repeat(7, 1fr);">
                                 <div class="painel-subcard" style="background: #e6fffa; border-color: #38b2ac;">
                                     <div class="painel-subcard-label" style="color: #234e52;">Alta Hospitalar</div>
@@ -455,107 +462,121 @@
                         </div>
                     </div>
 
-                    <div class="painel-row">
-                        <div class="painel-card painel-card-full">
-                            <div class="painel-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                                <span>📈 Evolução da Ocupação Diária no Mês</span>
-                                <span style="font-size: 0.85rem; background: #e6f0fa; color: #003366; padding: 4px 12px; border-radius: 20px;">
-                                    Total Acumulado no Mês: <strong id="total-acumulado-mes">0</strong> pac-dia
-                                </span>
+                </div>
+            </div>
+
+            <!-- ================= ABA DE AUDITORIA E SEPSE ================= -->
+            <div id="aba-auditoria-sepse" class="tab-pane">
+                <div style="max-width: 1450px; margin: 0 auto; padding: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h2 style="color: #ffffff; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">📊 Auditoria e Indicadores do Mês</h2>
+                        <button onclick="carregarDadosAuditoria()" style="background: #003366; color: #fff; border: 1px solid #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                            🔄 Atualizar Dados
+                        </button>
+                    </div>
+
+                    <!-- CARDS CONSOLIDADOS MENSAIS -->
+                    <div class="painel-grid" style="margin-bottom: 20px;">
+                        <div class="painel-row">
+                            <div class="painel-card painel-card-full">
+                                <div class="painel-card-title"> Avaliação Mensal (NEWS / PEWS)</div>
+                                <div class="painel-subgrid">
+                                    <div class="painel-subcard"><div class="painel-subcard-label">Estável (Mês)</div><div id="mes-estavel" class="painel-subcard-value" style="color: #28a745;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">Baixo (Mês)</div><div id="mes-baixo" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">Médio (Mês)</div><div id="mes-medio" class="painel-subcard-value" style="color: #ffc107;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">Alto (Mês)</div><div id="mes-alto" class="painel-subcard-value" style="color: #dc3545;">0</div></div>
+                                </div>
                             </div>
-                            <div style="height: 220px; margin-top: 10px;">
-                                <canvas id="graficoOcupacao"></canvas>
+                        </div>
+
+                        <div class="painel-row">
+                            <div class="painel-card painel-card-full">
+                                <div class="painel-card-title" style="color: #003366;">Saídas e Destinos Acumulados no Mês</div>
+                                <div class="painel-subgrid" style="grid-template-columns: repeat(7, 1fr);">
+                                    <div class="painel-subcard" style="background: #e6fffa; border-color: #38b2ac;"><div class="painel-subcard-label" style="color: #234e52;">Alta Hospitalar</div><div id="mes-saida-alta" class="painel-subcard-value" style="color: #28a745;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">HC UFU</div><div id="mes-saida-hc-ufu" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">Hosp. Municipal</div><div id="mes-saida-hospital-municipal" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">CIP</div><div id="mes-saida-cip" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">CAPS</div><div id="mes-saida-caps" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard"><div class="painel-subcard-label">UCCI</div><div id="mes-saida-ucci" class="painel-subcard-value" style="color: #17a2b8;">0</div></div>
+                                    <div class="painel-subcard" style="background: #f1f5f9; border-color: #cbd5e1;"><div class="painel-subcard-label" style="color: #334155;">Óbito</div><div id="mes-saida-obito" class="painel-subcard-value" style="color: #475569;">0</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GRÁFICO DE OCUPAÇÃO DIÁRIA NA AUDITORIA -->
+                        <div class="painel-row">
+                            <div class="painel-card painel-card-full">
+                                <div class="painel-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>📈 Numero  de Ocupação Diária no Mês</span>
+                                    <span style="font-size: 0.85rem; background: #e6f0fa; color: #003366; padding: 4px 12px; border-radius: 20px;">
+                                        Total Acumulado no Mês: <strong id="total-acumulado-mes-auditoria">0</strong> pac-dia
+                                    </span>
+                                </div>
+                                <div style="height: 220px; margin-top: 10px;">
+                                    <canvas id="graficoOcupacaoAuditoria"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Filtros e Tabela de Histórico -->
+                    <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #dcdcdc; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                       
+                        <div>
+                            <label style="font-weight: 600; font-size: 0.85rem; color: #003366;">Filtrar por Status:</label>
+                            <select id="filtro-auditoria-status" onchange="filtrarTabelaAuditoria()" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                                <option value="" selected disabled>Selecione uma opção...</option>
+                                <option value="todos">Todos os Registros</option>
+                                <option value="sepse">Alerta de Sepse / Protocolo</option>
+                                <option value="estavel">Estável</option>
+                                <option value="baixo">Baixo Risco</option>
+                                <option value="medio">Médio Risco</option>
+                                <option value="alto">Alto Risco</option>
+                                <option value="alta">Alta Hospitalar</option>
+                                <option value="transferido">Transferência</option>
+                                <option value="obito">Óbito</option>
+                            </select>
+                        </div>
+
+                        <div style="flex: 1; min-width: 250px;">
+                            <input type="text" id="filtro-auditoria-texto" placeholder="Buscar por nome do paciente ou prontuário..." onkeyup="filtrarTabelaAuditoria()" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                        </div>
+                    </div>
+
+                    <div style="background: #ffffff; border-radius: 6px; border: 1px solid #dcdcdc; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                            <table class="vitals-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th>DATA / PLANTÃO</th>
+                                        <th>SETOR / LEITO</th>
+                                        <th>PACIENTE</th>
+                                        <th>PRONTUÁRIO</th>
+                                        <th>PROTOCOLO SEPSE?</th>
+                                        <th>STATUS / DESFECHO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="corpo-tabela-auditoria">
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">Clique em "Atualizar Dados" para carregar o histórico do Supabase.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- ENFERMARIAS ADULTAS (1 a 5 e Corredor) -->
-            <script>
-                function gerarTabelaAdulto() {
-                    return `
-                    <div class="patients-container">
-                        <div class="patient-card">
-                            <div class="patient-header">
-                                <div class="patient-col-left">
-                                    <div class="input-group name-group"><label>NOME:</label><input type="text" class="nome-input" placeholder="Nome do Paciente"></div>
-                                    <div class="input-group" style="margin-top: 4px; padding-left: 45px;">
-                                        <label style="font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--azul-escuro); font-weight: 600;">
-                                            <input type="checkbox" class="isento-relatorio" style="cursor: pointer;"> Isento de Escore
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="input-group"><label>DATA NASC:</label><input type="date" class="dtnasc-input"></div>
-                                <div class="input-group"><label>Prontuário:</label><input type="text" class="prontuario-input"></div>
-                                <div class="input-group"><label>TEC RESP:</label><input type="text" class="tec-input" placeholder="Nome"></div>
-                                <div class="action-buttons">
-                                    <button class="btn-transf-interna" onclick="abrirModalTransfInterna(this)">Transf. Interna</button>
-                                    <button class="btn-transf-externa" onclick="abrirModalTransfExterna(this)">Transf. Externa</button>
-                                    <button class="btn-alta" onclick="darAltaPaciente(this)">Alta Hospitalar</button>
-                                    <button class="btn-obito" onclick="registrarObitoPaciente(this)">Óbito</button>
-                                    <button class="btn-excluir-card" onclick="removerCardPaciente(this)" title="Excluir leito criado por engano">✖</button>
-                                </div>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="vitals-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Hora</th><th>PAS (mmHg)</th><th>TEMP (°C)</th><th>FR (irpm)</th><th>FC (bpm)</th><th>O₂ Supl</th><th>Sat %</th><th>NÍVEL CONSC.</th><th>GLICEMIA</th><th class="bg-red">NEWS TOTAL</th><th class="bg-red">STATUS</th><th class="bg-red">ABERTO PROTOCOLO?</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${['08:00','12:00','16:00','20:00','00:00','04:00'].map(h => `
-                                            <tr data-hora="${h}">
-                                                <td class="time-col">
-                                                    <span class="lbl-hora">${h}</span>
-                                                </td>
-                                                <td><input type="number"></td>
-                                                <td><input type="number" step="0.1"></td>
-                                                <td><input type="number"></td>
-                                                <td><input type="number"></td>
-                                                <td><select><option selected></option><option>Sim</option><option>Não</option></select></td>
-                                                <td><input type="number"></td>
-                                                <td><select><option selected></option><option>Alerta</option><option>AGITADO/CONFUSO</option><option>VOZ, DOR OU NÃO REAGE</option></select></td>
-                                                <td><input type="number"></td>
-                                                <td><input type="number" class="news-input" readonly></td>
-                                                <td class="status-cell"></td>
-                                                <td>
-                                                    <select class="protocolo-select">
-                                                        <option value="" selected></option>
-                                                        <option value="Sim">Sim</option>
-                                                        <option value="Não">Não</option>
-                                                    </select>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                                <div style="padding: 6px 4px; text-align: left;">
-                                    <button type="button" class="btn-add-horario-clean" onclick="adicionarHorarioExtraOrdenado(this)">
-                                        ➕ Adicionar Horário Extra
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="btn-add-wrapper">
-                        <button class="btn-add-global" onclick="adicionarPaciente(this)">
-                            Adicionar novo paciente <span class="btn-add-icon">⬇️</span>
-                        </button>
-                    </div>`;
-                }
-            </script>
+            <div id="enf1" class="tab-pane"></div>
+            <div id="enf2" class="tab-pane"></div>
+            <div id="enf3" class="tab-pane"></div>
+            <div id="enf4" class="tab-pane"></div>
+            <div id="enf5" class="tab-pane"></div>
+            <div id="corredor" class="tab-pane"></div>
 
-            <div id="enf1" class="tab-pane"><script>document.getElementById('enf1').innerHTML = gerarTabelaAdulto();</script></div>
-            <div id="enf2" class="tab-pane"><script>document.getElementById('enf2').innerHTML = gerarTabelaAdulto();</script></div>
-            <div id="enf3" class="tab-pane"><script>document.getElementById('enf3').innerHTML = gerarTabelaAdulto();</script></div>
-            <div id="enf4" class="tab-pane"><script>document.getElementById('enf4').innerHTML = gerarTabelaAdulto();</script></div>
-            <div id="enf5" class="tab-pane"><script>document.getElementById('enf5').innerHTML = gerarTabelaAdulto();</script></div>
-            <div id="corredor" class="tab-pane"><script>document.getElementById('corredor').innerHTML = gerarTabelaAdulto();</script></div>
-
-            <!-- ENFERMARIA PEDIÁTRICA COM PEWS INTEGRADO (ATUALIZADO CONFORME POP OFICIAL) -->
+            <!-- ENFERMARIA PEDIÁTRICA COM PEWS INTEGRADO -->
             <div id="enf-pediatria" class="tab-pane">
                 <div class="patients-container">
                     <div class="patient-card">
@@ -846,7 +867,7 @@
             </div>
 
             <!-- SALA DE EMERGÊNCIA -->
-            <div id="sala-emergencia" class="tab-pane"><script>document.getElementById('sala-emergencia').innerHTML = gerarTabelaAdulto();</script></div>
+            <div id="sala-emergencia" class="tab-pane"></div>
 
         </main>
     </div>
@@ -890,50 +911,58 @@
         </div>
     </div>
 
-    <!-- MODAL RELATÓRIO GERENCIAL / EXECUTIVO -->
+   <!-- MODAL RELATÓRIO GERENCIAL / EXECUTIVO -->
     <div id="modal-relatorio-gerencial" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: #ffffff; padding: 25px 30px; border-radius: 8px; width: 600px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.25); text-align: left;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #e6f0fa; padding-bottom: 10px;">
-                <h3 style="margin: 0; color: #003366; font-size: 1.2rem;">📊 Relatório Executivo Mensal</h3>
-                <button onclick="fecharModalRelatorioGerencial()" style="background: none; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer; color: #64748b;">✕</button>
+                <h3 style="margin: 0; color: #003366; font-size: 1.2rem;">📊 Relatório Executivo</h3>
+                <button type="button" onclick="fecharModalRelatorioGerencial()" style="background: none; border: none; font-size: 1.2rem; font-weight: bold; cursor: pointer; color: #64748b;">✕</button>
             </div>
             
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: 600; font-size: 0.9rem; color: #334155; display: block; margin-bottom: 5px;">Tipo de Relatório:</label>
+                <select id="select-tipo-relatorio" onchange="atualizarTextoRelatorioGerencial()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                    <option value="diario" selected>Diário (Data Selecionada)</option>
+                    <option value="mensal">Mensal (Consolidado do Mês)</option>
+                </select>
+            </div>
+
             <div id="conteudo-relatorio-gerencial" style="font-size: 0.88rem; color: #334155; line-height: 1.6; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 20px; white-space: pre-line;">
                 <!-- Preenchido dinamicamente pelo JS -->
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; gap: 10px;">
-                    <button onclick="imprimirRelatorioGerencial()" style="background-color: #0284c7; color: #fff; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">🖨️ Imprimir</button>
-                    <button onclick="copiarResumoGerencial()" style="background-color: #003366; color: #fff; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">📋 Copiar resumo</button>
+                    <button type="button" onclick="imprimirRelatorioGerencial()" style="background-color: #0284c7; color: #fff; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">🖨️ Imprimir</button>
+                    <button type="button" onclick="copiarResumoGerencial()" style="background-color: #003366; color: #fff; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px;">📋 Copiar resumo</button>
                 </div>
-                <button onclick="fecharModalRelatorioGerencial()" style="background-color: #e2e8f0; color: #333; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none;">Fechar</button>
+                <button type="button" onclick="fecharModalRelatorioGerencial()" style="background-color: #e2e8f0; color: #333; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; border: none;">Fechar</button>
             </div>
         </div>
     </div>
 
-   <!-- MODAL DE AVISO / ALERTA DO SISTEMA -->
-<div id="modal-bloqueio-plantao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
-        <div id="icone-modal-aviso" style="font-size: 2.5rem; margin-bottom: 10px;">🚫</div>
-        <h3 id="titulo-modal-aviso" style="color: #dc3545; margin-bottom: 15px; font-size: 1.25rem;">BLOQUEIO DE SEGURANÇA DO PLANTÃO</h3>
-        <p id="mensagem-bloqueio-texto" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
-        <button type="button" onclick="fecharModalBloqueio()" style="background: #0056b3; color: #ffffff; border: none; padding: 10px 25px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s;">Entendido</button>
-    </div>
-</div>
-
-<!-- MODAL DE CONFIRMAÇÃO PERSONALIZADO -->
-<div id="modal-confirmacao-sistema" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-    <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
-        <div style="font-size: 2.5rem; margin-bottom: 10px;">⚠️</div>
-        <h3 id="titulo-confirmacao" style="color: #0056b3; margin-bottom: 15px; font-size: 1.25rem;">CONFIRMAÇÃO</h3>
-        <p id="mensagem-confirmacao" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
-        <div style="display: flex; justify-content: center; gap: 10px;">
-            <button type="button" id="btn-cancelar-confirmacao" style="background: #64748b; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Cancelar</button>
-            <button type="button" id="btn-aceitar-confirmacao" style="background: #dc3545; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Confirmar</button>
+    <!-- MODAL DE AVISO / ALERTA DO SISTEMA -->
+    <div id="modal-bloqueio-plantao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+            <div id="icone-modal-aviso" style="font-size: 2.5rem; margin-bottom: 10px;">🚫</div>
+            <h3 id="titulo-modal-aviso" style="color: #dc3545; margin-bottom: 15px; font-size: 1.25rem;">BLOQUEIO DE SEGURANÇA DO PLANTÃO</h3>
+            <p id="mensagem-bloqueio-texto" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
+            <button type="button" onclick="fecharModalBloqueio()" style="background: #0056b3; color: #ffffff; border: none; padding: 10px 25px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.2s;">Entendido</button>
         </div>
     </div>
-</div>
+
+    <!-- MODAL DE CONFIRMAÇÃO PERSONALIZADO -->
+    <div id="modal-confirmacao-sistema" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">⚠️</div>
+            <h3 id="titulo-confirmacao" style="color: #0056b3; margin-bottom: 15px; font-size: 1.25rem;">CONFIRMAÇÃO</h3>
+            <p id="mensagem-confirmacao" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;"></p>
+            <div style="display: flex; justify-content: center; gap: 10px;">
+                <button type="button" id="btn-cancelar-confirmacao" style="background: #64748b; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button type="button" id="btn-aceitar-confirmacao" style="background: #dc3545; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Script de Inicialização -->
     <script src="dashboard.js"></script>
