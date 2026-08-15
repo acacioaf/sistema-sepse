@@ -5,6 +5,74 @@ const SUPABASE_ANON_KEY = 'sb_publishable_er3si1epfRHUz8SQP26B1A__aFx0cTy';
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --- FUNÇÕES DE GERAÇÃO DE HTML DOS LEITOS ---
+function gerarTabelaAdulto() {
+    return `
+    <div class="patients-container">
+        <div class="patient-card">
+            <div class="patient-header">
+                <div class="patient-col-left">
+                    <div class="input-group name-group"><label>NOME:</label><input type="text" class="nome-input" placeholder="Nome do Paciente"></div>
+                    <div class="input-group" style="margin-top: 4px; padding-left: 45px;">
+                        <label style="font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--azul-escuro); font-weight: 600;">
+                            <input type="checkbox" class="isento-relatorio" style="cursor: pointer;"> Isento de Escore
+                        </label>
+                    </div>
+                </div>
+                <div class="input-group"><label>DATA NASC:</label><input type="date" class="dtnasc-input"></div>
+                <div class="input-group"><label>Prontuário:</label><input type="text" class="prontuario-input"></div>
+                <div class="input-group"><label>TEC RESP:</label><input type="text" class="tec-input" placeholder="Nome"></div>
+                <div class="action-buttons">
+                    <button class="btn-transf-interna" onclick="abrirModalTransfInterna(this)">Transf. Interna</button>
+                    <button class="btn-transf-externa" onclick="abrirModalTransfExterna(this)">Transf. Externa</button>
+                    <button class="btn-alta" onclick="darAltaPaciente(this)">Alta Hospitalar</button>
+                    <button class="btn-obito" onclick="registrarObitoPaciente(this)">Óbito</button>
+                    <button class="btn-excluir-card" onclick="removerCardPaciente(this)" title="Excluir leito criado por engano">✖</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="vitals-table">
+                    <thead>
+                        <tr>
+                            <th>Hora</th><th>PAS (mmHg)</th><th>TEMP (°C)</th><th>FR (irpm)</th><th>FC (bpm)</th><th>O₂ Supl</th><th>Sat %</th><th>NÍVEL CONSC.</th><th>GLICEMIA</th><th class="bg-red">NEWS TOTAL</th><th class="bg-red">STATUS</th><th class="bg-red">ABERTO PROTOCOLO?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${['08:00','12:00','16:00','20:00','00:00','04:00'].map(h => `
+                            <tr data-hora="${h}">
+                                <td class="time-col"><span class="lbl-hora">${h}</span></td>
+                                <td><input type="number"></td>
+                                <td><input type="number" step="0.1"></td>
+                                <td><input type="number"></td>
+                                <td><input type="number"></td>
+                                <td><select><option selected></option><option>Sim</option><option>Não</option></select></td>
+                                <td><input type="number"></td>
+                                <td><select><option selected></option><option>Alerta</option><option>AGITADO/CONFUSO</option><option>VOZ, DOR OU NÃO REAGE</option></select></td>
+                                <td><input type="number"></td>
+                                <td><input type="number" class="news-input" readonly></td>
+                                <td class="status-cell"></td>
+                                <td>
+                                    <select class="protocolo-select">
+                                        <option value="" selected></option>
+                                        <option value="Sim">Sim</option>
+                                        <option value="Não">Não</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div style="padding: 6px 4px; text-align: left;">
+                    <button type="button" class="btn-add-horario-clean" onclick="adicionarHorarioExtraOrdenado(this)">➕ Adicionar Horário Extra</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="btn-add-wrapper">
+        <button class="btn-add-global" onclick="adicionarPaciente(this)">Adicionar novo paciente <span class="btn-add-icon">⬇️</span></button>
+    </div>`;
+}
+
 // --- CONTADORES GLOBAIS DE SAÍDA E INDICADORES DO MÊS ---
 const contadoresSaidas = {
     alta: 0,
@@ -26,7 +94,7 @@ let indicadoresMensais = {
 
 let cardAtualTransf = null;
 let cardAtualTransfInterna = null;
-let meuGraficoOcupacao = null;
+let meuGraficoOcupacaoAuditoria = null;
 let setorAtivoAntesDaBusca = 'painel-central';
 
 const dataAtualReal = new Date();
@@ -38,6 +106,13 @@ let anoExibido = dataAtualReal.getFullYear();
 const historicoOcupacaoDiaria = Array(31).fill(0);
 
 document.addEventListener("DOMContentLoaded", async () => {
+    ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'sala-emergencia'].forEach(id => {
+        const setor = document.getElementById(id);
+        if (setor && setor.innerHTML.trim() === "") {
+            setor.innerHTML = gerarTabelaAdulto();
+        }
+    });
+
     const mainContent = document.querySelector(".content");
 
     mainContent.addEventListener("input", tratarMudancaVitais);
@@ -48,9 +123,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     await carregarContadoresMensais(dataSelecionadaStr);
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
 
-    inicializarGraficoOcupacao();
+    inicializarGraficoOcupacaoAuditoria();
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
+
+    if (typeof carregarDadosAuditoria === 'function') {
+        carregarDadosAuditoria();
+    }
 });
 
 function formatarDataChave(dateObj) {
@@ -69,13 +148,11 @@ function verificarBloqueioPlantao() {
     ontemObj.setDate(agora.getDate() - 1);
     const dataOntemRealStr = formatarDataChave(ontemObj);
 
-    // Se a data selecionada for anterior ao dia de ontem, bloqueia totalmente
     if (dataSelecionadaStr < dataOntemRealStr) {
         mostrarModalBloqueio("MODO SOMENTE LEITURA", `Você está visualizando uma data anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>).<br><br>Por motivos de segurança, não é permitida a edição de plantões passados.`);
         return true;
     }
 
-    // Se estivermos visualizando o dia de ontem, mas já passou das 07h do dia de hoje (ou seja, o novo plantão já foi iniciado)
     if (dataSelecionadaStr === dataOntemRealStr && horaAtual >= 7) {
         mostrarModalBloqueio("PLANTÃO JÁ ENCERRADO", `O novo plantão do dia atual já foi iniciado.<br><br>O dia anterior (<strong>${dataSelecionadaStr.split('-').reverse().join('/')}</strong>) agora está bloqueado para edições.`);
         return true;
@@ -164,7 +241,6 @@ async function carregarContadoresMensais(dataChave) {
     const mesAnoChave = dataChave.substring(0, 7);
     const chaveEstatistica = `STATS-${mesAnoChave}`;
     
-    // Zera os contadores antes de carregar
     Object.keys(contadoresSaidas).forEach(k => { contadoresSaidas[k] = 0; });
     Object.keys(indicadoresMensais).forEach(k => { indicadoresMensais[k] = 0; });
 
@@ -272,6 +348,7 @@ function renderizarCalendario() {
 
             renderizarCalendario();
             await carregarDadosDoDia(dataIso);
+            carregarDadosAuditoria();
         };
 
         grid.appendChild(a);
@@ -460,7 +537,7 @@ async function salvarDadosDoDia(dataChave) {
 
     const dadosGerais = [];
 
-    document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
+    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)').forEach(aba => {
         const idSetor = aba.id;
         aba.querySelectorAll('.patient-card').forEach(card => {
             const nome = card.querySelector('.nome-input')?.value || "";
@@ -468,6 +545,7 @@ async function salvarDadosDoDia(dataChave) {
             const prontuario = card.querySelector('.prontuario-input')?.value || "";
             const tec = card.querySelector('.tec-input')?.value || "";
             const isento = card.querySelector('.isento-relatorio')?.checked || false;
+            const desfecho = card.getAttribute('data-desfecho') || "Internado";
 
             const vitais = [];
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
@@ -478,7 +556,7 @@ async function salvarDadosDoDia(dataChave) {
             });
 
             if (nome.trim() !== "") {
-                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, vitais });
+                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, desfecho, vitais });
             }
         });
     });
@@ -504,7 +582,7 @@ async function carregarDadosDoDia(dataChave) {
         .eq('data_chave', dataChave)
         .maybeSingle();
 
-    document.querySelectorAll('.tab-pane:not(#painel-central)').forEach(aba => {
+    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)').forEach(aba => {
         const container = aba.querySelector('.patients-container');
         if (!container) return;
 
@@ -535,6 +613,7 @@ async function carregarDadosDoDia(dataChave) {
         }
 
         card.querySelector('.nome-input').value = p.nome;
+        if (p.desfecho) card.setAttribute('data-desfecho', p.desfecho);
         if (card.querySelector('.dtnasc-input')) {
             card.querySelector('.dtnasc-input').value = p.dtNasc;
             atualizarBadgeIdade(card.querySelector('.dtnasc-input'));
@@ -714,6 +793,7 @@ async function iniciarNovoPlantao() {
             prontuario: p.prontuario || "",
             tec: p.tec || "",
             isento: p.isento || false,
+            desfecho: p.desfecho || "Internado",
             vitais: p.vitais.map(v => ({
                 hora: v.hora || "",
                 isExtra: v.isExtra || false,
@@ -1033,14 +1113,13 @@ function mudarSetor(idSetor) {
 
     const barraFiltro = document.getElementById('barra-filtro-global');
     if (barraFiltro) {
-        barraFiltro.style.display = (idSetor === 'painel-central') ? 'none' : 'flex';
+        const éEnfermaria = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'].includes(idSetor);
+        barraFiltro.style.display = éEnfermaria ? 'flex' : 'none';
     }
-
-    document.querySelectorAll('.btn-add-wrapper').forEach(btn => btn.style.display = 'flex');
 
     document.querySelectorAll('.tab-pane').forEach(aba => {
         aba.classList.remove('active');
-        aba.style.display = '';
+        aba.style.setProperty('display', 'none', 'important');
     });
 
     document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
@@ -1048,42 +1127,37 @@ function mudarSetor(idSetor) {
     const abaAlvo = document.getElementById(idSetor);
     if (abaAlvo) {
         abaAlvo.classList.add('active');
-        abaAlvo.style.display = 'block';
+        abaAlvo.style.setProperty('display', 'block', 'important');
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
-        if (li.getAttribute('onclick') && li.getAttribute('onclick').includes(idSetor)) {
+        const onclickAttr = li.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(idSetor)) {
             li.classList.add('active');
         }
     });
+
+    if (idSetor === 'aba-auditoria-sepse') {
+        if (typeof carregarDadosAuditoria === 'function') {
+            carregarDadosAuditoria();
+        }
+    }
 }
 
 function executarBuscaGlobal() {
     const tipoFiltro = document.getElementById('tipo-busca').value;
     const termoFiltro = document.getElementById('filtro-global').value.toLowerCase().trim();
 
-    const painelCentral = document.getElementById('painel-central');
+    const todasAsAbasEnfermaria = document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)');
     const todosOsCards = document.querySelectorAll('.patient-card');
-    const todosBotoesAdd = document.querySelectorAll('.btn-add-wrapper');
-    const todasAbasEnfermaria = document.querySelectorAll('.tab-pane:not(#painel-central)');
 
     if (termoFiltro === "") {
-        todosBotoesAdd.forEach(btn => btn.style.display = 'flex');
         todosOsCards.forEach(card => card.style.display = 'block');
-        
-        // Restaura perfeitamente a aba onde o usuário estava antes de iniciar a busca
         mudarSetor(setorAtivoAntesDaBusca);
         return;
     }
 
-    todosBotoesAdd.forEach(btn => btn.style.display = 'none');
-
-    if (painelCentral) {
-        painelCentral.classList.remove('active');
-        painelCentral.style.display = 'none';
-    }
-
-    todasAbasEnfermaria.forEach(aba => {
+    todasAsAbasEnfermaria.forEach(aba => {
         let encontrouNaAba = false;
         const cardsDaAba = aba.querySelectorAll('.patient-card');
 
@@ -1258,6 +1332,7 @@ async function darAltaPaciente(botaoAlta) {
     if (!confirmado) return;
 
     const card = botaoAlta.closest('.patient-card');
+    card.setAttribute('data-desfecho', 'Alta');
     const container = card.parentElement;
 
     acumularIndicadoresDoCard(card);
@@ -1281,6 +1356,7 @@ async function registrarObitoPaciente(botaoObito) {
     if (!confirmado) return;
 
     const card = botaoObito.closest('.patient-card');
+    card.setAttribute('data-desfecho', 'Óbito');
     const container = card.parentElement;
 
     acumularIndicadoresDoCard(card);
@@ -1314,6 +1390,7 @@ async function confirmarTransfExterna() {
     const destinoFinal = select ? select.value : "";
 
     if (cardAtualTransf) {
+        cardAtualTransf.setAttribute('data-desfecho', destinoFinal || 'Transferido');
         const container = cardAtualTransf.parentElement;
 
         acumularIndicadoresDoCard(cardAtualTransf);
@@ -1334,6 +1411,7 @@ async function confirmarTransfExterna() {
 }
 
 function limparCardPaciente(card) {
+    card.removeAttribute('data-desfecho');
     card.querySelectorAll('input').forEach(input => {
         if (input.type === 'checkbox') input.checked = false;
         else input.value = '';
@@ -1388,12 +1466,12 @@ async function carregarHistoricoMesGrafico(mesAnoStr) {
     }
 }
 
-// --- GRÁFICO DE OCUPAÇÃO DIÁRIA ---
-function inicializarGraficoOcupacao() {
-    const ctx = document.getElementById('graficoOcupacao');
+// --- GRÁFICO DE OCUPAÇÃO DIÁRIA (APENAS NA AUDITORIA) ---
+function inicializarGraficoOcupacaoAuditoria() {
+    const ctx = document.getElementById('graficoOcupacaoAuditoria');
     if (!ctx) return;
 
-    meuGraficoOcupacao = new Chart(ctx, {
+    meuGraficoOcupacaoAuditoria = new Chart(ctx, {
         type: 'line',
         data: {
             labels: Array.from({length: 31}, (_, i) => `Dia ${i + 1}`),
@@ -1421,19 +1499,20 @@ function inicializarGraficoOcupacao() {
 }
 
 function atualizarDadosGrafico(totalInternadosHoje) {
-    if (!meuGraficoOcupacao) return;
-
     const diaAtual = parseInt(dataSelecionadaStr.split('-')[2], 10);
     if (diaAtual >= 1 && diaAtual <= 31) {
         historicoOcupacaoDiaria[diaAtual - 1] = totalInternadosHoje;
     }
 
-    meuGraficoOcupacao.data.datasets[0].data = historicoOcupacaoDiaria;
-    meuGraficoOcupacao.update();
+    if (meuGraficoOcupacaoAuditoria) {
+        meuGraficoOcupacaoAuditoria.data.datasets[0].data = historicoOcupacaoDiaria;
+        meuGraficoOcupacaoAuditoria.update();
+    }
 
     const totalMes = historicoOcupacaoDiaria.reduce((acc, curr) => acc + curr, 0);
-    const elTotalMes = document.getElementById('total-acumulado-mes');
-    if (elTotalMes) elTotalMes.textContent = totalMes;
+
+    const elTotalMesAudit = document.getElementById('total-acumulado-mes-auditoria');
+    if (elTotalMesAudit) elTotalMesAudit.textContent = totalMes;
 }
 
 function atualizarContadoresMenuLateral() {
@@ -1469,10 +1548,8 @@ async function atualizarPainelCentral() {
 
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
-    const dataFormatadaProtocolo = dataSelecionadaStr.split('-').reverse().join('/');
 
-    // 1. Processa os dados visíveis do dia selecionado
-    document.querySelectorAll('.patient-card').forEach(card => {
+    document.querySelectorAll('.tab-pane:not(#aba-auditoria-sepse) .patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
         const isento = card.querySelector('.isento-relatorio')?.checked;
         const nome = inputNome ? inputNome.value.trim() : "";
@@ -1522,7 +1599,6 @@ async function atualizarPainelCentral() {
 
                 if (cardTemProtocoloAberto && dataHoraAberturaStr) {
                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    // VIGÊNCIA DE 24 HORAS
                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                     const diffMs = vencimentoObj - agoraRelogio;
                     
@@ -1545,7 +1621,6 @@ async function atualizarPainelCentral() {
         }
     });
 
-    // 2. Varredura automática no Supabase para resgatar protocolos de sepse vigentes (24h) abertos recentemente
     const mesAnoChave = dataSelecionadaStr.substring(0, 7);
     const { data: todosPlantoesMes } = await _supabase
         .from('plantoes')
@@ -1569,7 +1644,6 @@ async function atualizarPainelCentral() {
                                 if (isSimProtocolo) {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
-                                    // VIGÊNCIA DE 24 HORAS
                                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
                                     const diffMs = vencimentoObj - agoraRelogio;
 
@@ -1626,28 +1700,11 @@ async function atualizarPainelCentral() {
     }
 
     document.getElementById('dash-pacientes').textContent = totalPacientes;
-    
-    document.getElementById('dash-sepse').textContent = indicadoresMensais.sepse + totalSepseAtivaNoDia;
-    document.getElementById('dash-estavel').textContent = indicadoresMensais.estavel + cntEstavelAtivo;
-    document.getElementById('dash-baixo').textContent = indicadoresMensais.baixo + cntBaixoAtivo;
-    document.getElementById('dash-medio').textContent = indicadoresMensais.medio + cntMedioAtivo;
-    document.getElementById('dash-alto').textContent = indicadoresMensais.alto + cntAltoAtivo;
-
-    const elAlta = document.getElementById('saida-alta');
-    const elHcUfu = document.getElementById('saida-hc-ufu');
-    const elHospMunic = document.getElementById('saida-hospital-municipal');
-    const elCip = document.getElementById('saida-cip');
-    const elCaps = document.getElementById('saida-caps');
-    const elUcci = document.getElementById('saida-ucci');
-    const elObito = document.getElementById('saida-obito');
-
-    if (elAlta) elAlta.textContent = contadoresSaidas.alta;
-    if (elHcUfu) elHcUfu.textContent = contadoresSaidas["HC UFU"];
-    if (elHospMunic) elHospMunic.textContent = contadoresSaidas["Hospital Municipal"];
-    if (elCip) elCip.textContent = contadoresSaidas["CIP"];
-    if (elCaps) elCaps.textContent = contadoresSaidas["CAPS"];
-    if (elUcci) elUcci.textContent = contadoresSaidas["UCCI"];
-    if (elObito) elObito.textContent = contadoresSaidas.obito;
+    document.getElementById('dash-sepse').textContent = totalSepseAtivaNoDia;
+    document.getElementById('dash-estavel').textContent = cntEstavelAtivo;
+    document.getElementById('dash-baixo').textContent = cntBaixoAtivo;
+    document.getElementById('dash-medio').textContent = cntMedioAtivo;
+    document.getElementById('dash-alto').textContent = cntAltoAtivo;
 
     atualizarDadosGrafico(totalPacientes);
     atualizarContadoresMenuLateral();
@@ -1665,8 +1722,8 @@ function injetarSeletorTipoRelatorio() {
         wrapperSelect.innerHTML = `
             <label for="select-tipo-relatorio">Tipo de Relatório:</label>
             <select id="select-tipo-relatorio" onchange="atualizarTextoRelatorioGerencial()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc; font-weight: normal;">
-                <option value="diario">Diário (Data Selecionada)</option>
-                <option value="mensal" selected>Mensal (Consolidado do Mês)</option>
+                <option value="diario" selected>Diário (Data Selecionada)</option>
+                <option value="mensal">Mensal (Consolidado do Mês)</option>
             </select>
         `;
         headerBox.insertAdjacentElement('afterend', wrapperSelect);
@@ -1676,6 +1733,12 @@ function injetarSeletorTipoRelatorio() {
 async function abrirModalRelatorioGerencial() {
     const modal = document.getElementById('modal-relatorio-gerencial');
     if (!modal) return;
+    
+    const selectTipo = document.getElementById('select-tipo-relatorio');
+    if (selectTipo) {
+        selectTipo.value = "diario";
+    }
+
     modal.style.display = 'flex';
     atualizarTextoRelatorioGerencial();
 }
@@ -1685,7 +1748,7 @@ async function atualizarTextoRelatorioGerencial() {
     const selectTipo = document.getElementById('select-tipo-relatorio');
     if (!conteudoBox) return;
 
-    const tipo = selectTipo ? selectTipo.value : "mensal";
+    const tipo = selectTipo ? selectTipo.value : "diario";
     const partesData = dataSelecionadaStr.split('-');
     const ano = partesData[0];
     const mesNum = partesData[1];
@@ -1698,6 +1761,17 @@ async function atualizarTextoRelatorioGerencial() {
         let totalAtivosDia = 0;
         let alertasSepseDia = 0;
         let estavelDia = 0, baixoDia = 0, medioDia = 0, altoDia = 0;
+        
+        let saidasDiarias = {
+            alta: 0,
+            "HC UFU": 0,
+            "Hospital Municipal": 0,
+            "CIP": 0,
+            "CAPS": 0,
+            "UCCI": 0,
+            obito: 0,
+            outros: 0
+        };
 
         document.querySelectorAll('.patient-card').forEach(card => {
             const nome = card.querySelector('.nome-input')?.value.trim();
@@ -1723,9 +1797,27 @@ async function atualizarTextoRelatorioGerencial() {
             }
         });
 
+        const { data: plantaoDia } = await _supabase
+            .from('plantoes')
+            .select('dados_json')
+            .eq('data_chave', dataSelecionadaStr)
+            .maybeSingle();
+
+        if (plantaoDia && Array.isArray(plantaoDia.dados_json)) {
+            plantaoDia.dados_json.forEach(p => {
+                const desfecho = p.desfecho || "Internado";
+                if (desfecho !== "Internado") {
+                    if (desfecho === "Alta") saidasDiarias.alta++;
+                    else if (desfecho === "Óbito") saidasDiarias.obito++;
+                    else if (saidasDiarias.hasOwnProperty(desfecho)) saidasDiarias[desfecho]++;
+                    else saidasDiarias.outros++;
+                }
+            });
+        }
+
         let texto = `Relatório Diário (${diaNum}/${mesNum}/${ano})\n`;
         texto += `--------------------------------------------------\n`;
-        texto += `• Pacientes Internados no Plantão: ${totalAtivosDia}\n`;
+        texto += `• Pacientes Ativos no Plantão: ${totalAtivosDia}\n`;
         texto += `• Alertas de Sepse no Dia: ${alertasSepseDia}\n`;
         texto += `--------------------------------------------------\n`;
         texto += `Escores NEWS / PEWS do Dia:\n`;
@@ -1734,14 +1826,15 @@ async function atualizarTextoRelatorioGerencial() {
         texto += `- Médio Risco: ${medioDia}\n`;
         texto += `- Alto Risco: ${altoDia}\n`;
         texto += `--------------------------------------------------\n`;
-        texto += `Saídas e Destinos Registrados:\n`;
-        texto += `- Alta Hospitalar: ${contadoresSaidas.alta}\n`;
-        texto += `- HC UFU: ${contadoresSaidas["HC UFU"]}\n`;
-        texto += `- Hospital Municipal: ${contadoresSaidas["Hospital Municipal"]}\n`;
-        texto += `- CIP: ${contadoresSaidas["CIP"]}\n`;
-        texto += `- CAPS: ${contadoresSaidas["CAPS"]}\n`;
-        texto += `- UCCI: ${contadoresSaidas["UCCI"]}\n`;
-        texto += `- Óbito: ${contadoresSaidas.obito}\n`;
+        texto += `Saídas e Transferências do Dia:\n`;
+        texto += `- Alta Hospitalar: ${saidasDiarias.alta}\n`;
+        texto += `- HC UFU: ${saidasDiarias["HC UFU"]}\n`;
+        texto += `- Hospital Municipal: ${saidasDiarias["Hospital Municipal"]}\n`;
+        texto += `- CIP: ${saidasDiarias["CIP"]}\n`;
+        texto += `- CAPS: ${saidasDiarias["CAPS"]}\n`;
+        texto += `- UCCI: ${saidasDiarias["UCCI"]}\n`;
+        texto += `- Óbito: ${saidasDiarias.obito}\n`;
+        if (saidasDiarias.outros > 0) texto += `- Outros/Transferidos: ${saidasDiarias.outros}\n`;
 
         conteudoBox.textContent = texto;
 
@@ -1774,26 +1867,310 @@ function fecharModalRelatorioGerencial() {
     if (modal) modal.style.display = 'none';
 }
 
-function imprimirRelatorioGerencial() {
-    const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
-    const janelaImpressao = window.open('', '_blank');
-    if (janelaImpressao) {
-        janelaImpressao.document.write(`<html><head><title>Relatório Clínico</title></head><body style="font-family: monospace; white-space: pre-line; padding: 20px;">${conteudo}</body></html>`);
-        janelaImpressao.document.close();
-        janelaImpressao.focus();
-        setTimeout(() => {
-            janelaImpressao.print();
-            janelaImpressao.close();
-        }, 250);
-    }
+function copiarResumoGerencial() {
+    const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
+    if (!conteudoBox) return;
+    
+    navigator.clipboard.writeText(conteudoBox.textContent).then(() => {
+        alert("Resumo copiado para a área de transferência!");
+    }).catch(err => {
+        console.error("Erro ao copiar: ", err);
+    });
 }
 
-function copiarResumoGerencial() {
-    const conteudo = document.getElementById('conteudo-relatorio-gerencial').textContent;
-    navigator.clipboard.writeText(conteudo).then(() => {
-        alert("Resumo copiado com sucesso para a área de transferência!");
-    }).catch(err => {
-        console.error("Erro ao copiar:", err);
-        alert("Não foi possível copiar automaticamente.");
+function imprimirRelatorioGerencial() {
+    const conteudoBox = document.getElementById('conteudo-relatorio-gerencial');
+    if (!conteudoBox) return;
+
+    const janelaImpressao = window.open('', '', 'height=600,width=800');
+    janelaImpressao.document.write('<html><head><title>Relatório</title></head><body style="font-family: monospace; white-space: pre-wrap; padding: 20px;">');
+    janelaImpressao.document.write(conteudoBox.textContent);
+    janelaImpressao.document.write('</body></html>');
+    janelaImpressao.document.close();
+    janelaImpressao.focus();
+    janelaImpressao.print();
+}
+
+// --- FUNÇÕES AUTOMATIZADAS DA ABA DE AUDITORIA E CONSOLIDADOS MENSAIS ---
+
+async function carregarDadosAuditoria() {
+    const tbody = document.getElementById('corpo-tabela-auditoria');
+    if (!tbody) return;
+
+    const elMesEstavel = document.getElementById('mes-estavel');
+    const elMesBaixo = document.getElementById('mes-baixo');
+    const elMesMedio = document.getElementById('mes-medio');
+    const elMesAlto = document.getElementById('mes-alto');
+
+    if (elMesEstavel) elMesEstavel.textContent = indicadoresMensais.estavel;
+    if (elMesBaixo) elMesBaixo.textContent = indicadoresMensais.baixo;
+    if (elMesMedio) elMesMedio.textContent = indicadoresMensais.medio;
+    if (elMesAlto) elMesAlto.textContent = indicadoresMensais.alto;
+
+    const elMesAlta = document.getElementById('mes-saida-alta');
+    const elMesHcUfu = document.getElementById('mes-saida-hc-ufu');
+    const elMesHospMunic = document.getElementById('mes-saida-hospital-municipal');
+    const elMesCip = document.getElementById('mes-saida-cip');
+    const elMesCaps = document.getElementById('mes-saida-caps');
+    const elMesUcci = document.getElementById('mes-saida-ucci');
+    const elMesObito = document.getElementById('mes-saida-obito');
+
+    if (elMesAlta) elMesAlta.textContent = contadoresSaidas.alta;
+    if (elMesHcUfu) elMesHcUfu.textContent = contadoresSaidas["HC UFU"];
+    if (elMesHospMunic) elMesHospMunic.textContent = contadoresSaidas["Hospital Municipal"];
+    if (elMesCip) elMesCip.textContent = contadoresSaidas["CIP"];
+    if (elMesCaps) elMesCaps.textContent = contadoresSaidas["CAPS"];
+    if (elMesUcci) elMesUcci.textContent = contadoresSaidas["UCCI"];
+    if (elMesObito) elMesObito.textContent = contadoresSaidas.obito;
+
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
+    const { data: plantoesMes, error } = await _supabase
+        .from('plantoes')
+        .select('data_chave, dados_json')
+        .eq('mes_ano', mesAnoChave);
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">Erro ao carregar dados do servidor.</td></tr>`;
+        return;
+    }
+
+    window.dadosAuditoriaGlobal = [];
+
+    if (plantoesMes) {
+        plantoesMes.forEach(plantao => {
+            if (plantao.data_chave.startsWith('STATS-')) return;
+            const dataPlantao = plantao.data_chave.split('-').reverse().join('/');
+            const pacientes = plantao.dados_json;
+
+            if (Array.isArray(pacientes)) {
+                pacientes.forEach(p => {
+                    const nome = p.nome ? p.nome.trim() : "";
+                    if (nome === "") return;
+
+                    let temAlertaSepse = "Não";
+                    let maiorNews = 0;
+
+                    if (Array.isArray(p.vitais)) {
+                        p.vitais.forEach(v => {
+                            const inputs = v.inputs || [];
+                            const pas = parseFloat(inputs[1]) || 0;
+                            const temp = parseFloat(String(inputs[2] || '').replace(',', '.')) || 0;
+                            const fr = parseFloat(inputs[3]) || 0;
+                            const fc = parseFloat(inputs[4]) || 0;
+                            const o2 = (inputs[5] || "").toUpperCase();
+                            const sat = parseFloat(inputs[6]) || 0;
+                            const consc = (inputs[7] || "").toUpperCase();
+                            const protocoloManual = (inputs[9] || "").toUpperCase();
+
+                            let sirsCount = 0;
+                            if (fc > 90) sirsCount++;
+                            if (fr > 20) sirsCount++;
+                            if (temp > 38.3 || (temp > 0 && temp < 35)) sirsCount++;
+
+                            const conscGrave = (consc === "VOZ, DOR OU NÃO REAGE");
+                            const pasGrave = (pas > 0 && pas < 90);
+                            const satGrave = (sat > 0 && ((sat < 90 && o2 !== "SIM") || (sat < 94 && o2 === "SIM")));
+
+                            if (sirsCount >= 2 || conscGrave || pasGrave || satGrave || protocoloManual === "SIM") {
+                                temAlertaSepse = "Sim";
+                            }
+
+                            const valNews = parseInt(inputs[inputs.length - 2]);
+                            if (!isNaN(valNews) && valNews > maiorNews) {
+                                maiorNews = valNews;
+                            }
+                        });
+                    }
+
+                    let desfecho = p.desfecho || "Internado";
+
+                    window.dadosAuditoriaGlobal.push({
+                        data: dataPlantao,
+                        setor: p.setor ? p.setor.toUpperCase() : "GERAL",
+                        nome: nome,
+                        prontuario: p.prontuario || "---",
+                        protocolo: temAlertaSepse,
+                        desfecho: desfecho,
+                        score: maiorNews,
+                        detalhes: p
+                    });
+                });
+            }
+        });
+    }
+
+    const badgeTopo = document.querySelector('.badge-contador[data-setor="auditoria"]');
+    if (badgeTopo) badgeTopo.textContent = window.dadosAuditoriaGlobal.length;
+
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Selecione uma opção no filtro acima ou digite um termo para exibir os registros.</td></tr>`;
+}
+
+function filtrarTabelaAuditoria() {
+    const selectStatus = document.getElementById('filtro-auditoria-status');
+    const inputTexto = document.getElementById('filtro-auditoria-texto');
+    
+    const statusFiltro = selectStatus ? selectStatus.value : '';
+    const textoFiltro = inputTexto ? inputTexto.value.toLowerCase().trim() : '';
+
+    const tbody = document.getElementById('corpo-tabela-auditoria');
+    if (!tbody) return;
+
+    if (!statusFiltro && textoFiltro === "") {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Selecione uma opção no filtro acima ou digite um termo para exibir os registros.</td></tr>`;
+        return;
+    }
+
+    if (!window.dadosAuditoriaGlobal) return;
+
+    const filtrados = window.dadosAuditoriaGlobal.filter(item => {
+        const matchTexto = item.nome.toLowerCase().includes(textoFiltro) || item.prontuario.toLowerCase().includes(textoFiltro);
+        
+        if (textoFiltro !== "" && !matchTexto) return false;
+
+        if (statusFiltro === 'todos') return true;
+        if (statusFiltro === 'sepse') return item.protocolo === 'Sim';
+        if (statusFiltro === 'estavel') return item.score <= 1;
+        if (statusFiltro === 'baixo') return item.score === 2;
+        if (statusFiltro === 'medio') return item.score >= 3 && item.score <= 4;
+        if (statusFiltro === 'alto') return item.score >= 5;
+        
+        if (statusFiltro === 'alta') return item.desfecho === 'Alta';
+        if (statusFiltro === 'obito') return item.desfecho === 'Óbito';
+        if (statusFiltro === 'transferido') return item.desfecho !== 'Internado' && item.desfecho !== 'Alta' && item.desfecho !== 'Óbito';
+
+        return true;
     });
+
+    renderizarTabelaAuditoria(filtrados);
+}
+
+function renderizarTabelaAuditoria(lista) {
+    const tbody = document.getElementById('corpo-tabela-auditoria');
+    if (!tbody) return;
+
+    if (lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Nenhum registro encontrado com esses critérios.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = lista.map((item, index) => {
+        let badgeStyle = "background:#e2e8f0; color:#475569; border:1px solid #cbd5e1;";
+        let textoDesfecho = item.desfecho;
+
+        if (textoDesfecho === "Internado") {
+            badgeStyle = "background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;";
+        } else if (textoDesfecho === "Alta") {
+            badgeStyle = "background:#e6ffe6; color:#28a745; border:1px solid #28a745;";
+        } else if (textoDesfecho === "Óbito") {
+            badgeStyle = "background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;";
+        } else {
+            badgeStyle = "background:#fff3cd; color:#856404; border:1px solid #ffeeba;";
+            textoDesfecho = `Transferido: ${textoDesfecho}`;
+        }
+
+        return `
+            <tr>
+                <td>${item.data}</td>
+                <td>${item.setor}</td>
+                <td>
+                    <a href="#" style="color: #003366; font-weight: bold; text-decoration: underline;" onclick="event.preventDefault(); abrirDetalhesAuditoriaPaciente(window.dadosAuditoriaGlobal[${index}]);">
+                        ${item.nome}
+                    </a>
+                </td>
+                <td>${item.prontuario}</td>
+                <td>${item.protocolo}</td>
+                <td><span class="status-badge" style="${badgeStyle} padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: inline-block;">${textoDesfecho}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function abrirDetalhesAuditoriaPaciente(dadosPaciente) {
+    let modalId = "modal-detalhes-paciente-audit";
+    let modal = document.getElementById(modalId);
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;";
+        
+        modal.innerHTML = `
+            <div style="background:#fff; padding:25px; border-radius:8px; width:750px; max-width:95%; max-height:85vh; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:left;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #e6f0fa; padding-bottom:10px;">
+                    <h3 id="detalhe-titulo-paciente" style="margin:0; color:#003366; font-size:1.1rem;">📋 Histórico de Alterações do Paciente</h3>
+                    <button onclick="document.getElementById('${modalId}').style.display='none'" style="background:none; border:none; font-size:1.2rem; font-weight:bold; cursor:pointer; color:#64748b;">✕</button>
+                </div>
+                <div id="detalhe-conteudo-paciente" style="font-size:0.9rem; color:#334155; line-height:1.5;">
+                    <!-- Conteúdo injetado dinamicamente -->
+                </div>
+                <div style="text-align:right; margin-top:20px;">
+                    <button onclick="document.getElementById('${modalId}').style.display='none'" style="background-color:#003366; color:#fff; padding:8px 16px; border-radius:4px; font-weight:600; cursor:pointer; border:none;">Fechar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const p = dadosPaciente.detalhes || dadosPaciente;
+    let linhasTabelaHtml = "";
+
+    if (p.vitais && Array.isArray(p.vitais)) {
+        linhasTabelaHtml = p.vitais.map(v => {
+            const h = v.hora || "";
+            const ins = v.inputs || [];
+            return `
+                <tr>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${h}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[0] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[1] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[2] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[3] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[4] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[5] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[6] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[7] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-weight: bold;">${ins[8] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[9] || ""}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    let conteudoDiv = document.getElementById('detalhe-conteudo-paciente');
+    conteudoDiv.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <p style="margin:0;"><strong>Paciente:</strong> ${p.nome || 'N/A'}</p>
+            <p style="margin:0;"><strong>Prontuário:</strong> ${p.prontuario || 'N/A'}</p>
+            <p style="margin:0;"><strong>Setor / Leito:</strong> ${(p.setor || '').toUpperCase()}</p>
+            <p style="margin:0;"><strong>Data do Plantão:</strong> ${dadosPaciente.data || 'N/A'}</p>
+            <p style="margin:0;"><strong>Técnico Resp.:</strong> ${p.tec || 'Não informado'}</p>
+            <p style="margin:0;"><strong>Status / Desfecho:</strong> ${dadosPaciente.desfecho || 'Internado'}</p>
+        </div>
+
+        <h4 style="color:#003366; margin-bottom:8px;">Evolução de Sinais Vitais e Parâmetros:</h4>
+        <div style="overflow-x-auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                <thead>
+                    <tr style="background: #003366; color: #fff;">
+                        <th style="border: 1px solid #002244; padding: 6px;">Hora</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">PAS</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Temp</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">FR</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">FC</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">O₂</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Sat</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Consc.</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Glic.</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">NEWS</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Prot.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${linhasTabelaHtml || '<tr><td colspan="11" style="text-align:center; padding:10px;">Nenhum registro encontrado</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
 }
