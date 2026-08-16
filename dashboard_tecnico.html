@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lançamento Rápido - Sinais Vitais</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            background-image: linear-gradient(rgba(0, 15, 25, 0.5), rgba(0, 15, 25, 0.5)), url('Imagens/Fundo_sepse.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .header-tecnico {
+            background: #003366;
+            color: #fff;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Tela de Autenticação Inicial do Técnico */
+        #auth-container {
+            max-width: 400px;
+            width: 90%;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .main-form {
+            display: none; /* Oculto até que o técnico faça o login */
+            max-width: 580px;
+            width: 100%;
+            margin: 15px auto;
+            background: #fff;
+            padding: 20px 25px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            overflow-y: auto;
+            max-height: calc(100vh - 70px);
+        }
+
+        .step-section {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .step-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #0056b3;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-row { display: flex; gap: 12px; margin-bottom: 8px; }
+        .form-group { flex: 1; }
+        
+        .form-group label { 
+            display: block; 
+            font-size: 0.75rem; 
+            color: #555; 
+            margin-bottom: 3px; 
+            font-weight: 600; 
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            color: #333;
+            box-sizing: border-box;
+        }
+
+        .paciente-info-box {
+            display: none;
+            background: #e6f0fa;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border-left: 3px solid #0056b3;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #003366;
+            font-weight: 600;
+        }
+
+        /* Caixa visual que aparece se o paciente não for encontrado */
+        .novo-paciente-box {
+            display: none;
+            background: #fff8f1;
+            border: 1px dashed #f97316;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .news-preview-container {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .news-preview-input {
+            width: 55px !important;
+            font-size: 1.2rem !important;
+            font-weight: bold;
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            padding: 2px !important;
+        }
+
+        .status-alerta-texto {
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* Padrão visual de alerta para dados alterados */
+        .input-destacado-alerta {
+            border: 2px solid #ff9933 !important;
+            background-color: rgba(255, 153, 51, 0.08) !important;
+        }
+
+        /* Botões Lado a Lado */
+        .button-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .btn-acao {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            color: white;
+            text-align: center;
+        }
+        .btn-enviar { background: #0056b3; }
+        .btn-enviar:hover { background: #004494; }
+        
+        .btn-relatorio { background: #17a2b8; }
+        .btn-relatorio:hover { background: #138496; }
+
+        /* Modal Customizado para o Relatório */
+        #modal-relatorio {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-box {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            width: 480px;
+            max-width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header-tecnico">
+        LANÇAMENTO RÁPIDO DE SINAIS VITAIS
+    </header>
+
+    <!-- TELA DE IDENTIFICAÇÃO DO TÉCNICO -->
+    <div id="auth-container">
+        <h3 style="color: #003366; margin-top: 0; margin-bottom: 5px;">Identificação do Técnico</h3>
+        <p style="font-size: 0.82rem; color: #666; margin-bottom: 20px;">Informe seus dados para acessar o sistema.</p>
+        
+        <div style="text-align: left; margin-bottom: 12px;">
+            <label style="font-size: 0.78rem; font-weight: bold; color: #444; display: block; margin-bottom: 4px;">SEU NOME COMPLETO</label>
+            <input type="text" id="auth-nome" placeholder="Ex: Thais / João..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <div style="text-align: left; margin-bottom: 20px;">
+            <label style="font-size: 0.78rem; font-weight: bold; color: #444; display: block; margin-bottom: 4px;">SENHA PADRÃO DO PLANTÃO</label>
+            <input type="password" id="auth-senha" placeholder="Digite a senha..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <button onclick="validarAcessoTecnico()" style="width: 100%; background: #003366; color: #fff; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">Entrar no Lançamento</button>
+    </div>
+
+    <!-- FORMULÁRIO PRINCIPAL -->
+    <main class="main-form" id="form-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.8rem; color: #666; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
+            <span>Técnico Responsável: <strong id="lbl-tecnico-logado" style="color: #003366;">---</strong></span>
+            <button onclick="sairDoPainel()" style="background: none; border: none; color: #dc3545; font-weight: bold; cursor: pointer; font-size: 0.75rem;">Sair / Trocar</button>
+        </div>
+
+        <div class="step-section">
+            <div class="step-title">📍 Identificação, Horário e Responsável</div>
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label>Nº PRONTUÁRIO</label>
+                    <input type="text" id="input-prontuario" placeholder="Digite..." autofocus>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>HORÁRIO</label>
+                    <select id="select-hora">
+                        <option value="08:00">08:00</option>
+                        <option value="12:00">12:00</option>
+                        <option value="16:00">16:00</option>
+                        <option value="20:00">20:00</option>
+                        <option value="00:00">00:00</option>
+                        <option value="04:00">04:00</option>
+                        <option value="outro">Outro (Digitar...)</option>
+                    </select>
+                    <input type="time" id="input-hora-custom" style="display: none; margin-top: 5px; width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" placeholder="HH:mm">
+                </div>
+            </div>
+            
+            <div class="form-row" style="margin-top: 6px; margin-bottom: 0;">
+                <div class="form-group" style="width: 100%;">
+                    <label>ENFERMEIRO GESTOR / AVISADO</label>
+                    <input type="text" id="input-enfermeiro" placeholder="Nome do enfermeiro...">
+                </div>
+            </div>
+
+            <!-- Caixa exibida se o paciente já estiver na base -->
+            <div id="paciente-info" class="paciente-info-box">
+                Paciente: <span id="span-nome" style="font-weight: normal;">---</span> | Leito: <span id="span-setor" style="font-weight: normal;">---</span>
+            </div>
+
+            <!-- Caixa visual para cadastrar novo paciente se não encontrado -->
+            <div id="novo-paciente-container" class="novo-paciente-box">
+                <div style="font-size: 0.78rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário não encontrado na base. Deseja cadastrar?</div>
+                <div class="form-row" style="margin-bottom: 6px;">
+                    <div class="form-group" style="flex: 2;">
+                        <label>NOME DO PACIENTE</label>
+                        <input type="text" id="novo-nome-paciente" placeholder="Nome completo...">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>LOCAL / SETOR</label>
+                        <select id="novo-setor-paciente">
+                            <option value="enf1">Enfermaria 1</option>
+                            <option value="enf2">Enfermaria 2</option>
+                            <option value="enf3">Enfermaria 3</option>
+                            <option value="enf4">Enfermaria 4</option>
+                            <option value="enf5">Enfermaria 5</option>
+                            <option value="corredor">Corredor</option>
+                            <option value="enf-pediatria">Pediatria</option>
+                            <option value="sala-emergencia">Emergência</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-section" style="border-bottom: none; margin-bottom: 8px;">
+            <div class="step-title">🩺 Parâmetros e Escore NEWS</div>
+            
+            <div class="form-row">
+                <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
+                <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr"></div>
+                <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>O₂ Suplementar?</label>
+                    <select id="o2"><option selected></option><option>Sim</option><option>Não</option></select>
+                </div>
+                <div class="form-group"><label>Sat %</label><input type="number" id="sat"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;"><label>Nível de Consciência</label>
+                    <select id="consc">
+                        <option selected></option>
+                        <option>Alerta</option>
+                        <option>AGITADO/CONFUSO</option>
+                        <option>VOZ, DOR OU NÃO REAGE</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia"></div>
+            </div>
+
+            <div class="news-preview-container">
+                <div>
+                    <label style="margin: 0; font-size: 0.7rem;">NEWS Total</label>
+                    <input type="number" id="news-total" class="news-preview-input" readonly>
+                </div>
+                <div id="status-news-texto" class="status-alerta-texto">Aguardando...</div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação na ordem correta -->
+        <div class="button-row">
+            <button class="btn-acao btn-relatorio">Gerar Relatório</button>
+            <button class="btn-acao btn-enviar">Enviar p/ Planilha</button>
+        </div>
+    </main>
+
+    <!-- MODAL DE EXIBIÇÃO DO RELATÓRIO GERADO -->
+    <div id="modal-relatorio">
+        <div class="modal-box">
+            <h3 style="color: #003366; margin-top: 0; font-size: 1.1rem;">📋 Relatório para Lançamento</h3>
+            <textarea id="texto-relatorio-gerado" style="width: 100%; height: 130px; padding: 10px; font-size: 0.88rem; border: 1px solid #ccc; border-radius: 4px; resize: none; box-sizing: border-box; background: #f8fafc;" readonly></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+                <button id="btn-copiar-texto" style="background: #28a745; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">📋 Copiar Texto</button>
+                <button id="btn-fechar-modal" style="background: #64748b; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA E CONEXÃO COM O SUPABASE -->
+    <script>
+        const SUPABASE_URL = 'https://fwaheunpekyvwyysqncz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_er3si1epfRHUz8SQP26B1A__aFx0cTy';
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let tecnicoLogadoGlobal = localStorage.getItem('tecnico_logado_nome') || "";
+        const SENHA_PADRAO_TECNICOS = "tec2026"; // Senha padrão para os técnicos
+
+        // Valida se veio direto da tela de login ou se precisa autenticar
+        document.addEventListener("DOMContentLoaded", () => {
+            if (tecnicoLogadoGlobal && tecnicoLogadoGlobal !== "admin") {
+                document.getElementById('auth-container').style.display = 'none';
+                document.getElementById('form-container').style.display = 'block';
+                document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
+                document.getElementById('input-prontuario').focus();
+            } else {
+                document.getElementById('auth-container').style.display = 'block';
+                document.getElementById('form-container').style.display = 'none';
+            }
+
+            const selectHora = document.getElementById('select-hora');
+            const inputHoraCustom = document.getElementById('input-hora-custom');
+
+            if (selectHora) {
+                selectHora.addEventListener('change', () => {
+                    if (selectHora.value === 'outro') {
+                        inputHoraCustom.style.display = 'block';
+                        inputHoraCustom.required = true;
+                    } else {
+                        inputHoraCustom.style.display = 'none';
+                        inputHoraCustom.required = false;
+                    }
+                });
+            }
+
+            const inputProntuario = document.getElementById('input-prontuario');
+            if (inputProntuario) {
+                inputProntuario.addEventListener('blur', buscarPacientePorProntuario);
+                inputProntuario.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        buscarPacientePorProntuario();
+                    }
+                });
+            }
+
+            const inputsVitais = document.querySelectorAll('#pas, #temp, #fr, #fc, #o2, #sat, #consc');
+            inputsVitais.forEach(el => {
+                el.addEventListener('input', calcularNewsTecnico);
+                el.addEventListener('change', calcularNewsTecnico);
+            });
+
+            const btnEnviar = document.querySelector('.btn-enviar');
+            if (btnEnviar) btnEnviar.addEventListener('click', enviarDadosParaPlanilha);
+
+            const btnRelatorio = document.querySelector('.btn-relatorio');
+            if (btnRelatorio) btnRelatorio.addEventListener('click', gerarRelatorioTecnico);
+
+            const btnCopiar = document.getElementById('btn-copiar-texto');
+            if (btnCopiar) btnCopiar.addEventListener('click', copiarTextoRelatorio);
+
+            const btnFechar = document.getElementById('btn-fechar-modal');
+            if (btnFechar) btnFechar.addEventListener('click', fecharModalRelatorio);
+        });
+
+        function validarAcessoTecnico() {
+            const nomeInput = document.getElementById('auth-nome').value.trim();
+            const senhaInput = document.getElementById('auth-senha').value.trim();
+
+            if (!nomeInput) {
+                alert("⚠️ Por favor, digite seu nome.");
+                document.getElementById('auth-nome').focus();
+                return;
+            }
+
+            if (senhaInput !== SENHA_PADRAO_TECNICOS) {
+                alert("❌ Senha padrão incorreta!");
+                document.getElementById('auth-senha').value = "";
+                document.getElementById('auth-senha').focus();
+                return;
+            }
+
+            tecnicoLogadoGlobal = nomeInput;
+            localStorage.setItem('tecnico_logado_nome', tecnicoLogadoGlobal);
+            
+            document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('form-container').style.display = 'block';
+            document.getElementById('input-prontuario').focus();
+        }
+
+        function sairDoPainel() {
+            localStorage.removeItem('tecnico_logado_nome');
+            window.location.href = "index.html"; // Redireciona diretamente para a tela de login
+        }
+
+        async function buscarPacientePorProntuario() {
+            const prontuarioInput = document.getElementById('input-prontuario').value.trim();
+            const infoBox = document.getElementById('paciente-info');
+            const novoBox = document.getElementById('novo-paciente-container');
+
+            if (!prontuarioInput) {
+                if (infoBox) infoBox.style.display = 'none';
+                if (novoBox) novoBox.style.display = 'none';
+                return;
+            }
+
+            const hojeStr = new Date().toISOString().split('T')[0];
+
+            const { data, error } = await _supabase
+                .from('plantoes')
+                .select('dados_json')
+                .eq('data_chave', hojeStr)
+                .maybeSingle();
+
+            let pacienteEncontrado = null;
+            let setorEncontrado = null;
+
+            if (data && data.dados_json && Array.isArray(data.dados_json)) {
+                for (const p of data.dados_json) {
+                    if (p.prontuario && p.prontuario.toString().trim() === prontuarioInput) {
+                        pacienteEncontrado = p;
+                        setorEncontrado = p.setor;
+                        break;
+                    }
+                }
+            }
+
+            if (pacienteEncontrado) {
+                document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
+                document.getElementById('span-setor').textContent = setorEncontrado.toUpperCase();
+                if (infoBox) infoBox.style.display = 'block';
+                if (novoBox) novoBox.style.display = 'none';
+            } else {
+                if (infoBox) infoBox.style.display = 'none';
+                if (novoBox) {
+                    novoBox.style.display = 'block';
+                    document.getElementById('novo-nome-paciente').focus();
+                }
+            }
+        }
+
+        function calcularNewsTecnico() {
+            const pPas = document.getElementById('pas');
+            const pTemp = document.getElementById('temp');
+            const pFr = document.getElementById('fr');
+            const pFc = document.getElementById('fc');
+            const pO2 = document.getElementById('o2');
+            const pSat = document.getElementById('sat');
+            const pConsc = document.getElementById('consc');
+            const inputNewsTotal = document.getElementById('news-total');
+            const statusTexto = document.getElementById('status-news-texto');
+
+            [pPas, pTemp, pFr, pFc, pSat, pConsc].forEach(el => {
+                if (el) el.classList.remove('input-destacado-alerta');
+            });
+
+            const pas = parseFloat(pPas?.value) || 0;
+            const temp = parseFloat(String(pTemp?.value || '').replace(',', '.')) || 0;
+            const fr = parseFloat(pFr?.value) || 0;
+            const fc = parseFloat(pFc?.value) || 0;
+            const o2SimNao = pO2?.value ? pO2.value.toUpperCase() : "";
+            const sat = parseFloat(pSat?.value) || 0;
+            const consc = pConsc?.value ? pConsc.value.toUpperCase() : "";
+
+            const preenchidos = [pPas?.value, pTemp?.value, pFr?.value, pFc?.value, pSat?.value, pO2?.value, pConsc?.value].filter(v => v !== "").length;
+            if (preenchidos === 0) {
+                if (inputNewsTotal) inputNewsTotal.value = "";
+                if (statusTexto) {
+                    statusTexto.textContent = "Aguardando...";
+                    statusTexto.style.color = "#333";
+                }
+                return;
+            }
+
+            let score = 0;
+            if (pFr.value !== "") {
+                if (fr <= 8 || fr >= 25) score += 3;
+                else if (fr >= 21) score += 2;
+                else if (fr >= 9 && fr <= 11) score += 1;
+            }
+            if (o2SimNao === "SIM") score += 2;
+            if (pSat.value !== "") {
+                if (sat <= 91) score += 3;
+                else if (sat <= 93) score += 2;
+                else if (sat <= 95) score += 1;
+            }
+            if (pPas.value !== "") {
+                if (pas < 90) { score += 3; if (pPas) pPas.classList.add('input-destacado-alerta'); }
+                else if (pas >= 220) score += 3;
+                else if ((pas >= 90 && pas <= 100) || (pas >= 200 && pas <= 219)) score += 2;
+                else if (pas <= 110) score += 1;
+            }
+            if (pFc.value !== "") {
+                if (fc <= 40 || fc >= 131) score += 3;
+                else if (fc >= 111) score += 2;
+                else if ((fc >= 41 && fc <= 50) || (fc >= 91 && fc <= 130)) score += 1;
+            }
+            if (pTemp.value !== "") {
+                if (temp < 35) score += 3;
+                else if (temp >= 39.1) score += 2;
+                else if ((temp >= 35 && temp <= 36) || (temp >= 38.1 && temp <= 39)) score += 1;
+            }
+
+            let pConscVal = 0;
+            if (consc.includes("VOZ") || consc.includes("DOR") || consc.includes("NÃO REAGE")) {
+                pConscVal = 3;
+                if (pConsc) pConsc.classList.add('input-destacado-alerta');
+            } else if (consc.includes("AGITADO") || consc.includes("CONFUSO")) {
+                pConscVal = 2;
+            }
+            score += pConscVal;
+
+            let sirsCount = 0;
+            if (pFc.value && fc > 90) { sirsCount++; if (pFc) pFc.classList.add('input-destacado-alerta'); }
+            if (pFr.value && fr > 20) { sirsCount++; if (pFr) pFr.classList.add('input-destacado-alerta'); }
+            if (pTemp.value && (temp > 38.3 || (temp > 0 && temp < 35))) { sirsCount++; if (pTemp) pTemp.classList.add('input-destacado-alerta'); }
+
+            const sepseSat = (sat > 0 && ((sat < 90 && o2SimNao !== "SIM") || (sat < 94 && o2SimNao === "SIM")));
+            if (sepseSat && pSat) pSat.classList.add('input-destacado-alerta');
+
+            const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pas > 0 && pas < 90) || sepseSat);
+
+            if (inputNewsTotal) inputNewsTotal.value = score;
+
+            if (statusTexto) {
+                if (isAlertaSepse) {
+                    statusTexto.textContent = "🚨 ALERTA SEPSE / ALTO RISCO";
+                    statusTexto.style.color = "#dc3545";
+                } else if (score >= 5) {
+                    statusTexto.textContent = `🚨 ALTO RISCO (NEWS ${score})`;
+                    statusTexto.style.color = "#dc3545";
+                } else if (score >= 3) {
+                    statusTexto.textContent = `🟡 MÉDIO RISCO (NEWS ${score})`;
+                    statusTexto.style.color = "#d97706";
+                } else if (score >= 1) {
+                    statusTexto.textContent = `🟢 BAIXO RISCO (NEWS ${score})`;
+                    statusTexto.style.color = "#17a2b8";
+                } else {
+                    statusTexto.textContent = "🟢 ESTÁVEL (NEWS 0)";
+                    statusTexto.style.color = "#28a745";
+                }
+            }
+        }
+
+        async function enviarDadosParaPlanilha() {
+            const prontuario = document.getElementById('input-prontuario').value.trim();
+            const selectHora = document.getElementById('select-hora').value;
+            const horaCustom = document.getElementById('input-hora-custom').value;
+            const enfermeiro = document.getElementById('input-enfermeiro').value.trim();
+
+            if (!prontuario) {
+                alert("⚠️ Por favor, informe o número do prontuário.");
+                document.getElementById('input-prontuario').focus();
+                return;
+            }
+
+            let horaSelecionada = selectHora === 'outro' ? horaCustom : selectHora;
+            if (!horaSelecionada) {
+                alert("⚠️ Por favor, selecione ou informe o horário do registro.");
+                return;
+            }
+
+            const hojeStr = new Date().toISOString().split('T')[0];
+
+            const { data: plantaoAtual, error } = await _supabase
+                .from('plantoes')
+                .select('dados_json')
+                .eq('data_chave', hojeStr)
+                .maybeSingle();
+
+            let listaPacientes = plantaoAtual && plantaoAtual.dados_json ? plantaoAtual.dados_json : [];
+
+            const valoresVitaisForm = [
+                document.getElementById('pas').value,
+                document.getElementById('temp').value,
+                document.getElementById('fr').value,
+                document.getElementById('fc').value,
+                document.getElementById('o2').value,
+                document.getElementById('sat').value,
+                document.getElementById('consc').value,
+                document.getElementById('glicemia').value,
+                document.getElementById('news-total').value,
+                ""
+            ];
+
+            let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
+
+            if (pacienteAlvo) {
+                pacienteAlvo.tec = tecnicoLogadoGlobal;
+                if (enfermeiro) pacienteAlvo.enfermeiro = enfermeiro;
+
+                let linhaExistente = pacienteAlvo.vitais.find(v => v.hora === horaSelecionada);
+                if (linhaExistente) {
+                    linhaExistente.inputs = valoresVitaisForm;
+                } else {
+                    pacienteAlvo.vitais.push({
+                        hora: horaSelecionada,
+                        inputs: valoresVitaisForm,
+                        isExtra: true
+                    });
+                }
+            } else {
+                const novoNome = document.getElementById('novo-nome-paciente')?.value.trim();
+                const novoSetor = document.getElementById('novo-setor-paciente')?.value || 'corredor';
+
+                if (!novoNome) {
+                    alert("⚠️ Prontuário não encontrado. Preencha o Nome e o Setor para cadastrar o novo paciente.");
+                    document.getElementById('novo-nome-paciente').focus();
+                    return;
+                }
+
+                const novoPacienteObj = {
+                    setor: novoSetor,
+                    nome: novoNome,
+                    dtNasc: "",
+                    prontuario: prontuario,
+                    tec: tecnicoLogadoGlobal,
+                    enfermeiro: enfermeiro || "",
+                    isento: false,
+                    desfecho: "Internado",
+                    vitais: [
+                        {
+                            hora: horaSelecionada,
+                            inputs: valoresVitaisForm,
+                            isExtra: false
+                        }
+                    ]
+                };
+                listaPacientes.push(novoPacienteObj);
+            }
+
+            const { error: erroSave } = await _supabase
+                .from('plantoes')
+                .upsert({
+                    data_chave: hojeStr,
+                    dados_json: listaPacientes,
+                    mes_ano: hojeStr.substring(0, 7),
+                    updated_at: new Date()
+                }, { onConflict: 'data_chave' });
+
+            if (erroSave) {
+                alert("❌ Erro ao enviar dados para a planilha: " + erroSave.message);
+            } else {
+                alert("✅ Sinais vitais enviados com sucesso para a planilha do plantão!");
+                limparFormularioTecnico();
+            }
+        }
+
+        function gerarRelatorioTecnico() {
+            const hora = document.getElementById('select-hora').value === 'outro' ? document.getElementById('input-hora-custom').value : document.getElementById('select-hora').value;
+            const enfermeiro = document.getElementById('input-enfermeiro').value.trim() || "[Nome do Enfermeiro]";
+            
+            const pas = document.getElementById('pas').value || "-";
+            const temp = document.getElementById('temp').value || "-";
+            const fr = document.getElementById('fr').value || "-";
+            const fc = document.getElementById('fc').value || "-";
+            const sat = document.getElementById('sat').value || "-";
+            const news = document.getElementById('news-total').value || "0";
+
+            const texto = `Em tempo, às ${hora} horas, comunico valores de sinais vitais: PA ${pas}mmHg, Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, SatO₂ ${sat}%. Valor de NEWS: ${news}. Comunicado à enfermeira ${enfermeiro}.`;
+
+            const modal = document.getElementById('modal-relatorio');
+            const textarea = document.getElementById('texto-relatorio-gerado');
+            if (textarea) textarea.value = texto;
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function copiarTextoRelatorio() {
+            const textarea = document.getElementById('texto-relatorio-gerado');
+            const btnCopiar = document.getElementById('btn-copiar-texto');
+
+            if (textarea) {
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    if (btnCopiar) {
+                        const textoOriginal = btnCopiar.textContent;
+                        btnCopiar.textContent = "✅ Copiado com sucesso!";
+                        btnCopiar.style.backgroundColor = "#15803d";
+
+                        setTimeout(() => {
+                            btnCopiar.textContent = textoOriginal;
+                            btnCopiar.style.backgroundColor = "#28a745";
+                        }, 2000);
+                    }
+                }).catch(err => {
+                    console.error("Erro ao copiar: ", err);
+                });
+            }
+        }
+
+        function fecharModalRelatorio() {
+            const modal = document.getElementById('modal-relatorio');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function limparFormularioTecnico() {
+            document.getElementById('input-prontuario').value = "";
+            document.getElementById('input-enfermeiro').value = "";
+            document.getElementById('pas').value = "";
+            document.getElementById('temp').value = "";
+            document.getElementById('fr').value = "";
+            document.getElementById('fc').value = "";
+            document.getElementById('o2').selectedIndex = 0;
+            document.getElementById('sat').value = "";
+            document.getElementById('consc').selectedIndex = 0;
+            document.getElementById('glicemia').value = "";
+            document.getElementById('news-total').value = "";
+            document.getElementById('status-news-texto').textContent = "Aguardando...";
+            document.getElementById('status-news-texto').style.color = "#333";
+            
+            const infoBox = document.getElementById('paciente-info');
+            const novoBox = document.getElementById('novo-paciente-container');
+            if (infoBox) infoBox.style.display = 'none';
+            if (novoBox) novoBox.style.display = 'none';
+
+            document.getElementById('input-prontuario').focus();
+        }
+    </script>
+</body>
+</html>
