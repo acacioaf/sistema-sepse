@@ -15,7 +15,7 @@
             <form id="form-login" onsubmit="realizarLogin(event)">
                 <div class="input-group">
                     <label for="usuario">Usuario</label>
-                    <input type="text" id="usuario" name="usuario" required placeholder="Digite sua identificação">
+                    <input type="text" id="usuario" name="usuario" required placeholder="Digite sua identificação ou nome">
                 </div>
                 
                 <div class="input-group">
@@ -30,20 +30,30 @@
 
     <script>
         function realizarLogin(event) {
-            event.preventDefault(); // Evita que a página recarregue
+            event.preventDefault();
             
             const usuarioDigitado = document.getElementById('usuario').value.trim();
             const senhaDigitada = document.getElementById('senha').value.trim();
             
-            // Credenciais de acesso configuradas
-            const USUARIO_CORRETO = "admin";
-            const SENHA_CORRETA = "missao2026";
+            // 1. Credenciais do Enfermeiro (Painel Completo)
+            const USUARIO_ENF = "admin";
+            const SENHA_ENF = "missao2026";
 
-            if (usuarioDigitado === USUARIO_CORRETO && senhaDigitada === SENHA_CORRETA) {
-                window.location.href = "dashboard.html"; // Redireciona para o painel principal se estiver correto
-            } else {
+            // 2. Senha padrão unificada para todos os Técnicos
+            const SENHA_PADRAO_TECNICOS = "enfermagem";
+
+            if (usuarioDigitado === USUARIO_ENF && senhaDigitada === SENHA_ENF) {
+                // Acesso do Enfermeiro
+                window.location.href = "dashboard.html";
+            } 
+            else if (senhaDigitada === SENHA_PADRAO_TECNICOS) {
+                // Acesso do Técnico: Salvamos o nome digitado no navegador para o formulário reconhecer
+                localStorage.setItem('tecnico_logado_nome', usuarioDigitado);
+                window.location.href = "dashboard_tecnico.html";
+            } 
+            else {
                 alert("❌ Usuário ou senha incorretos! Tente novamente.");
-                document.getElementById('senha').value = ""; // Limpa o campo de senha
+                document.getElementById('senha').value = "";
                 document.getElementById('senha').focus();
             }
         }
