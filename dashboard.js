@@ -5,6 +5,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable_er3si1epfRHUz8SQP26B1A__aFx0cTy';
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --- VARIÁVEIS DE CONTROLE DE RELATÓRIO ---
+let linhaAtualParaRelatorio = null;
+
 // --- FUNÇÕES DE GERAÇÃO DE HTML DOS LEITOS ---
 function gerarTabelaAdulto() {
     return `
@@ -34,7 +37,7 @@ function gerarTabelaAdulto() {
                 <table class="vitals-table">
                     <thead>
                         <tr>
-                            <th>Hora</th><th>PAS (mmHg)</th><th>TEMP (°C)</th><th>FR (irpm)</th><th>FC (bpm)</th><th>O₂ Supl</th><th>Sat %</th><th>NÍVEL CONSC.</th><th>GLICEMIA</th><th class="bg-red">NEWS TOTAL</th><th class="bg-red">STATUS</th><th class="bg-red">ABERTO PROTOCOLO?</th>
+                            <th>Hora</th><th>PAS (mmHg)</th><th>TEMP (°C)</th><th>FR (irpm)</th><th>FC (bpm)</th><th>O₂ Supl</th><th>Sat %</th><th>NÍVEL CONSC.</th><th>GLICEMIA</th><th>DOR</th><th class="bg-red">NEWS TOTAL</th><th class="bg-red">STATUS</th><th class="bg-red">ABERTO PROTOCOLO?</th><th>AÇÃO</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,6 +52,15 @@ function gerarTabelaAdulto() {
                                 <td><input type="number"></td>
                                 <td><select><option selected></option><option>Alerta</option><option>AGITADO/CONFUSO</option><option>VOZ, DOR OU NÃO REAGE</option></select></td>
                                 <td><input type="number"></td>
+                                <td>
+                                    <select style="width: 100px;">
+                                        <option value="" selected>-</option>
+                                        <option value="0">0 - Ausente</option>
+                                        <option value="1">1 a 4 - Leve</option>
+                                        <option value="4">5 a 7 - Moderada</option>
+                                        <option value="7">8 a 10 - Intensa</option>
+                                    </select>
+                                </td>
                                 <td><input type="number" class="news-input" readonly></td>
                                 <td class="status-cell"></td>
                                 <td>
@@ -57,6 +69,9 @@ function gerarTabelaAdulto() {
                                         <option value="Sim">Sim</option>
                                         <option value="Não">Não</option>
                                     </select>
+                                </td>
+                                <td>
+                                    <button type="button" onclick="gerarRelatorioLinha(this)" style="background: #17a2b8; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Gerar relatório deste horário">📋 Relatório</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -119,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     mainContent.addEventListener("change", tratarMudancaVitais);
 
     injetarSeletorTipoRelatorio();
+    criarModaisRelatorioDinamicos();
 
     await carregarContadoresMensais(dataSelecionadaStr);
     await carregarHistoricoMesGrafico(dataSelecionadaStr.substring(0, 7)); 
@@ -486,6 +502,15 @@ function adicionarHorarioExtraOrdenado(btn) {
             <td><input type="number"></td>
             <td><select><option selected></option><option>Alerta</option><option>AGITADO/CONFUSO</option><option>VOZ, DOR OU NÃO REAGE</option></select></td>
             <td><input type="number"></td>
+            <td>
+                <select style="width: 100px;">
+                    <option value="" selected>-</option>
+                    <option value="0">0 - Ausente</option>
+                    <option value="1">1 a 4 - Leve</option>
+                    <option value="4">5 a 7 - Moderada</option>
+                    <option value="7">8 a 10 - Intensa</option>
+                </select>
+            </td>
             <td><input type="number" class="news-input" readonly></td>
             <td class="status-cell"></td>
             <td>
@@ -494,6 +519,9 @@ function adicionarHorarioExtraOrdenado(btn) {
                     <option value="Sim">Sim</option>
                     <option value="Não">Não</option>
                 </select>
+            </td>
+            <td>
+                <button type="button" onclick="gerarRelatorioLinha(this)" style="background: #17a2b8; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Gerar relatório deste horário">📋 Relatório</button>
             </td>
         `;
     }
@@ -698,6 +726,15 @@ async function carregarDadosDoDia(dataChave) {
                             <td><input type="number"></td>
                             <td><select><option selected></option><option>Alerta</option><option>AGITADO/CONFUSO</option><option>VOZ, DOR OU NÃO REAGE</option></select></td>
                             <td><input type="number"></td>
+                            <td>
+                                <select style="width: 100px;">
+                                    <option value="" selected>-</option>
+                                    <option value="0">0 - Ausente</option>
+                                    <option value="1">1 a 4 - Leve</option>
+                                    <option value="4">5 a 7 - Moderada</option>
+                                    <option value="7">8 a 10 - Intensa</option>
+                                </select>
+                            </td>
                             <td><input type="number" class="news-input" readonly></td>
                             <td class="status-cell"></td>
                             <td>
@@ -706,6 +743,9 @@ async function carregarDadosDoDia(dataChave) {
                                     <option value="Sim">Sim</option>
                                     <option value="Não">Não</option>
                                 </select>
+                            </td>
+                            <td>
+                                <button type="button" onclick="gerarRelatorioLinha(this)" style="background: #17a2b8; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;" title="Gerar relatório deste horário">📋 Relatório</button>
                             </td>
                         `;
                     }
@@ -1103,6 +1143,121 @@ function removerDestaquesLaranja(linha) {
     });
 }
 
+// --- MODAIS DE RELATÓRIO PROFISSIONAL COM CLASSIFICAÇÃO DE RISCO ---
+function criarModaisRelatorioDinamicos() {
+    const modalAntigo = document.getElementById('modal-resultado-texto-gerado');
+    if (modalAntigo) modalAntigo.remove();
+
+    const modalResultado = document.createElement('div');
+    modalResultado.id = 'modal-resultado-texto-gerado';
+    modalResultado.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;";
+    modalResultado.innerHTML = `
+        <div style="background:#fff; padding:25px; border-radius:8px; width:540px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:left;" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0; color:#003366; font-size:1.1rem;">📋 Texto do Relatório Gerado (Editável)</h3>
+            <textarea id="textarea-texto-gerado" style="width:100%; height:150px; padding:10px; font-size:0.88rem; border:1px solid #ccc; border-radius:4px; resize:vertical; box-sizing:border-box; background:#fff; font-family: inherit; line-height: 1.4; outline: none;"></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:15px;">
+                <button type="button" id="btn-copiar-rel-gerado" style="background:#28a745; color:#fff; border:none; padding:8px 14px; border-radius:4px; font-weight:bold; cursor:pointer;">📋 Copiar Texto</button>
+                <button type="button" onclick="document.getElementById('modal-resultado-texto-gerado').style.display='none'" style="background:#64748b; color:#fff; border:none; padding:8px 14px; border-radius:4px; font-weight:bold; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalResultado);
+
+    document.getElementById('btn-copiar-rel-gerado').onclick = () => {
+        const ta = document.getElementById('textarea-texto-gerado');
+        if (ta) {
+            navigator.clipboard.writeText(ta.value).then(() => {
+                alert("✅ Texto copiado para a área de transferência!");
+            });
+        }
+    };
+
+    if (!document.getElementById('modal-escolha-relatorio')) {
+        const modalEscolha = document.createElement('div');
+        modalEscolha.id = 'modal-escolha-relatorio';
+        modalEscolha.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;";
+        modalEscolha.innerHTML = `
+            <div style="background:#fff; padding:25px; border-radius:8px; width:400px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:center;">
+                <h3 style="margin-top:0; color:#003366; font-size:1.1rem;">📋 Escolha o Tipo de Relatório</h3>
+                <p style="font-size:0.85rem; color:#64748b; margin-bottom:20px;">Selecione qual profissional está realizando o registro:</p>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button type="button" onclick="gerarRelatorioProfissional('enfermeiro')" style="background:#0056b3; color:#fff; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Relatório do Enfermeiro</button>
+                    <button type="button" onclick="gerarRelatorioProfissional('medico')" style="background:#0f766e; color:#fff; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Relatório do Médico</button>
+                    <button type="button" onclick="fecharSeletorRelatorio()" style="background:#64748b; color:#fff; border:none; padding:8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem; margin-top:5px;">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalEscolha);
+    }
+}
+
+function gerarRelatorioLinha(botao) {
+    linhaAtualParaRelatorio = botao.closest('tr');
+    const modal = document.getElementById('modal-escolha-relatorio');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        criarModaisRelatorioDinamicos();
+        document.getElementById('modal-escolha-relatorio').style.display = 'flex';
+    }
+}
+
+function fecharSeletorRelatorio() {
+    const modal = document.getElementById('modal-escolha-relatorio');
+    if (modal) modal.style.display = 'none';
+    linhaAtualParaRelatorio = null;
+}
+
+function gerarRelatorioProfissional(tipo) {
+    if (!linhaAtualParaRelatorio) return;
+
+    const linha = linhaAtualParaRelatorio;
+    const card = linha.closest('.patient-card');
+    
+    const hora = linha.getAttribute('data-hora') || linha.querySelector('.time-col')?.textContent.trim() || "08:00";
+    const nomeTecnico = card?.querySelector('.tec-input')?.value.trim() || "Técnico Responsável";
+
+    const inputs = linha.querySelectorAll('input, select');
+    const pas = inputs[0]?.value || "-";
+    const temp = inputs[1]?.value || "-";
+    const fr = inputs[2]?.value || "-";
+    const fc = inputs[3]?.value || "-";
+    const sat = inputs[5]?.value || "-";
+    
+    const selectDor = linha.querySelector('td:nth-child(10) select');
+    const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
+    
+    const newsVal = parseInt(linha.querySelector('.news-input')?.value) || 0;
+
+    let classificacaoRisco = "Estável";
+    if (newsVal === 0) {
+        classificacaoRisco = "Estável";
+    } else if (newsVal >= 1 && newsVal <= 2) {
+        classificacaoRisco = "Baixo Risco";
+    } else if (newsVal >= 3 && newsVal <= 4) {
+        classificacaoRisco = "Médio Risco";
+    } else if (newsVal >= 5) {
+        classificacaoRisco = "Alto Risco";
+    }
+
+    let textoRelatorio = "";
+
+    if (tipo === 'enfermeiro') {
+        const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%`;
+        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado pelo(a) técnico(a) ${nomeTecnico} apresentando os seguintes sinais vitais: ${sinaisVitais}; NEWS: ${newsVal} (${classificacaoRisco}); Escala de dor: ${dor}. Orientada a equipe a manter vigilância conforme protocolo da unidade e comunicado valor ao médico Dr. [Digite o Nome do Médico].`;
+    } else if (tipo === 'medico') {
+        const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%, NEWS: ${newsVal} (${classificacaoRisco}), Dor: ${dor}`;
+        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pela equipe de enfermagem acerca dos valores de sinais vitais (${sinaisVitais}). Orientada a equipe a manter as condutas conforme protocolo da unidade.`;
+    }
+
+    fecharSeletorRelatorio();
+    
+    const modalTexto = document.getElementById('modal-resultado-texto-gerado');
+    const textarea = document.getElementById('textarea-texto-gerado');
+    if (textarea) textarea.value = textoRelatorio;
+    if (modalTexto) modalTexto.style.display = 'flex';
+}
+
 function mudarSetor(idSetor) {
     const campoBusca = document.getElementById('filtro-global');
     if (!campoBusca || campoBusca.value.trim() === "") {
@@ -1110,12 +1265,6 @@ function mudarSetor(idSetor) {
     }
 
     if (campoBusca) campoBusca.value = "";
-
-    const barraFiltro = document.getElementById('barra-filtro-global');
-    if (barraFiltro) {
-        const éEnfermaria = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'].includes(idSetor);
-        barraFiltro.style.display = éEnfermaria ? 'flex' : 'none';
-    }
 
     document.querySelectorAll('.tab-pane').forEach(aba => {
         aba.classList.remove('active');
@@ -1128,6 +1277,25 @@ function mudarSetor(idSetor) {
     if (abaAlvo) {
         abaAlvo.classList.add('active');
         abaAlvo.style.setProperty('display', 'block', 'important');
+    }
+
+    // Se NÃO for o Painel Central e nem a Auditoria, garante que a barra de pesquisa fique no topo da aba ativa
+    if (idSetor !== 'painel-central' && idSetor !== 'aba-auditoria-sepse') {
+        let barraGlobal = document.querySelector('.barra-filtro-global');
+        if (!barraGlobal) {
+            // Se por acaso ela estiver no painel central, remove de lá para mover para o topo da aba atual
+            barraGlobal = document.querySelector('#painel-central .barra-filtro-global');
+        }
+        if (barraGlobal && abaAlvo) {
+            abaAlvo.insertBefore(barraGlobal, abaAlvo.firstChild);
+        }
+    } else if (idSetor === 'painel-central') {
+        // Se voltar para o Painel Central, devolve a barra para a parte inferior dele
+        const painelCentral = document.getElementById('painel-central');
+        const barraGlobal = document.querySelector('.barra-filtro-global');
+        if (painelCentral && barraGlobal) {
+            painelCentral.appendChild(barraGlobal);
+        }
     }
 
     document.querySelectorAll('.sidebar li').forEach(li => {
@@ -1960,7 +2128,7 @@ async function carregarDadosAuditoria() {
                             const o2 = (inputs[5] || "").toUpperCase();
                             const sat = parseFloat(inputs[6]) || 0;
                             const consc = (inputs[7] || "").toUpperCase();
-                            const protocoloManual = (inputs[9] || "").toUpperCase();
+                            const protocoloManual = (inputs[10] || "").toUpperCase();
 
                             let sirsCount = 0;
                             if (fc > 90) sirsCount++;
@@ -1975,7 +2143,7 @@ async function carregarDadosAuditoria() {
                                 temAlertaSepse = "Sim";
                             }
 
-                            const valNews = parseInt(inputs[inputs.length - 2]);
+                            const valNews = parseInt(inputs[inputs.length - 3]);
                             if (!isNaN(valNews) && valNews > maiorNews) {
                                 maiorNews = valNews;
                             }
@@ -2129,8 +2297,9 @@ function abrirDetalhesAuditoriaPaciente(dadosPaciente) {
                     <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[5] || ""}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[6] || ""}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[7] || ""}</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-weight: bold;">${ins[8] || ""}</td>
-                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[9] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[8] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center; font-weight: bold;">${ins[9] || ""}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px; text-align: center;">${ins[10] || ""}</td>
                 </tr>
             `;
         }).join('');
@@ -2161,12 +2330,13 @@ function abrirDetalhesAuditoriaPaciente(dadosPaciente) {
                         <th style="border: 1px solid #002244; padding: 6px;">Sat</th>
                         <th style="border: 1px solid #002244; padding: 6px;">Consc.</th>
                         <th style="border: 1px solid #002244; padding: 6px;">Glic.</th>
+                        <th style="border: 1px solid #002244; padding: 6px;">Dor</th>
                         <th style="border: 1px solid #002244; padding: 6px;">NEWS</th>
                         <th style="border: 1px solid #002244; padding: 6px;">Prot.</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${linhasTabelaHtml || '<tr><td colspan="11" style="text-align:center; padding:10px;">Nenhum registro encontrado</td></tr>'}
+                    ${linhasTabelaHtml || '<tr><td colspan="12" style="text-align:center; padding:10px;">Nenhum registro encontrado</td></tr>'}
                 </tbody>
             </table>
         </div>
