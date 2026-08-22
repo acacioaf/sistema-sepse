@@ -234,6 +234,12 @@
             color: #003366;
         }
 
+        /* Oculta o botão de adicionar e a barra inferior durante a busca ativa */
+        body.buscando-ativo .btn-add-wrapper,
+        body.buscando-ativo #painel-central .barra-filtro-global {
+            display: none !important;
+        }
+
         /* Estilo dos Modais Customizados */
         #modal-transf-externa, #modal-transf-interna {
             display: none;
@@ -361,20 +367,16 @@
         <!-- Área Principal -->
         <main class="content">
 
-            <!-- BARRA DE FILTRO -->
-            <div id="barra-filtro-global" class="global-filter-bar" style="display: none; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
-                <div class="filter-group" style="display: flex; align-items: center; gap: 8px;">
-                    <label for="tipo-busca" style="font-weight: 600; color: var(--azul-escuro);">🔍 Filtrar por:</label>
-                    <select id="tipo-busca" style="padding: 6px; border-radius: 4px; border: 1px solid var(--borda);" onchange="executarBuscaGlobal()">
-                        <option value="paciente">Nome do Paciente</option>
-                        <option value="tecnico">Técnico Responsável</option>
-                    </select>
-                </div>
-                <div class="filter-group" style="flex: 1; min-width: 250px;">
-                    <input type="text" id="filtro-global" placeholder="Digite o termo para buscar..." onkeyup="executarBuscaGlobal()" style="width: 100%; padding: 6px;">
-                </div>
+            <!-- BARRA DE PESQUISA GLOBAL (Fica no topo por padrão para as Enfermarias) -->
+            <div class="barra-filtro-global" style="display: flex; margin-bottom: 15px; background: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 6px;">🔍 Filtrar por:</span>
+                <select id="tipo-busca" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+                    <option value="paciente">Nome do Paciente</option>
+                    <option value="tecnico">Técnico Responsável</option>
+                </select>
+                <input type="text" id="filtro-global" oninput="executarBuscaGlobal()" placeholder="Digite o termo para buscar..." style="flex: 1; padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
             </div>
-           
+
             <!-- ================= PAINEL CENTRAL ================= -->
             <div id="painel-central" class="tab-pane active">
                 
@@ -463,6 +465,7 @@
                     </div>
 
                 </div>
+
             </div>
 
             <!-- ================= ABA DE AUDITORIA E SEPSE ================= -->
@@ -941,6 +944,31 @@
         </div>
     </div>
 
+    <!-- MODAL DE ESCOLHA DE RELATÓRIO PROFISSIONAL (ENFERMEIRO / MÉDICO) -->
+    <div id="modal-escolha-relatorio" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background:#fff; padding:25px; border-radius:8px; width:400px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:center;">
+            <h3 style="margin-top:0; color:#003366; font-size:1.1rem;">📋 Escolha o Tipo de Relatório</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom:20px;">Selecione qual profissional está realizando o registro:</p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button onclick="gerarRelatorioProfissional('enfermeiro')" style="background:#0056b3; color:#fff; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Relatório do Enfermeiro</button>
+                <button onclick="gerarRelatorioProfissional('medico')" style="background:#0f766e; color:#fff; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;">Relatório do Médico</button>
+                <button onclick="fecharSeletorRelatorio()" style="background:#64748b; color:#fff; border:none; padding:8px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.85rem; margin-top:5px;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE EXIBIÇÃO DO TEXTO GERADO -->
+    <div id="modal-resultado-texto-gerado" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background:#fff; padding:25px; border-radius:8px; width:520px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:left;">
+            <h3 style="margin-top:0; color:#003366; font-size:1.1rem;">📋 Texto do Relatório Gerado</h3>
+            <textarea id="textarea-texto-gerado" style="width:100%; height:130px; padding:10px; font-size:0.88rem; border:1px solid #ccc; border-radius:4px; resize:none; box-sizing:border-box; background:#f8fafc;" readonly></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:15px;">
+                <button id="btn-copiar-rel-gerado" style="background:#28a745; color:#fff; border:none; padding:8px 14px; border-radius:4px; font-weight:bold; cursor:pointer;">📋 Copiar Texto</button>
+                <button onclick="document.getElementById('modal-resultado-texto-gerado').style.display='none'" style="background:#64748b; color:#fff; border:none; padding:8px 14px; border-radius:4px; font-weight:bold; cursor:pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL DE AVISO / ALERTA DO SISTEMA -->
     <div id="modal-bloqueio-plantao" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
         <div style="background: #ffffff; width: 100%; max-width: 420px; padding: 25px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center;">
@@ -964,17 +992,45 @@
         </div>
     </div>
 
-    <!-- Script de Inicialização -->
+    <!-- Script Principal -->
     <script src="dashboard.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            if (typeof renderizarCalendario === "function") {
-                renderizarCalendario();
+        // Gerenciamento da posição da barra de pesquisa e ocultação de elementos durante a busca
+        const _mudarSetorOriginal = window.mudarSetor;
+        window.mudarSetor = function(idSetor) {
+            if (typeof _mudarSetorOriginal === 'function') {
+                _mudarSetorOriginal(idSetor);
             }
-            if (typeof carregarDadosDoDia === "function" && typeof dataSelecionadaStr !== "undefined") {
-                carregarDadosDoDia(dataSelecionadaStr);
+
+            const barraGlobal = document.querySelector('.barra-filtro-global');
+            const mainContent = document.querySelector('main.content');
+
+            if (barraGlobal && mainContent) {
+                if (idSetor === 'painel-central') {
+                    const painelCentral = document.getElementById('painel-central');
+                    if (painelCentral) {
+                        painelCentral.appendChild(barraGlobal);
+                        barraGlobal.style.marginTop = "20px";
+                    }
+                } else {
+                    mainContent.insertBefore(barraGlobal, mainContent.firstChild);
+                    barraGlobal.style.marginTop = "0px";
+                    barraGlobal.style.marginBottom = "15px";
+                }
             }
-        });
+        };
+
+        // Monitora o campo de busca global para ocultar o botão de adicionar/barra inferior ao filtrar
+        const inputBuscaGlobal = document.getElementById('filtro-global');
+        if (inputBuscaGlobal) {
+            inputBuscaGlobal.addEventListener('input', function() {
+                if (this.value.trim().length > 0) {
+                    document.body.classList.add('buscando-ativo');
+                } else {
+                    document.body.classList.remove('buscando-ativo');
+                }
+            });
+        }
     </script>
     
 </body>
