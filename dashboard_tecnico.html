@@ -268,6 +268,12 @@
                         <input type="text" id="novo-nome-paciente" placeholder="Nome completo...">
                     </div>
                     <div class="form-group" style="flex: 1;">
+                        <label>DATA DE NASCIMENTO</label>
+                        <input type="date" id="novo-dtnasc-paciente">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 0;">
+                    <div class="form-group" style="width: 100%;">
                         <label>LOCAL / SETOR</label>
                         <select id="novo-setor-paciente">
                             <option value="enf1">Enfermaria 1</option>
@@ -285,7 +291,7 @@
         </div>
 
         <div class="step-section" style="border-bottom: none; margin-bottom: 8px;">
-            <div class="step-title">🩺 Parâmetros e Escore NEWS</div>
+            <div class="step-title">🩺 Parâmetros, Escala de Dor e Escore NEWS</div>
             
             <div class="form-row">
                 <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
@@ -312,8 +318,20 @@
                 </div>
                 <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia"></div>
             </div>
+            <div class="form-row" style="margin-top: 6px;">
+                <div class="form-group" style="width: 100%;">
+                    <label>ESCALA DE DOR</label>
+                    <select id="escala-dor">
+                        <option value="" selected>-</option>
+                        <option value="0">0 - Ausente</option>
+                        <option value="1">1 a 4 - Leve</option>
+                        <option value="4">5 a 7 - Moderada</option>
+                        <option value="7">8 a 10 - Intensa</option>
+                    </select>
+                </div>
+            </div>
 
-            <div class="news-preview-container">
+            <div class="news-preview-container" style="margin-top: 10px;">
                 <div>
                     <label style="margin: 0; font-size: 0.7rem;">NEWS Total</label>
                     <input type="number" id="news-total" class="news-preview-input" readonly>
@@ -349,9 +367,8 @@
         const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let tecnicoLogadoGlobal = localStorage.getItem('tecnico_logado_nome') || "";
-        const SENHA_PADRAO_TECNICOS = "tec2026"; // Senha padrão para os técnicos
+        const SENHA_PADRAO_TECNICOS = "enfermagem";
 
-        // Valida se veio direto da tela de login ou se precisa autenticar
         document.addEventListener("DOMContentLoaded", () => {
             if (tecnicoLogadoGlobal && tecnicoLogadoGlobal !== "admin") {
                 document.getElementById('auth-container').style.display = 'none';
@@ -436,7 +453,7 @@
 
         function sairDoPainel() {
             localStorage.removeItem('tecnico_logado_nome');
-            window.location.href = "index.html"; // Redireciona diretamente para a tela de login
+            window.location.href = "index.html";
         }
 
         async function buscarPacientePorProntuario() {
@@ -569,21 +586,27 @@
             if (inputNewsTotal) inputNewsTotal.value = score;
 
             if (statusTexto) {
-                if (isAlertaSepse) {
-                    statusTexto.textContent = "🚨 ALERTA SEPSE / ALTO RISCO";
-                    statusTexto.style.color = "#dc3545";
-                } else if (score >= 5) {
-                    statusTexto.textContent = `🚨 ALTO RISCO (NEWS ${score})`;
-                    statusTexto.style.color = "#dc3545";
+                let textoRisco = "";
+                let corRisco = "#28a745";
+
+                if (score >= 5) {
+                    textoRisco = `ALTO RISCO (NEWS ${score})`;
+                    corRisco = "#dc3545";
                 } else if (score >= 3) {
-                    statusTexto.textContent = `🟡 MÉDIO RISCO (NEWS ${score})`;
-                    statusTexto.style.color = "#d97706";
+                    textoRisco = `MÉDIO RISCO (NEWS ${score})`;
+                    corRisco = "#d97706";
                 } else if (score >= 1) {
-                    statusTexto.textContent = `🟢 BAIXO RISCO (NEWS ${score})`;
-                    statusTexto.style.color = "#17a2b8";
+                    textoRisco = `BAIXO RISCO (NEWS ${score})`;
+                    corRisco = "#17a2b8";
                 } else {
-                    statusTexto.textContent = "🟢 ESTÁVEL (NEWS 0)";
-                    statusTexto.style.color = "#28a745";
+                    textoRisco = `ESTÁVEL (NEWS 0)`;
+                    corRisco = "#28a745";
+                }
+
+                if (isAlertaSepse) {
+                    statusTexto.innerHTML = `🚨 ALERTA SEPSE / <span style="color: ${corRisco};">${textoRisco}</span>`;
+                } else {
+                    statusTexto.innerHTML = `<span style="color: ${corRisco};">${textoRisco}</span>`;
                 }
             }
         }
@@ -616,6 +639,7 @@
 
             let listaPacientes = plantaoAtual && plantaoAtual.dados_json ? plantaoAtual.dados_json : [];
 
+            // Ordem rigorosamente igual à tabela do painel: PAS, Temp, FR, FC, O2, Sat, Consc, Glicemia, Dor, NEWS Total, Protocolo
             const valoresVitaisForm = [
                 document.getElementById('pas').value,
                 document.getElementById('temp').value,
@@ -625,8 +649,9 @@
                 document.getElementById('sat').value,
                 document.getElementById('consc').value,
                 document.getElementById('glicemia').value,
+                document.getElementById('escala-dor').value, // <--- CAMINHO CORRETO DA DOR INSERIDO AQUI
                 document.getElementById('news-total').value,
-                ""
+                "" // Protocolo vazio por padrão no lançamento rápido do técnico
             ];
 
             let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
@@ -647,6 +672,7 @@
                 }
             } else {
                 const novoNome = document.getElementById('novo-nome-paciente')?.value.trim();
+                const novaDtNasc = document.getElementById('novo-dtnasc-paciente')?.value || "";
                 const novoSetor = document.getElementById('novo-setor-paciente')?.value || 'corredor';
 
                 if (!novoNome) {
@@ -658,7 +684,7 @@
                 const novoPacienteObj = {
                     setor: novoSetor,
                     nome: novoNome,
-                    dtNasc: "",
+                    dtNasc: novaDtNasc,
                     prontuario: prontuario,
                     tec: tecnicoLogadoGlobal,
                     enfermeiro: enfermeiro || "",
@@ -701,9 +727,20 @@
             const fr = document.getElementById('fr').value || "-";
             const fc = document.getElementById('fc').value || "-";
             const sat = document.getElementById('sat').value || "-";
-            const news = document.getElementById('news-total').value || "0";
+            const selectDor = document.getElementById('escala-dor');
+            const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
+            const newsVal = parseInt(document.getElementById('news-total').value) || 0;
 
-            const texto = `Em tempo, às ${hora} horas, comunico valores de sinais vitais: PA ${pas}mmHg, Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, SatO₂ ${sat}%. Valor de NEWS: ${news}. Comunicado à enfermeira ${enfermeiro}.`;
+            let classificacaoNews = "Estável";
+            if (newsVal >= 5) {
+                classificacaoNews = "Alto Risco";
+            } else if (newsVal >= 3) {
+                classificacaoNews = "Médio Risco";
+            } else if (newsVal >= 1) {
+                classificacaoNews = "Baixo Risco";
+            }
+
+            const texto = `Em tempo, às ${hora} horas, comunico valores de sinais vitais: PA ${pas}mmHg, Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, SatO₂ ${sat}%, Dor: ${dor}. Valor de NEWS: ${newsVal} (${classificacaoNews}). Comunicado à enfermeira ${enfermeiro}.`;
 
             const modal = document.getElementById('modal-relatorio');
             const textarea = document.getElementById('texto-relatorio-gerado');
@@ -749,6 +786,7 @@
             document.getElementById('sat').value = "";
             document.getElementById('consc').selectedIndex = 0;
             document.getElementById('glicemia').value = "";
+            document.getElementById('escala-dor').selectedIndex = 0;
             document.getElementById('news-total').value = "";
             document.getElementById('status-news-texto').textContent = "Aguardando...";
             document.getElementById('status-news-texto').style.color = "#333";
