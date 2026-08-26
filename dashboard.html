@@ -21,6 +21,13 @@
             margin: 0 auto;
         }
 
+        /* Estilo para botões do topo quando selecionados/ativos */
+        header.top-header button.btn-topo-ativo {
+            background: rgba(255, 255, 255, 0.35) !important;
+            border-color: #ffffff !important;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+        }
+
         .btn-add-global {
             display: inline-flex;
             align-items: center;
@@ -290,24 +297,29 @@
 </head>
 <body>
 
-    <!-- Cabeçalho do Sistema Otimizado com Botões -->
-    <header class="top-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 25px;">
-        <h1 style="font-size: 1.2rem; margin: 0;">Controle de Sinais Vitais</h1>
-        
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <!-- Botão da Nova Aba de Auditoria -->
-            <button onclick="mudarSetor('aba-auditoria-sepse')" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
-                🔍 Auditoria <span class="badge-contador" data-setor="auditoria" style="background: #ffffff; color: #003366; padding: 1px 6px; border-radius: 10px; font-size: 0.7rem;">0</span>
-            </button>
+  <!-- Cabeçalho do Sistema Otimizado com Botões -->
+<header class="top-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 25px;">
+    <h1 style="font-size: 1.2rem; margin: 0;">Controle de Sinais Vitais</h1>
+    
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- Botão de Auditoria -->
+        <button onclick="mudarSetor('aba-auditoria-sepse')" class="btn-topo-aba" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
+            🔍 Auditoria <span class="badge-contador" data-setor="auditoria" style="background: #ffffff; color: #003366; padding: 1px 6px; border-radius: 10px; font-size: 0.7rem;">0</span>
+        </button>
 
-            <!-- Botão de Gerar Relatório movido para o topo -->
-            <button onclick="abrirModalRelatorioGerencial()" style="background: #ffffff; color: #003366; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; font-size: 0.82rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s;">
-                📋 Gerar Relatório
-            </button>
+        <!-- Botão de Dimensionamento -->
+        <button onclick="mudarSetor('aba-dimensionamento')" class="btn-topo-aba" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.9;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Dimensionamento
+        </button>
 
-            <div class="user-info" style="font-size: 0.85rem; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">Usuário Logado</div>
-        </div>
-    </header>
+        <!-- Botão de Gerar Relatório -->
+        <button onclick="abrirModalRelatorioGerencial()" style="background: #ffffff; color: #003366; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; font-size: 0.82rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s;">
+            📋 Gerar Relatório
+        </button>
+
+        <div class="user-info" style="font-size: 0.85rem; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">Usuário Logado</div>
+    </div>
+</header>
 
     <div class="main-container">
         <!-- Menu Lateral com Calendário e Abas de Setores -->
@@ -367,7 +379,7 @@
         <!-- Área Principal -->
         <main class="content">
 
-            <!-- BARRA DE PESQUISA GLOBAL (Fica no topo por padrão para as Enfermarias) -->
+            <!-- BARRA DE PESQUISA GLOBAL -->
             <div class="barra-filtro-global" style="display: flex; margin-bottom: 15px; background: #fff; padding: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); align-items: center; gap: 10px;">
                 <span style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 6px;">🔍 Filtrar por:</span>
                 <select id="tipo-busca" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
@@ -379,9 +391,7 @@
 
             <!-- ================= PAINEL CENTRAL ================= -->
             <div id="painel-central" class="tab-pane active">
-                
                 <div class="painel-grid">
-                    
                     <div class="painel-row">
                         <div style="width: 50%; display: flex; flex-direction: column; gap: 14px;">
                             <div class="painel-card" style="width: 100%;">
@@ -463,9 +473,7 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
-
             </div>
 
             <!-- ================= ABA DE AUDITORIA E SEPSE ================= -->
@@ -507,11 +515,11 @@
                             </div>
                         </div>
 
-                        <!-- GRÁFICO DE OCUPAÇÃO DIÁRIA NA AUDITORIA -->
+                        <!-- GRÁFICO DE OCUPAÇÃO DIÁRIA -->
                         <div class="painel-row">
                             <div class="painel-card painel-card-full">
                                 <div class="painel-card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span>📈 Numero  de Ocupação Diária no Mês</span>
+                                    <span>📈 Numero de Ocupação Diária no Mês</span>
                                     <span style="font-size: 0.85rem; background: #e6f0fa; color: #003366; padding: 4px 12px; border-radius: 20px;">
                                         Total Acumulado no Mês: <strong id="total-acumulado-mes-auditoria">0</strong> pac-dia
                                     </span>
@@ -525,7 +533,6 @@
 
                     <!-- Filtros e Tabela de Histórico -->
                     <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #dcdcdc; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                       
                         <div>
                             <label style="font-weight: 600; font-size: 0.85rem; color: #003366;">Filtrar por Status:</label>
                             <select id="filtro-auditoria-status" onchange="filtrarTabelaAuditoria()" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
@@ -567,6 +574,135 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= ABA DE DIMENSIONAMENTO DE PESSOAL (COFEN 743/2024) ================= -->
+<div id="aba-dimensionamento" class="tab-pane" style="background: #f1f5f9; min-height: 100vh; padding: 15px;">
+    <div style="max-width: 1450px; margin: 0 auto;">
+        
+        <!-- CABEÇALHO DA FERRAMENTA -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: linear-gradient(135deg, #003366 0%, #004080 100%); padding: 15px 25px; border-radius: 8px; color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div>
+                <h2 style="font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                    📋 GESTÃO DE PACIENTES E ESCALA DE DIMENSIONAMENTO
+                </h2>
+                <span style="font-size: 0.8rem; opacity: 0.85;">Normativa de referência: Resolução Cofen nº 743/2024</span>
+            </div>
+            <div style="display: flex; gap: 20px; font-size: 0.88rem; align-items: center; background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 6px;">
+                <span>Enfermeiro(a) RT: <strong>Acácio Alves Ferreira</strong></span>
+                <span>Turno: <strong id="lbl-turno-dimensionamento" style="color: #38b2ac;">DIURNO</strong></span>
+            </div>
+        </div>
+
+        <!-- ================= QUADRO 1: PACIENTES INTERNADOS POR ENFERMARIA ================= -->
+        <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">
+                <h3 style="font-size: 0.95rem; color: #003366; margin: 0; text-transform: uppercase; font-weight: 700;">
+                    1. Relação Geral de Pacientes Internados (Por Enfermaria)
+                </h3>
+                <button onclick="carregarPacientesGeralEnfermarias()" style="background: #0284c7; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: background 0.2s;">
+                    🔄 Atualizar Lista de Pacientes
+                </button>
+            </div>
+
+            <div style="border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;">
+                <div class="table-responsive" style="max-height: 35vh; overflow-y: auto;">
+                    <table class="vitals-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                        <thead>
+                            <tr style="background: #003366; color: #fff;">
+                                <th style="width: 140px; padding: 10px; text-align: left;">ENFERMARIA / SETOR</th>
+                                <th style="padding: 10px; text-align: left;">NOME DO PACIENTE</th>
+                                <th style="width: 160px; padding: 10px; text-align: left;">BANHO / CUIDADO</th>
+                                <th style="width: 120px; padding: 10px; text-align: left;">RISCO DE LESÃO</th>
+                                <th style="width: 160px; padding: 10px; text-align: left;">SCP (GRAU)</th>
+                                <th style="width: 100px; padding: 10px; text-align: center;">HORAS REF.</th>
+                                <th style="width: 110px; padding: 10px; text-align: center;">TOTAL HORAS</th>
+                                <th style="width: 70px; padding: 10px; text-align: center;">AÇÃO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpo-tabela-quadro1-geral">
+                            <!-- Nota: O seu JS popula as linhas dinamicamente. Caso utilize renderização via JS, certifique-se de incluir as novas opções no template string do select de banho. Exemplo de select abaixo: -->
+                            <!--
+                            <select class="select-banho-quadro">
+                                <option value="">-</option>
+                                <option value="Leito Diário">Leito Diário</option>
+                                <option value="Leito Noite">Leito Noite</option>
+                                <option value="Auxílio Dia">Auxílio Dia</option>
+                                <option value="Auxílio Noite">Auxílio Noite</option>
+                                <option value="Aspersão">Aspersão</option>
+                            </select>
+                            -->
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">Nenhum paciente carregado. Clique em "Atualizar Lista de Pacientes".</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTÃO CENTRAL DE GERAR ESCALA -->
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 25px 0; gap: 6px;">
+            <button onclick="abrirModalGerarEscalaTecnica()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; padding: 12px 32px; border-radius: 50px; font-size: 0.95rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); transition: transform 0.2s;">
+                ⚙️ Gerar Escala de Trabalho por Técnico
+            </button>
+        </div>
+
+        <!-- ================= QUADRO 2: ESCALA TÉCNICA DIMENSIONADA ================= -->
+        <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">
+                <h3 style="font-size: 0.95rem; color: #003366; margin: 0; text-transform: uppercase; font-weight: 700;">
+                    2. Quadro de Dimensionamento por Técnico (Escala Calculada)
+                </h3>
+                <span style="font-size: 0.82rem; color: #ffffff; background: #0f766e; padding: 4px 12px; border-radius: 6px; font-weight: bold;">
+                    Total de Técnicos Alocados: <strong id="lbl-qtd-tecnicos-escala">0</strong>
+                </span>
+            </div>
+
+            <div style="border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;">
+                <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                    <table class="vitals-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                        <thead>
+                            <tr style="background: #0f766e; color: #fff;">
+                                <th style="width: 45px; padding: 10px; text-align: center;">Nº</th>
+                                <th style="width: 180px; padding: 10px; text-align: left;">TÉCNICO RESPONSÁVEL</th>
+                                <th style="padding: 10px; text-align: left;">PACIENTE ALOCADO</th>
+                                <th style="width: 140px; padding: 10px; text-align: left;">BANHO / CUIDADO</th>
+                                <th style="width: 100px; padding: 10px; text-align: left;">RISCO LESÃO</th>
+                                <th style="width: 140px; padding: 10px; text-align: left;">SCP (GRAU)</th>
+                                <th style="width: 90px; padding: 10px; text-align: center;">HORAS REF.</th>
+                                <th style="width: 100px; padding: 10px; text-align: center;">TOTAL HORAS</th>
+                                <th style="width: 110px; background: #0d5e56; color: #fff; padding: 10px; text-align: center;">TOTAL JORNADA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpo-tabela-quadro2-escala">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 30px; color: #64748b; font-style: italic;">
+                                    Clique em "Gerar Escala de Trabalho por Técnico" para montar o dimensionamento automático.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+            <!-- ================= MODAL PARA DIGITAR OS TÉCNICOS ================= -->
+            <div id="modal-gerar-escala-tec" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: #fff; padding: 25px; border-radius: 8px; width: 450px; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: left;">
+                    <h3 style="margin-top: 0; color: #003366; font-size: 1.1rem; margin-bottom: 10px;">👥 Informe os Técnicos de Enfermagem do Plantão</h3>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 15px;">Digite os nomes dos técnicos separados por vírgula ou um por linha:</p>
+                    
+                    <textarea id="textarea-nomes-tecnicos" rows="4" placeholder="Ex: Nairlaine, Jhully, Carlos Souza, Ana Paula" style="width: 100%; padding: 10px; font-size: 0.9rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: none; margin-bottom: 20px;"></textarea>
+                    
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button onclick="fecharModalGerarEscalaTecnica()" style="background: #64748b; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer;">Cancelar</button>
+                        <button onclick="executarGeracaoEscalaTecnica()" style="background: #28a745; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer;">Gerar Escala Oficial</button>
                     </div>
                 </div>
             </div>
@@ -944,7 +1080,7 @@
         </div>
     </div>
 
-    <!-- MODAL DE ESCOLHA DE RELATÓRIO PROFISSIONAL (ENFERMEIRO / MÉDICO) -->
+    <!-- MODAL DE ESCOLHA DE RELATÓRIO PROFISSIONAL -->
     <div id="modal-escolha-relatorio" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
         <div style="background:#fff; padding:25px; border-radius:8px; width:400px; max-width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:center;">
             <h3 style="margin-top:0; color:#003366; font-size:1.1rem;">📋 Escolha o Tipo de Relatório</h3>
