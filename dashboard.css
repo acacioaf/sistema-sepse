@@ -427,3 +427,9 @@ input[type=number] {
     padding: 0 !important;
     flex-shrink: 0 !important;
 }
+
+header.top-header button.btn-topo-ativo {
+    background: rgba(255, 255, 255, 0.35) !important;
+    border-color: #ffffff !important;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
