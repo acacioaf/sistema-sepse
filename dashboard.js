@@ -1257,7 +1257,6 @@ function gerarRelatorioProfissional(tipo) {
     if (textarea) textarea.value = textoRelatorio;
     if (modalTexto) modalTexto.style.display = 'flex';
 }
-
 function mudarSetor(idSetor) {
     const campoBusca = document.getElementById('filtro-global');
     if (!campoBusca || campoBusca.value.trim() === "") {
@@ -1271,6 +1270,7 @@ function mudarSetor(idSetor) {
         aba.style.setProperty('display', 'none', 'important');
     });
 
+    document.querySelectorAll('.btn-topo-aba').forEach(btn => btn.classList.remove('btn-topo-ativo'));
     document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
 
     const abaAlvo = document.getElementById(idSetor);
@@ -1279,18 +1279,24 @@ function mudarSetor(idSetor) {
         abaAlvo.style.setProperty('display', 'block', 'important');
     }
 
-    // Se NÃO for o Painel Central e nem a Auditoria, garante que a barra de pesquisa fique no topo da aba ativa
-    if (idSetor !== 'painel-central' && idSetor !== 'aba-auditoria-sepse') {
+    if (idSetor === 'aba-auditoria-sepse' || idSetor === 'aba-dimensionamento') {
+        document.querySelectorAll('.btn-topo-aba').forEach(btn => {
+            const onclickAttr = btn.getAttribute('onclick');
+            if (onclickAttr && onclickAttr.includes(idSetor)) {
+                btn.classList.add('btn-topo-ativo');
+            }
+        });
+    }
+
+    if (idSetor !== 'painel-central' && idSetor !== 'aba-auditoria-sepse' && idSetor !== 'aba-dimensionamento') {
         let barraGlobal = document.querySelector('.barra-filtro-global');
         if (!barraGlobal) {
-            // Se por acaso ela estiver no painel central, remove de lá para mover para o topo da aba atual
             barraGlobal = document.querySelector('#painel-central .barra-filtro-global');
         }
         if (barraGlobal && abaAlvo) {
             abaAlvo.insertBefore(barraGlobal, abaAlvo.firstChild);
         }
     } else if (idSetor === 'painel-central') {
-        // Se voltar para o Painel Central, devolve a barra para a parte inferior dele
         const painelCentral = document.getElementById('painel-central');
         const barraGlobal = document.querySelector('.barra-filtro-global');
         if (painelCentral && barraGlobal) {
@@ -2343,4 +2349,209 @@ function abrirDetalhesAuditoriaPaciente(dadosPaciente) {
     `;
 
     modal.style.display = 'flex';
+}
+// --- LÓGICA DO QUADRO 1 E QUADRO 2 DE DIMENSIONAMENTO (COFEN 743/2024) ---
+
+function carregarPacientesGeralEnfermarias() {
+    const tbodyQ1 = document.getElementById('corpo-tabela-quadro1-geral');
+    if (!tbodyQ1) return;
+
+    tbodyQ1.innerHTML = "";
+    const idsEnfermarias = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'];
+    let totalPacientes = 0;
+
+    idsEnfermarias.forEach(idSetor => {
+        const abaSetor = document.getElementById(idSetor);
+        if (!abaSetor) return;
+
+        abaSetor.querySelectorAll('.patient-card').forEach((card) => {
+            const nomeInput = card.querySelector('.nome-input');
+            if (nomeInput && nomeInput.value.trim() !== "") {
+                totalPacientes++;
+                const nomePac = nomeInput.value.trim();
+                const setorFormatado = idSetor.replace('enf', 'Enfermaria ').replace('corredor', 'Corredor').replace('sala-emergencia', 'Emergência').toUpperCase();
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="border: 1px solid #cbd5e1; font-weight: bold; color: #003366; padding: 6px;">${setorFormatado}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px;">${nomePac}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px;">
+                        <select class="q1-banho" style="width: 100%; border: none; background: transparent; font-size: 0.75rem;">
+                            <option value="-">-</option>
+                            <option value="Aspersão">Aspersão</option>
+                            <option value="Leito Diá">Leito Dia</option>
+                            <option value="Leito Noite">Leito Noite</option>
+                            <option value="Auxílio Dia">Auxílio Dia</option>
+                            <option value="Auxílio Noite">Auxílio Noite</option>
+                        </select>
+                    </td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px;">
+                        <select class="q1-lesao" style="width: 100%; border: none; background: transparent; font-size: 0.75rem;">
+                            <option value="NÃO">NÃO</option>
+                            <option value="SIM">SIM</option>
+                        </select>
+                    </td>
+                    <td style="border: 1px solid #cbd5e1; padding: 6px;">
+                        <select class="q1-scp" onchange="recalcularLinhaQuadro1(this)" style="width: 100%; border: none; background: #e2e8f0; font-weight: bold; font-size: 0.72rem;">
+                            <option value="intensivo">INTENSIVOS (18h)</option>
+                            <option value="semi">SEMI-INTENSIVO (10h)</option>
+                            <option value="alta">ALTA DEP. (10h)</option>
+                            <option value="intermediario">INTERMEDIÁRIOS (6h)</option>
+                            <option value="minimo" selected>MÍNIMOS (4h)</option>
+                        </select>
+                    </td>
+                    <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;" class="q1-hora-ref">1,34</td>
+                    <td style="border: 1px solid #cbd5e1; text-align: center; font-weight: 500; padding: 6px;" class="q1-total-horas">01:20:24</td>
+                    <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;">
+                        <button type="button" onclick="this.closest('tr').remove()" style="background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-weight: bold; cursor: pointer;" title="Remover paciente">✕</button>
+                    </td>
+                `;
+                tbodyQ1.appendChild(tr);
+            }
+        });
+    });
+}
+
+function recalcularLinhaQuadro1(selectScp) {
+    const tr = selectScp.closest('tr');
+    const tipo = selectScp.value;
+    const tdRef = tr.querySelector('.q1-hora-ref');
+    const tdTot = tr.querySelector('.q1-total-horas');
+
+    let fator = 1.34;
+    if (tipo === 'intensivo') fator = 4.3;
+    else if (tipo === 'semi' || tipo === 'alta') fator = 2.9;
+    else if (tipo === 'intermediario') fator = 2.01;
+    else if (tipo === 'minimo') fator = 1.34;
+
+    tdRef.textContent = fator.toFixed(2).replace('.', ',');
+    const segundos = Math.round(fator * 3600);
+    const h = Math.floor(segundos / 3600);
+    const m = Math.floor((segundos % 3600) / 60);
+    const s = segundos % 60;
+    tdTot.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function abrirModalGerarEscalaTecnica() {
+    document.getElementById('modal-gerar-escala-tec').style.display = 'flex';
+}
+
+function fecharModalGerarEscalaTecnica() {
+    document.getElementById('modal-gerar-escala-tec').style.display = 'none';
+}
+
+function executarGeracaoEscalaTecnica() {
+    const textoTecnicos = document.getElementById('textarea-nomes-tecnicos').value;
+    const tecnicos = textoTecnicos.split(/[\n,]+/).map(t => t.trim()).filter(t => t.length > 0);
+
+    if (tecnicos.length === 0) {
+        alert("Por favor, informe pelo menos um técnico de enfermagem.");
+        return;
+    }
+
+    const linhasQ1 = document.querySelectorAll('#corpo-tabela-quadro1-geral tr');
+    const pacientesParaDistribuir = [];
+
+    linhasQ1.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 7) {
+            const setor = tds[0].textContent;
+            const nomePac = tds[1].textContent;
+            const banho = tr.querySelector('.q1-banho').value;
+            const lesao = tr.querySelector('.q1-lesao').value;
+            const scpSelect = tr.querySelector('.q1-scp');
+            const scpTexto = scpSelect.options[scpSelect.selectedIndex].text;
+            const scpVal = scpSelect.value;
+            const horaRef = tr.querySelector('.q1-hora-ref').textContent;
+            const totalHoras = tr.querySelector('.q1-total-horas').textContent;
+
+            // Calcula os segundos exatos para facilitar o balanceamento
+            let segundos = 0;
+            if (totalHoras) {
+                const partes = totalHoras.split(':').map(Number);
+                if (partes.length === 3) {
+                    segundos = (partes[0] * 3600) + (partes[1] * 60) + partes[2];
+                }
+            }
+
+            pacientesParaDistribuir.push({ setor, nomePac, banho, lesao, scpTexto, scpVal, horaRef, totalHoras, segundos });
+        }
+    });
+
+    if (pacientesParaDistribuir.length === 0) {
+        alert("Não há pacientes no Quadro 1 para distribuir.");
+        return;
+    }
+
+    fecharModalGerarEscalaTecnica();
+
+    const tbodyQ2 = document.getElementById('corpo-tabela-quadro2-escala');
+    tbodyQ2.innerHTML = "";
+    document.getElementById('lbl-qtd-tecnicos-escala').textContent = tecnicos.length;
+
+    // Inicializa o objeto de cada técnico
+    const distribuicao = tecnicos.map((nome, idx) => ({
+        id: idx + 1,
+        nome: nome,
+        pacientes: [],
+        segundosTotais: 0
+    }));
+
+    // Ordena os pacientes do mais pesado (maior carga horária) para o mais leve
+    pacientesParaDistribuir.sort((a, b) => b.segundosTotais - a.segundosTotais);
+
+    // Algoritmo de Balanceamento (Greedy): Atribui cada paciente sempre ao técnico com menos carga horária acumulada
+    pacientesParaDistribuir.forEach(pac => {
+        // Encontra o técnico com menor carga horária no momento
+        let tecnicoMenorCarga = distribuicao[0];
+        for (let i = 1; i < distribuicao.length; i++) {
+            if (distribuicao[i].segundosTotais < tecnicoMenorCarga.segundosTotais) {
+                tecnicoMenorCarga = distribuicao[i];
+            }
+        }
+        // Aloca o paciente para ele e atualiza a carga horária
+        tecnicoMenorCarga.pacientes.push(pac);
+        tecnicoMenorCarga.segundosTotais += pac.segundos;
+    });
+
+    // Renderiza a tabela do Quadro 2 de forma equilibrada
+    distribuicao.forEach(tec => {
+        const totalLinhas = Math.max(tec.pacientes.length, 1);
+
+        const th = Math.floor(tec.segundosTotais / 3600);
+        const tm = Math.floor((tec.segundosTotais % 3600) / 60);
+        const ts = tec.segundosTotais % 60;
+        const textoJornadaTotal = `${String(th).padStart(2, '0')}:${String(tm).padStart(2, '0')}:${String(ts).padStart(2, '0')}`;
+
+        for (let i = 0; i < totalLinhas; i++) {
+            const pac = tec.pacientes[i] || null;
+            const isFirst = (i === 0);
+
+            let corScp = 'transparent';
+            if (pac) {
+                if (pac.scpVal === 'intensivo') corScp = '#fed7aa';
+                else if (pac.scpVal === 'semi' || pac.scpVal === 'alta') corScp = '#fef08a';
+                else if (pac.scpVal === 'intermediario') corScp = '#bbf7d0';
+                else corScp = '#e2e8f0';
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                ${isFirst ? `<td style="border: 1px solid #cbd5e1; text-align: center; font-weight: bold; vertical-align: middle;" rowspan="${totalLinhas}">${tec.id}</td>` : ''}
+                ${isFirst ? `<td style="border: 1px solid #cbd5e1; font-weight: bold; text-align: center; vertical-align: middle;" rowspan="${totalLinhas}">${tec.nome}</td>` : ''}
+                <td style="border: 1px solid #cbd5e1; font-size: 0.78rem; padding: 6px;">${pac ? `${pac.nomePac} (${pac.setor})` : '<span style="color:#94a3b8;">- Vago -</span>'}</td>
+                <td style="border: 1px solid #cbd5e1; font-size: 0.75rem; padding: 6px;">${pac && pac.banho !== '-' ? pac.banho : '-'}</td>
+                <td style="border: 1px solid #cbd5e1; font-size: 0.75rem; padding: 6px;">${pac ? pac.lesao : 'NÃO'}</td>
+                <td style="border: 1px solid #cbd5e1; font-size: 0.72rem; font-weight: bold; background: ${corScp}; padding: 6px;">${pac ? pac.scpTexto : '-'}</td>
+                <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;">${pac ? pac.horaRef : '-'}</td>
+                <td style="border: 1px solid #cbd5e1; text-align: center; font-weight: 500; padding: 6px;">${pac ? pac.totalHoras : '00:00:00'}</td>
+                ${isFirst ? `
+                    <td style="border: 1px solid #cbd5e1; text-align: center; font-weight: bold; background: #e0f2fe; color: #0369a1; vertical-align: middle;" rowspan="${totalLinhas}">
+                        ${textoJornadaTotal}
+                    </td>
+                ` : ''}
+            `;
+            tbodyQ2.appendChild(tr);
+        }
+    });
 }
