@@ -293,6 +293,23 @@
         }
         .btn-modal-ok { background-color: #003366; color: #fff; }
         .btn-modal-cancel { background-color: #e2e8f0; color: #333; }
+
+        /* Ajustes específicos para alinhar Banho, Risco de Lesão e SCP logo abaixo do nome/isento */
+        .patient-header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 15px;
+            align-items: center;
+        }
+
+        .linha-inferior-dim {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            align-items: center;
+            padding-left: 2px;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -384,7 +401,7 @@
                 <span style="font-weight: bold; color: #003366; display: flex; align-items: center; gap: 6px;">🔍 Filtrar por:</span>
                 <select id="tipo-busca" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
                     <option value="paciente">Nome do Paciente</option>
-                    <option value="tecnico">Técnico Responsável</option>
+                    <option value="tecnico">Técnico Responsável</option>                    
                 </select>
                 <input type="text" id="filtro-global" oninput="executarBuscaGlobal()" placeholder="Digite o termo para buscar..." style="flex: 1; padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
             </div>
@@ -596,6 +613,20 @@
             </div>
         </div>
 
+        <!-- PAINEL DE CONSULTA E HISTÓRICO DE ESCALAS SALVAS (MOVIDO PARA A ABA DE DIMENSIONAMENTO) -->
+        <div style="background: #ffffff; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; display: flex; gap: 15px; align-items: center;">
+            <span style="font-size: 0.85rem; font-weight: bold; color: #003366;">📂 Histórico de Escalas:</span>
+            <select id="select-historico-escala" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
+                <option value="" selected disabled>Pesquisar escalas salvas neste mês...</option>
+            </select>
+            <button onclick="carregarEscalaSalvaSupabase(document.getElementById('select-historico-escala').value)" style="background: #0284c7; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: bold; cursor: pointer;">
+                📥 Carregar Escala
+            </button>
+            <button onclick="carregarListaHistoricoEscalas()" style="background: #64748b; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: bold; cursor: pointer;" title="Atualizar lista">
+                🔄
+            </button>
+        </div>
+
         <!-- ================= QUADRO 1: PACIENTES INTERNADOS POR ENFERMARIA ================= -->
         <div style="background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e2e8f0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">
@@ -623,17 +654,6 @@
                             </tr>
                         </thead>
                         <tbody id="corpo-tabela-quadro1-geral">
-                            <!-- Nota: O seu JS popula as linhas dinamicamente. Caso utilize renderização via JS, certifique-se de incluir as novas opções no template string do select de banho. Exemplo de select abaixo: -->
-                            <!--
-                            <select class="select-banho-quadro">
-                                <option value="">-</option>
-                                <option value="Leito Diário">Leito Diário</option>
-                                <option value="Leito Noite">Leito Noite</option>
-                                <option value="Auxílio Dia">Auxílio Dia</option>
-                                <option value="Auxílio Noite">Auxílio Noite</option>
-                                <option value="Aspersão">Aspersão</option>
-                            </select>
-                            -->
                             <tr>
                                 <td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">Nenhum paciente carregado. Clique em "Atualizar Lista de Pacientes".</td>
                             </tr>
@@ -656,12 +676,16 @@
                 <h3 style="font-size: 0.95rem; color: #003366; margin: 0; text-transform: uppercase; font-weight: 700;">
                     2. Quadro de Dimensionamento por Técnico (Escala Calculada)
                 </h3>
-                <span style="font-size: 0.82rem; color: #ffffff; background: #0f766e; padding: 4px 12px; border-radius: 6px; font-weight: bold;">
-                    Total de Técnicos Alocados: <strong id="lbl-qtd-tecnicos-escala">0</strong>
-                </span>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="salvarEscalaAtualSupabase()" style="background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">💾 Salvar Escala</button>
+                    <button onclick="imprimirEscalaDimensionamento()" style="background: #475569; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">🖨️ Imprimir</button>
+                    <span style="font-size: 0.82rem; color: #ffffff; background: #0f766e; padding: 4px 12px; border-radius: 6px; font-weight: bold;">
+                        Total de Técnicos Alocados: <strong id="lbl-qtd-tecnicos-escala">0</strong>
+                    </span>
+                </div>
             </div>
 
-            <div style="border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;">
+            <div style="border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;" id="area-impressao-escala">
                 <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
                     <table class="vitals-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
                         <thead>
@@ -735,12 +759,45 @@
                             </div>
                             <div class="input-group"><label>Prontuário:</label><input type="text" class="prontuario-input"></div>
                             <div class="input-group"><label>TEC RESP:</label><input type="text" class="tec-input" placeholder="Nome"></div>
+
                             <div class="action-buttons">
                                 <button class="btn-transf-interna" onclick="abrirModalTransfInterna(this)">Transf. Interna</button>
                                 <button class="btn-transf-externa" onclick="abrirModalTransfExterna(this)">Transf. Externa</button>
                                 <button class="btn-alta" onclick="darAltaPaciente(this)">Alta Hospitalar</button>
                                 <button class="btn-obito" onclick="registrarObitoPaciente(this)">Óbito</button>
                                 <button class="btn-excluir-card" onclick="removerCardPaciente(this)" title="Excluir leito criado por engano">✖</button>
+                            </div>
+
+                            <!-- NOVOS CAMPOS DE DIMENSIONAMENTO LOGO ABAIXO DO ISENTO DE ESCORE -->
+                            <div class="linha-inferior-dim">
+                                <div class="input-group">
+                                    <label>BANHO:</label>
+                                    <select class="input-banho-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
+                                        <option value="-">-</option>
+                                        <option value="Aspersão">Aspersão</option>
+                                        <option value="Leito Diá">Leito Dia</option>
+                                        <option value="Leito Noite">Leito Noite</option>
+                                        <option value="Auxílio Dia">Auxílio Dia</option>
+                                        <option value="Auxílio Noite">Auxílio Noite</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>RISCO LESÃO:</label>
+                                    <select class="input-lesao-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
+                                        <option value="NÃO">NÃO</option>
+                                        <option value="SIM">SIM</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>SCP:</label>
+                                    <select class="input-scp-paciente" onchange="atualizarCorSelectScp(this); tratarMudancaVitais(event);" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; background-color: #e2e8f0; font-weight: bold;">
+                                        <option value="intensivo">INTENSIVOS (18h)</option>
+                                        <option value="semi">SEMI-INTENSIVO (10h)</option>
+                                        <option value="alta">ALTA DEP. (10h)</option>
+                                        <option value="intermediario">INTERMEDIÁRIOS (6h)</option>
+                                        <option value="minimo" selected>MÍNIMOS (4h)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -1130,6 +1187,7 @@
 
     <!-- Script Principal -->
     <script src="dashboard.js"></script>
+    
     <script>
         // Gerenciamento da posição da barra de pesquisa e ocultação de elementos durante a busca
         const _mudarSetorOriginal = window.mudarSetor;
@@ -1138,20 +1196,33 @@
                 _mudarSetorOriginal(idSetor);
             }
 
+            // Ao mudar para a aba de dimensionamento, atualiza a lista de histórico de escalas
+            if (idSetor === 'aba-dimensionamento') {
+                if (typeof carregarListaHistoricoEscalas === 'function') {
+                    carregarListaHistoricoEscalas();
+                }
+            }
+
             const barraGlobal = document.querySelector('.barra-filtro-global');
             const mainContent = document.querySelector('main.content');
 
             if (barraGlobal && mainContent) {
-                if (idSetor === 'painel-central') {
-                    const painelCentral = document.getElementById('painel-central');
-                    if (painelCentral) {
-                        painelCentral.appendChild(barraGlobal);
-                        barraGlobal.style.marginTop = "20px";
-                    }
+                // Oculta a barra de pesquisa nas abas especiais (Auditoria e Dimensionamento)
+                if (idSetor === 'aba-auditoria-sepse' || idSetor === 'aba-dimensionamento') {
+                    barraGlobal.style.display = 'none';
                 } else {
-                    mainContent.insertBefore(barraGlobal, mainContent.firstChild);
-                    barraGlobal.style.marginTop = "0px";
-                    barraGlobal.style.marginBottom = "15px";
+                    barraGlobal.style.display = 'flex';
+                    if (idSetor === 'painel-central') {
+                        const painelCentral = document.getElementById('painel-central');
+                        if (painelCentral) {
+                            painelCentral.appendChild(barraGlobal);
+                            barraGlobal.style.marginTop = "20px";
+                        }
+                    } else {
+                        mainContent.insertBefore(barraGlobal, mainContent.firstChild);
+                        barraGlobal.style.marginTop = "0px";
+                        barraGlobal.style.marginBottom = "15px";
+                    }
                 }
             }
         };
