@@ -8,29 +8,83 @@ const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // --- VARIÁVEIS DE CONTROLE DE RELATÓRIO ---
 let linhaAtualParaRelatorio = null;
 
-// --- FUNÇÕES DE GERAÇÃO DE HTML DOS LEITOS ---
+// --- FUNÇÃO AUXILIAR PARA COR DINÂMICA DO SCP ---
+function atualizarCorSelectScp(selectEl) {
+    const val = selectEl.value;
+    if (val === 'intensivo') {
+        selectEl.style.backgroundColor = '#fed7aa'; // Laranja claro
+        selectEl.style.color = '#7c2d12';
+    } else if (val === 'semi' || val === 'alta') {
+        selectEl.style.backgroundColor = '#fef08a'; // Amarelo claro
+        selectEl.style.color = '#713f12';
+    } else if (val === 'intermediario') {
+        selectEl.style.backgroundColor = '#bbf7d0'; // Verde claro
+        selectEl.style.color = '#166534';
+    } else {
+        selectEl.style.backgroundColor = '#e2e8f0'; // Cinza claro (mínimos)
+        selectEl.style.color = '#1e293b';
+    }
+}
+
+function inicializarCoresScpGlobal() {
+    document.querySelectorAll('.input-scp-paciente').forEach(selectEl => {
+        atualizarCorSelectScp(selectEl);
+    });
+}
+
 function gerarTabelaAdulto() {
     return `
     <div class="patients-container">
         <div class="patient-card">
             <div class="patient-header">
-                <div class="patient-col-left">
-                    <div class="input-group name-group"><label>NOME:</label><input type="text" class="nome-input" placeholder="Nome do Paciente"></div>
-                    <div class="input-group" style="margin-top: 4px; padding-left: 45px;">
-                        <label style="font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--azul-escuro); font-weight: 600;">
-                            <input type="checkbox" class="isento-relatorio" style="cursor: pointer;"> Isento de Escore
-                        </label>
-                    </div>
-                </div>
+                <div class="input-group name-group"><label>NOME:</label><input type="text" class="nome-input" placeholder="Nome do Paciente"></div>
                 <div class="input-group"><label>DATA NASC:</label><input type="date" class="dtnasc-input"></div>
                 <div class="input-group"><label>Prontuário:</label><input type="text" class="prontuario-input"></div>
                 <div class="input-group"><label>TEC RESP:</label><input type="text" class="tec-input" placeholder="Nome"></div>
+                
                 <div class="action-buttons">
                     <button class="btn-transf-interna" onclick="abrirModalTransfInterna(this)">Transf. Interna</button>
                     <button class="btn-transf-externa" onclick="abrirModalTransfExterna(this)">Transf. Externa</button>
                     <button class="btn-alta" onclick="darAltaPaciente(this)">Alta Hospitalar</button>
                     <button class="btn-obito" onclick="registrarObitoPaciente(this)">Óbito</button>
                     <button class="btn-excluir-card" onclick="removerCardPaciente(this)" title="Excluir leito criado por engano">✖</button>
+                </div>
+
+                <!-- LINHA INFERIOR: ISENTO DE ESCORE + BANHO + RISCO DE LESÃO + SCP -->
+                <div class="linha-inferior-dim">
+                    <div class="input-group">
+                        <label style="font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--azul-escuro); font-weight: 600;">
+                            <input type="checkbox" class="isento-relatorio" style="cursor: pointer;"> Isento de Escore
+                        </label>
+                    </div>
+                    <div class="input-group">
+                        <label>BANHO:</label>
+                        <select class="input-banho-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
+                            <option value="-">-</option>
+                            <option value="Aspersão">Aspersão</option>
+                            <option value="Leito Diá">Leito Dia</option>
+                            <option value="Leito Noite">Leito Noite</option>
+                            <option value="Auxílio Dia">Auxílio Dia</option>
+                            <option value="Auxílio Noite">Auxílio Noite</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>RISCO LESÃO:</label>
+                        <select class="input-lesao-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
+                            <option value="NÃO">NÃO</option>
+                            <option value="SIM">SIM</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>SCP:</label>
+                        <select class="input-scp-paciente" onchange="atualizarCorSelectScp(this); tratarMudancaVitais(event);" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; background-color: #e2e8f0; font-weight: bold;">
+                            <option value="intensivo">INTENSIVOS (18h)</option>
+                            <option value="semi">SEMI-INTENSIVO (10h)</option>
+                            <option value="alta">ALTA DEP. (10h)</option>
+                            <option value="intermediario">INTERMEDIÁRIOS (6h)</option>
+                            <option value="minimo" selected>MÍNIMOS (4h)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="table-responsive">
@@ -143,8 +197,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderizarCalendario();
     await carregarDadosDoDia(dataSelecionadaStr);
 
+    inicializarCoresScpGlobal();
+
     if (typeof carregarDadosAuditoria === 'function') {
         carregarDadosAuditoria();
+    }
+    
+    // Carregar histórico de escalas salvas ao iniciar
+    if (typeof carregarListaHistoricoEscalas === 'function') {
+        carregarListaHistoricoEscalas();
     }
 });
 
@@ -365,6 +426,7 @@ function renderizarCalendario() {
             renderizarCalendario();
             await carregarDadosDoDia(dataIso);
             carregarDadosAuditoria();
+            carregarListaHistoricoEscalas();
         };
 
         grid.appendChild(a);
@@ -574,6 +636,10 @@ async function salvarDadosDoDia(dataChave) {
             const tec = card.querySelector('.tec-input')?.value || "";
             const isento = card.querySelector('.isento-relatorio')?.checked || false;
             const desfecho = card.getAttribute('data-desfecho') || "Internado";
+            
+            const banho = card.querySelector('.input-banho-paciente')?.value || "-";
+            const lesao = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
+            const scp = card.querySelector('.input-scp-paciente')?.value || "minimo";
 
             const vitais = [];
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
@@ -584,7 +650,7 @@ async function salvarDadosDoDia(dataChave) {
             });
 
             if (nome.trim() !== "") {
-                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, desfecho, vitais });
+                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, desfecho, banho, lesao, scp, vitais });
             }
         });
     });
@@ -621,6 +687,7 @@ async function carregarDadosDoDia(dataChave) {
 
     if (!data || !data.dados_json || error) {
         atualizarPainelCentral();
+        inicializarCoresScpGlobal();
         return;
     }
 
@@ -649,6 +716,15 @@ async function carregarDadosDoDia(dataChave) {
         if (card.querySelector('.prontuario-input')) card.querySelector('.prontuario-input').value = p.prontuario;
         if (card.querySelector('.tec-input')) card.querySelector('.tec-input').value = p.tec;
         if (card.querySelector('.isento-relatorio')) card.querySelector('.isento-relatorio').checked = p.isento;
+
+        if (card.querySelector('.input-banho-paciente')) card.querySelector('.input-banho-paciente').value = p.banho || "-";
+        if (card.querySelector('.input-lesao-paciente')) card.querySelector('.input-lesao-paciente').value = p.lesao || "NÃO";
+        
+        if (card.querySelector('.input-scp-paciente')) {
+            const selectScp = card.querySelector('.input-scp-paciente');
+            selectScp.value = p.scp || "minimo";
+            atualizarCorSelectScp(selectScp);
+        }
 
         const tbody = card.querySelector('.vitals-table tbody');
 
@@ -793,6 +869,7 @@ async function carregarDadosDoDia(dataChave) {
     });
 
     atualizarPainelCentral();
+    inicializarCoresScpGlobal();
 }
 
 async function iniciarNovoPlantao() {
@@ -810,10 +887,16 @@ async function iniciarNovoPlantao() {
 
     await salvarDadosDoDia(dataSelecionadaStr);
 
+    // CORREÇÃO: Descobre a data exata de ONTEM para puxar os pacientes do plantão anterior
+    const dataOntem = new Date(agora);
+    dataOntem.setDate(agora.getDate() - 1);
+    const dataOntemStr = formatarDataChave(dataOntem);
+
+    // Busca os dados da data de ONTEM em vez da data selecionada na tela
     const { data: dataAnterior } = await _supabase
         .from('plantoes')
         .select('dados_json')
-        .eq('data_chave', dataSelecionadaStr)
+        .eq('data_chave', dataOntemStr)
         .maybeSingle();
 
     const pacientesParaMigrar = dataAnterior ? dataAnterior.dados_json : [];
@@ -834,6 +917,9 @@ async function iniciarNovoPlantao() {
             tec: p.tec || "",
             isento: p.isento || false,
             desfecho: p.desfecho || "Internado",
+            banho: p.banho || "-",
+            lesao: p.lesao || "NÃO",
+            scp: p.scp || "minimo",
             vitais: p.vitais.map(v => ({
                 hora: v.hora || "",
                 isExtra: v.isExtra || false,
@@ -852,6 +938,7 @@ async function iniciarNovoPlantao() {
     }
 
     await carregarDadosDoDia(dataSelecionadaStr);
+    inicializarCoresScpGlobal();
     mostrarModalBloqueio("PLANTÃO INICIADO", `Novo Plantão das 07h iniciado com sucesso para o dia <strong>${agora.toLocaleDateString('pt-BR')}</strong>!<br><br>Os pacientes internados foram trazidos para os leitos da data atual.`);
 }
 
@@ -869,7 +956,11 @@ async function tratarMudancaVitais(event) {
         atualizarBadgeIdade(elemento);
     }
 
-    if (elemento.classList.contains('nome-input') || elemento.classList.contains('isento-relatorio') || elemento.classList.contains('dtnasc-input')) {
+    if (elemento.classList.contains('input-scp-paciente')) {
+        atualizarCorSelectScp(elemento);
+    }
+
+    if (elemento.classList.contains('nome-input') || elemento.classList.contains('isento-relatorio') || elemento.classList.contains('dtnasc-input') || elemento.classList.contains('input-banho-paciente') || elemento.classList.contains('input-lesao-paciente') || elemento.classList.contains('input-scp-paciente')) {
         const card = elemento.closest('.patient-card');
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
@@ -1257,6 +1348,7 @@ function gerarRelatorioProfissional(tipo) {
     if (textarea) textarea.value = textoRelatorio;
     if (modalTexto) modalTexto.style.display = 'flex';
 }
+
 function mudarSetor(idSetor) {
     const campoBusca = document.getElementById('filtro-global');
     if (!campoBusca || campoBusca.value.trim() === "") {
@@ -1286,6 +1378,13 @@ function mudarSetor(idSetor) {
                 btn.classList.add('btn-topo-ativo');
             }
         });
+    }
+
+    // Ao entrar na aba de dimensionamento, atualiza a lista de histórico de escalas
+    if (idSetor === 'aba-dimensionamento') {
+        if (typeof carregarListaHistoricoEscalas === 'function') {
+            carregarListaHistoricoEscalas();
+        }
     }
 
     if (idSetor !== 'painel-central' && idSetor !== 'aba-auditoria-sepse' && idSetor !== 'aba-dimensionamento') {
@@ -1456,15 +1555,18 @@ async function confirmarTransfInterna() {
 }
 
 function exportarRelatorioMensal() {
-    let csv = "Setor;Nome Paciente;Prontuario;Tecnico Responsavel;Status\n";
+    let csv = "Setor;Nome Paciente;Prontuario;Tecnico Responsavel;Banho;Risco Lesao;SCP;Status\n";
     document.querySelectorAll('.patient-card').forEach(card => {
         const nome = card.querySelector('.nome-input')?.value.trim() || "";
         const prontuario = card.querySelector('.prontuario-input')?.value.trim() || "";
         const tec = card.querySelector('.tec-input')?.value.trim() || "";
         const setor = card.closest('.tab-pane')?.id.toUpperCase() || "";
+        const banho = card.querySelector('.input-banho-paciente')?.value || "-";
+        const lesao = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
+        const scp = card.querySelector('.input-scp-paciente')?.value || "minimo";
 
         if (nome !== "") {
-            csv += `${setor};${nome};${prontuario};${tec};Ativo\n`;
+            csv += `${setor};${nome};${prontuario};${tec};${banho};${lesao};${scp};Ativo\n`;
         }
     });
 
@@ -1593,7 +1695,12 @@ function limparCardPaciente(card) {
         input.style.backgroundColor = '';
     });
 
-    card.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+    card.querySelectorAll('select').forEach(select => {
+        select.selectedIndex = 0;
+        if (select.classList.contains('input-scp-paciente')) {
+            atualizarCorSelectScp(select);
+        }
+    });
 
     card.querySelectorAll('.news-input').forEach(news => {
         news.value = '';
@@ -2071,33 +2178,14 @@ async function carregarDadosAuditoria() {
     const tbody = document.getElementById('corpo-tabela-auditoria');
     if (!tbody) return;
 
-    const elMesEstavel = document.getElementById('mes-estavel');
-    const elMesBaixo = document.getElementById('mes-baixo');
-    const elMesMedio = document.getElementById('mes-medio');
-    const elMesAlto = document.getElementById('mes-alto');
+    // Força o salvamento dos dados atuais da tela antes de processar
+    if (typeof salvarDadosDoDia === 'function' && typeof dataSelecionadaStr !== 'undefined') {
+        await salvarDadosDoDia(dataSelecionadaStr);
+    }
 
-    if (elMesEstavel) elMesEstavel.textContent = indicadoresMensais.estavel;
-    if (elMesBaixo) elMesBaixo.textContent = indicadoresMensais.baixo;
-    if (elMesMedio) elMesMedio.textContent = indicadoresMensais.medio;
-    if (elMesAlto) elMesAlto.textContent = indicadoresMensais.alto;
-
-    const elMesAlta = document.getElementById('mes-saida-alta');
-    const elMesHcUfu = document.getElementById('mes-saida-hc-ufu');
-    const elMesHospMunic = document.getElementById('mes-saida-hospital-municipal');
-    const elMesCip = document.getElementById('mes-saida-cip');
-    const elMesCaps = document.getElementById('mes-saida-caps');
-    const elMesUcci = document.getElementById('mes-saida-ucci');
-    const elMesObito = document.getElementById('mes-saida-obito');
-
-    if (elMesAlta) elMesAlta.textContent = contadoresSaidas.alta;
-    if (elMesHcUfu) elMesHcUfu.textContent = contadoresSaidas["HC UFU"];
-    if (elMesHospMunic) elMesHospMunic.textContent = contadoresSaidas["Hospital Municipal"];
-    if (elMesCip) elMesCip.textContent = contadoresSaidas["CIP"];
-    if (elMesCaps) elMesCaps.textContent = contadoresSaidas["CAPS"];
-    if (elMesUcci) elMesUcci.textContent = contadoresSaidas["UCCI"];
-    if (elMesObito) elMesObito.textContent = contadoresSaidas.obito;
-
-    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
+    const mesAnoChave = dataSelecionadaStr ? dataSelecionadaStr.substring(0, 7) : "2026-09";
+    
+    // Busca os plantões do mês no Supabase
     const { data: plantoesMes, error } = await _supabase
         .from('plantoes')
         .select('data_chave, dados_json')
@@ -2108,12 +2196,27 @@ async function carregarDadosAuditoria() {
         return;
     }
 
+    let auditMesEstavel = 0;
+    let auditMesBaixo = 0;
+    let auditMesMedio = 0;
+    let auditMesAlto = 0;
+    
+    let auditSaidasMes = {
+        alta: 0,
+        "HC UFU": 0,
+        "Hospital Municipal": 0,
+        "CIP": 0,
+        "CAPS": 0,
+        "UCCI": 0,
+        obito: 0
+    };
+
     window.dadosAuditoriaGlobal = [];
 
     if (plantoesMes) {
         plantoesMes.forEach(plantao => {
-            if (plantao.data_chave.startsWith('STATS-')) return;
-            const dataPlantao = plantao.data_chave.split('-').reverse().join('/');
+            if (plantao.data_chave && plantao.data_chave.startsWith('STATS-')) return;
+            const dataPlantao = plantao.data_chave ? plantao.data_chave.split('-').reverse().join('/') : "";
             const pacientes = plantao.dados_json;
 
             if (Array.isArray(pacientes)) {
@@ -2121,8 +2224,16 @@ async function carregarDadosAuditoria() {
                     const nome = p.nome ? p.nome.trim() : "";
                     if (nome === "") return;
 
+                    let desfecho = p.desfecho || "Internado";
+                    if (desfecho !== "Internado") {
+                        if (desfecho === "Alta") auditSaidasMes.alta++;
+                        else if (desfecho === "Óbito") auditSaidasMes.obito++;
+                        else if (auditSaidasMes.hasOwnProperty(desfecho)) auditSaidasMes[desfecho]++;
+                    }
+
                     let temAlertaSepse = "Não";
                     let maiorNews = 0;
+                    const isento = p.isento || false;
 
                     if (Array.isArray(p.vitais)) {
                         p.vitais.forEach(v => {
@@ -2141,11 +2252,7 @@ async function carregarDadosAuditoria() {
                             if (fr > 20) sirsCount++;
                             if (temp > 38.3 || (temp > 0 && temp < 35)) sirsCount++;
 
-                            const conscGrave = (consc === "VOZ, DOR OU NÃO REAGE");
-                            const pasGrave = (pas > 0 && pas < 90);
-                            const satGrave = (sat > 0 && ((sat < 90 && o2 !== "SIM") || (sat < 94 && o2 === "SIM")));
-
-                            if (sirsCount >= 2 || conscGrave || pasGrave || satGrave || protocoloManual === "SIM") {
+                            if (sirsCount >= 2 || consc === "VOZ, DOR OU NÃO REAGE" || (pas > 0 && pas < 90) || protocoloManual === "SIM") {
                                 temAlertaSepse = "Sim";
                             }
 
@@ -2156,7 +2263,12 @@ async function carregarDadosAuditoria() {
                         });
                     }
 
-                    let desfecho = p.desfecho || "Internado";
+                    if (!isento && desfecho === "Internado") {
+                        if (maiorNews <= 1) auditMesEstavel++;
+                        else if (maiorNews === 2) auditMesBaixo++;
+                        else if (maiorNews >= 3 && maiorNews <= 4) auditMesMedio++;
+                        else if (maiorNews >= 5) auditMesAlto++;
+                    }
 
                     window.dadosAuditoriaGlobal.push({
                         data: dataPlantao,
@@ -2173,11 +2285,44 @@ async function carregarDadosAuditoria() {
         });
     }
 
-    const badgeTopo = document.querySelector('.badge-contador[data-setor="auditoria"]');
-    if (badgeTopo) badgeTopo.textContent = window.dadosAuditoriaGlobal.length;
+    // Atualiza instantaneamente os cards na tela de auditoria
+    const eEstavel = document.getElementById('mes-estavel');
+    const eBaixo = document.getElementById('mes-baixo');
+    const eMedio = document.getElementById('mes-medio');
+    const eAlto = document.getElementById('mes-alto');
 
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Selecione uma opção no filtro acima ou digite um termo para exibir os registros.</td></tr>`;
+    if (eEstavel) eEstavel.textContent = auditMesEstavel;
+    if (eBaixo) eBaixo.textContent = auditMesBaixo;
+    if (eMedio) eMedio.textContent = auditMesMedio;
+    if (eAlto) eAlto.textContent = auditMesAlto;
+
+    const eAlta = document.getElementById('mes-saida-alta');
+    const eHcUfu = document.getElementById('mes-saida-hc-ufu');
+    const eHospMunic = document.getElementById('mes-saida-hospital-municipal');
+    const eCip = document.getElementById('mes-saida-cip');
+    const eCaps = document.getElementById('mes-saida-caps');
+    const eUcci = document.getElementById('mes-saida-ucci');
+    const eObito = document.getElementById('mes-saida-obito');
+
+    if (eAlta) eAlta.textContent = auditSaidasMes.alta;
+    if (eHcUfu) eHcUfu.textContent = auditSaidasMes["HC UFU"];
+    if (eHospMunic) eHospMunic.textContent = auditSaidasMes["Hospital Municipal"];
+    if (eCip) eCip.textContent = auditSaidasMes["CIP"];
+    if (eCaps) eCaps.textContent = auditSaidasMes["CAPS"];
+    if (eUcci) eUcci.textContent = auditSaidasMes["UCCI"];
+    if (eObito) eObito.textContent = auditSaidasMes.obito;
+
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Dados atualizados com sucesso! Utilize os filtros acima para exibir os registros.</td></tr>`;
 }
+
+// Vincula automaticamente os botões de atualização da tela assim que a página carrega
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.textContent.includes('Atualizar')) {
+            btn.onclick = carregarDadosAuditoria;
+        }
+    });
+});
 
 function filtrarTabelaAuditoria() {
     const selectStatus = document.getElementById('filtro-auditoria-status');
@@ -2350,6 +2495,7 @@ function abrirDetalhesAuditoriaPaciente(dadosPaciente) {
 
     modal.style.display = 'flex';
 }
+
 // --- LÓGICA DO QUADRO 1 E QUADRO 2 DE DIMENSIONAMENTO (COFEN 743/2024) ---
 
 function carregarPacientesGeralEnfermarias() {
@@ -2358,7 +2504,6 @@ function carregarPacientesGeralEnfermarias() {
 
     tbodyQ1.innerHTML = "";
     const idsEnfermarias = ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'enf-pediatria', 'sala-emergencia'];
-    let totalPacientes = 0;
 
     idsEnfermarias.forEach(idSetor => {
         const abaSetor = document.getElementById(idSetor);
@@ -2367,9 +2512,29 @@ function carregarPacientesGeralEnfermarias() {
         abaSetor.querySelectorAll('.patient-card').forEach((card) => {
             const nomeInput = card.querySelector('.nome-input');
             if (nomeInput && nomeInput.value.trim() !== "") {
-                totalPacientes++;
                 const nomePac = nomeInput.value.trim();
                 const setorFormatado = idSetor.replace('enf', 'Enfermaria ').replace('corredor', 'Corredor').replace('sala-emergencia', 'Emergência').toUpperCase();
+
+                const banhoSalvo = card.querySelector('.input-banho-paciente')?.value || "-";
+                const lesaoSalva = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
+                const scpSalvo = card.querySelector('.input-scp-paciente')?.value || "minimo";
+
+                let fatorInicial = 1.34;
+                if (scpSalvo === 'intensivo') fatorInicial = 4.3;
+                else if (scpSalvo === 'semi' || scpSalvo === 'alta') fatorInicial = 2.9;
+                else if (scpSalvo === 'intermediario') fatorInicial = 2.01;
+                else if (scpSalvo === 'minimo') fatorInicial = 1.34;
+
+                let corFundoScp = '#e2e8f0';
+                if (scpSalvo === 'intensivo') corFundoScp = '#fed7aa';
+                else if (scpSalvo === 'semi' || scpSalvo === 'alta') corFundoScp = '#fef08a';
+                else if (scpSalvo === 'intermediario') corFundoScp = '#bbf7d0';
+
+                const segundosIniciais = Math.round(fatorInicial * 3600);
+                const h = Math.floor(segundosIniciais / 3600);
+                const m = Math.floor((segundosIniciais % 3600) / 60);
+                const s = segundosIniciais % 60;
+                const totalHorasFormatado = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -2377,31 +2542,31 @@ function carregarPacientesGeralEnfermarias() {
                     <td style="border: 1px solid #cbd5e1; padding: 6px;">${nomePac}</td>
                     <td style="border: 1px solid #cbd5e1; padding: 6px;">
                         <select class="q1-banho" style="width: 100%; border: none; background: transparent; font-size: 0.75rem;">
-                            <option value="-">-</option>
-                            <option value="Aspersão">Aspersão</option>
-                            <option value="Leito Diá">Leito Dia</option>
-                            <option value="Leito Noite">Leito Noite</option>
-                            <option value="Auxílio Dia">Auxílio Dia</option>
-                            <option value="Auxílio Noite">Auxílio Noite</option>
+                            <option value="-" ${banhoSalvo === '-' ? 'selected' : ''}>-</option>
+                            <option value="Aspersão" ${banhoSalvo === 'Aspersão' ? 'selected' : ''}>Aspersão</option>
+                            <option value="Leito Diá" ${banhoSalvo === 'Leito Diá' ? 'selected' : ''}>Leito Dia</option>
+                            <option value="Leito Noite" ${banhoSalvo === 'Leito Noite' ? 'selected' : ''}>Leito Noite</option>
+                            <option value="Auxílio Dia" ${banhoSalvo === 'Auxílio Dia' ? 'selected' : ''}>Auxílio Dia</option>
+                            <option value="Auxílio Noite" ${banhoSalvo === 'Auxílio Noite' ? 'selected' : ''}>Auxílio Noite</option>
                         </select>
                     </td>
                     <td style="border: 1px solid #cbd5e1; padding: 6px;">
                         <select class="q1-lesao" style="width: 100%; border: none; background: transparent; font-size: 0.75rem;">
-                            <option value="NÃO">NÃO</option>
-                            <option value="SIM">SIM</option>
+                            <option value="NÃO" ${lesaoSalva === 'NÃO' ? 'selected' : ''}>NÃO</option>
+                            <option value="SIM" ${lesaoSalva === 'SIM' ? 'selected' : ''}>SIM</option>
                         </select>
                     </td>
                     <td style="border: 1px solid #cbd5e1; padding: 6px;">
-                        <select class="q1-scp" onchange="recalcularLinhaQuadro1(this)" style="width: 100%; border: none; background: #e2e8f0; font-weight: bold; font-size: 0.72rem;">
-                            <option value="intensivo">INTENSIVOS (18h)</option>
-                            <option value="semi">SEMI-INTENSIVO (10h)</option>
-                            <option value="alta">ALTA DEP. (10h)</option>
-                            <option value="intermediario">INTERMEDIÁRIOS (6h)</option>
-                            <option value="minimo" selected>MÍNIMOS (4h)</option>
+                        <select class="q1-scp" onchange="recalcularLinhaQuadro1(this)" style="width: 100%; border: none; background: ${corFundoScp}; font-weight: bold; font-size: 0.72rem;">
+                            <option value="intensivo" ${scpSalvo === 'intensivo' ? 'selected' : ''}>INTENSIVOS (18h)</option>
+                            <option value="semi" ${scpSalvo === 'semi' ? 'selected' : ''}>SEMI-INTENSIVO (10h)</option>
+                            <option value="alta" ${scpSalvo === 'alta' ? 'selected' : ''}>ALTA DEP. (10h)</option>
+                            <option value="intermediario" ${scpSalvo === 'intermediario' ? 'selected' : ''}>INTERMEDIÁRIOS (6h)</option>
+                            <option value="minimo" ${scpSalvo === 'minimo' ? 'selected' : ''}>MÍNIMOS (4h)</option>
                         </select>
                     </td>
-                    <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;" class="q1-hora-ref">1,34</td>
-                    <td style="border: 1px solid #cbd5e1; text-align: center; font-weight: 500; padding: 6px;" class="q1-total-horas">01:20:24</td>
+                    <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;" class="q1-hora-ref">${fatorInicial.toFixed(2).replace('.', ',')}</td>
+                    <td style="border: 1px solid #cbd5e1; text-align: center; font-weight: 500; padding: 6px;" class="q1-total-horas">${totalHorasFormatado}</td>
                     <td style="border: 1px solid #cbd5e1; text-align: center; padding: 6px;">
                         <button type="button" onclick="this.closest('tr').remove()" style="background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-weight: bold; cursor: pointer;" title="Remover paciente">✕</button>
                     </td>
@@ -2419,10 +2584,14 @@ function recalcularLinhaQuadro1(selectScp) {
     const tdTot = tr.querySelector('.q1-total-horas');
 
     let fator = 1.34;
-    if (tipo === 'intensivo') fator = 4.3;
-    else if (tipo === 'semi' || tipo === 'alta') fator = 2.9;
-    else if (tipo === 'intermediario') fator = 2.01;
-    else if (tipo === 'minimo') fator = 1.34;
+    let corFundo = '#e2e8f0';
+
+    if (tipo === 'intensivo') { fator = 4.3; corFundo = '#fed7aa'; }
+    else if (tipo === 'semi' || tipo === 'alta') { fator = 2.9; corFundo = '#fef08a'; }
+    else if (tipo === 'intermediario') { fator = 2.01; corFundo = '#bbf7d0'; }
+    else { fator = 1.34; corFundo = '#e2e8f0'; }
+
+    selectScp.style.backgroundColor = corFundo;
 
     tdRef.textContent = fator.toFixed(2).replace('.', ',');
     const segundos = Math.round(fator * 3600);
@@ -2465,7 +2634,6 @@ function executarGeracaoEscalaTecnica() {
             const horaRef = tr.querySelector('.q1-hora-ref').textContent;
             const totalHoras = tr.querySelector('.q1-total-horas').textContent;
 
-            // Calcula os segundos exatos para facilitar o balanceamento
             let segundos = 0;
             if (totalHoras) {
                 const partes = totalHoras.split(':').map(Number);
@@ -2489,7 +2657,6 @@ function executarGeracaoEscalaTecnica() {
     tbodyQ2.innerHTML = "";
     document.getElementById('lbl-qtd-tecnicos-escala').textContent = tecnicos.length;
 
-    // Inicializa o objeto de cada técnico
     const distribuicao = tecnicos.map((nome, idx) => ({
         id: idx + 1,
         nome: nome,
@@ -2497,24 +2664,19 @@ function executarGeracaoEscalaTecnica() {
         segundosTotais: 0
     }));
 
-    // Ordena os pacientes do mais pesado (maior carga horária) para o mais leve
     pacientesParaDistribuir.sort((a, b) => b.segundosTotais - a.segundosTotais);
 
-    // Algoritmo de Balanceamento (Greedy): Atribui cada paciente sempre ao técnico com menos carga horária acumulada
     pacientesParaDistribuir.forEach(pac => {
-        // Encontra o técnico com menor carga horária no momento
         let tecnicoMenorCarga = distribuicao[0];
         for (let i = 1; i < distribuicao.length; i++) {
             if (distribuicao[i].segundosTotais < tecnicoMenorCarga.segundosTotais) {
                 tecnicoMenorCarga = distribuicao[i];
             }
         }
-        // Aloca o paciente para ele e atualiza a carga horária
         tecnicoMenorCarga.pacientes.push(pac);
         tecnicoMenorCarga.segundosTotais += pac.segundos;
     });
 
-    // Renderiza a tabela do Quadro 2 de forma equilibrada
     distribuicao.forEach(tec => {
         const totalLinhas = Math.max(tec.pacientes.length, 1);
 
@@ -2554,4 +2716,142 @@ function executarGeracaoEscalaTecnica() {
             tbodyQ2.appendChild(tr);
         }
     });
+}
+
+// --- NOVAS FUNÇÕES: SALVAR, PESQUISAR E IMPRIMIR ESCALA ---
+
+async function salvarEscalaAtualSupabase() {
+    const tbodyQ2 = document.getElementById('corpo-tabela-quadro2-escala');
+    if (!tbodyQ2 || tbodyQ2.querySelector('td[colspan]')) {
+        alert("Gere uma escala válida antes de salvar.");
+        return;
+    }
+
+    const htmlTabela = tbodyQ2.innerHTML;
+    const qtdTecnicos = document.getElementById('lbl-qtd-tecnicos-escala').textContent;
+    const dataHoraRegistro = new Date().toLocaleString('pt-BR');
+    const chaveEscala = `ESCALA-${dataSelecionadaStr}-${Date.now()}`;
+
+    const dadosEscala = {
+        data_chave: chaveEscala,
+        mes_ano: dataSelecionadaStr.substring(0, 7),
+        dados_json: {
+            dataPlantao: dataSelecionadaStr,
+            criadoEm: dataHoraRegistro,
+            qtdTecnicos: qtdTecnicos,
+            html: htmlTabela
+        },
+        updated_at: new Date()
+    };
+
+    const { error } = await _supabase.from('plantoes').upsert(dadosEscala, { onConflict: 'data_chave' });
+
+    if (error) {
+        console.error("Erro ao salvar escala:", error.message);
+        alert("Erro ao salvar a escala no Supabase.");
+    } else {
+        alert("✅ Escala salva com sucesso!");
+        carregarListaHistoricoEscalas();
+    }
+}
+
+async function carregarListaHistoricoEscalas() {
+    const select = document.getElementById('select-historico-escala');
+    if (!select) return;
+
+    const mesAnoChave = dataSelecionadaStr.substring(0, 7);
+    const { data, error } = await _supabase
+        .from('plantoes')
+        .select('data_chave, dados_json')
+        .like('data_chave', 'ESCALA-%')
+        .eq('mes_ano', mesAnoChave);
+
+    select.innerHTML = `<option value="" selected disabled>Pesquisar escalas salvas neste mês...</option>`;
+
+    if (!error && data) {
+        data.forEach(item => {
+            if (item.dados_json && item.dados_json.criadoEm) {
+                const opt = document.createElement('option');
+                opt.value = item.data_chave;
+                opt.textContent = `Escala de ${item.dados_json.criadoEm} (${item.dados_json.qtdTecnicos} Técnicos)`;
+                select.appendChild(opt);
+            }
+        });
+    }
+}
+
+async function carregarEscalaSalvaSupabase(chaveEscala) {
+    if (!chaveEscala) return;
+
+    const { data, error } = await _supabase
+        .from('plantoes')
+        .select('dados_json')
+        .eq('data_chave', chaveEscala)
+        .maybeSingle();
+
+    if (!error && data && data.dados_json) {
+        const tbodyQ2 = document.getElementById('corpo-tabela-quadro2-escala');
+        const lblQtd = document.getElementById('lbl-qtd-tecnicos-escala');
+        
+        if (tbodyQ2 && data.dados_json.html) {
+            tbodyQ2.innerHTML = data.dados_json.html;
+            if (lblQtd) lblQtd.textContent = data.dados_json.qtdTecnicos || "0";
+            alert("📂 Escala carregada com sucesso!");
+        }
+    }
+}
+
+function imprimirEscalaDimensionamento() {
+    const conteudo = document.getElementById('area-impressao-escala');
+    if (!conteudo) return;
+
+    const janelaImpressao = window.open('', '', 'height=700,width=1000');
+    janelaImpressao.document.write('<html><head><title>Escala de Dimensionamento - Cofen 743/2024</title>');
+    janelaImpressao.document.write('<style>');
+    
+    // Configuração da página A4 Paisagem
+    janelaImpressao.document.write('@page { size: A4 landscape; margin: 10mm; }');
+    janelaImpressao.document.write('body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #333; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+    
+    // Força expansão e remove barras de rolagem
+    janelaImpressao.document.write('* { box-sizing: border-box; }');
+    janelaImpressao.document.write('div { overflow: visible !important; width: 100% !important; max-width: 100% !important; }');
+    
+    // Tabela fluida
+    janelaImpressao.document.write('table { width: 100% !important; border-collapse: collapse; margin-top: 10px; font-size: 11px; }');
+    
+    // MUDANÇA PRINCIPAL: text-align: center para TODAS as células da tabela
+    janelaImpressao.document.write('th, td { border: 1px solid #cbd5e1; padding: 6px 4px; text-align: center !important; vertical-align: middle; }');
+    janelaImpressao.document.write('th { background-color: #0f766e !important; color: white !important; font-size: 10px; }');
+    
+    // Impede quebras indesejadas em colunas numéricas
+    janelaImpressao.document.write('th:nth-child(1), td:nth-child(1), th:nth-child(7), td:nth-child(7), th:nth-child(8), td:nth-child(8), th:nth-child(9), td:nth-child(9) { white-space: nowrap; }');
+    
+    // Proporções das colunas
+    janelaImpressao.document.write('th:nth-child(1) { width: 3%; }');
+    janelaImpressao.document.write('th:nth-child(2) { width: 15%; }');
+    janelaImpressao.document.write('th:nth-child(3) { width: 32%; }');
+    janelaImpressao.document.write('th:nth-child(4) { width: 10%; }');
+    janelaImpressao.document.write('th:nth-child(5) { width: 8%; }');
+    janelaImpressao.document.write('th:nth-child(6) { width: 14%; }');
+    janelaImpressao.document.write('th:nth-child(7) { width: 6%; }');
+    janelaImpressao.document.write('th:nth-child(8) { width: 6%; }');
+    janelaImpressao.document.write('th:nth-child(9) { width: 6%; }');
+
+    // Títulos
+    janelaImpressao.document.write('h2 { color: #003366; margin: 0 0 4px 0; font-size: 16px; }');
+    janelaImpressao.document.write('p { font-size: 11px; margin: 0 0 10px 0; color: #475569; }');
+    
+    janelaImpressao.document.write('</style></head><body>');
+    janelaImpressao.document.write('<h2>Escala de Dimensionamento de Pessoal de Enfermagem</h2>');
+    janelaImpressao.document.write(`<p>Referência: Resolução Cofen nº 743/2024 | Data do Plantão: ${dataSelecionadaStr.split('-').reverse().join('/')}</p>`);
+    
+    janelaImpressao.document.write(conteudo.innerHTML);
+    
+    janelaImpressao.document.write('</body></html>');
+    janelaImpressao.document.close();
+    janelaImpressao.focus();
+    setTimeout(() => {
+        janelaImpressao.print();
+    }, 500);
 }
