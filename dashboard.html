@@ -633,7 +633,7 @@
                 <h3 style="font-size: 0.95rem; color: #003366; margin: 0; text-transform: uppercase; font-weight: 700;">
                     1. Relação Geral de Pacientes Internados (Por Enfermaria)
                 </h3>
-                <button onclick="carregarPacientesGeralEnfermarias()" style="background: #0284c7; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: background 0.2s;">
+                <button onclick="atualizarListaPacientesDimensionamento()" style="background: #0284c7; color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: background 0.2s;">
                     🔄 Atualizar Lista de Pacientes
                 </button>
             </div>
@@ -641,18 +641,19 @@
             <div style="border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden;">
                 <div class="table-responsive" style="max-height: 35vh; overflow-y: auto;">
                     <table class="vitals-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
-                        <thead>
-                            <tr style="background: #003366; color: #fff;">
-                                <th style="width: 140px; padding: 10px; text-align: left;">ENFERMARIA / SETOR</th>
-                                <th style="padding: 10px; text-align: left;">NOME DO PACIENTE</th>
-                                <th style="width: 160px; padding: 10px; text-align: left;">BANHO / CUIDADO</th>
-                                <th style="width: 120px; padding: 10px; text-align: left;">RISCO DE LESÃO</th>
-                                <th style="width: 160px; padding: 10px; text-align: left;">SCP (GRAU)</th>
-                                <th style="width: 100px; padding: 10px; text-align: center;">HORAS REF.</th>
-                                <th style="width: 110px; padding: 10px; text-align: center;">TOTAL HORAS</th>
-                                <th style="width: 70px; padding: 10px; text-align: center;">AÇÃO</th>
-                            </tr>
-                        </thead>
+                       <thead>
+    <tr style="background: #003366; color: #fff;">
+        <th style="width: 140px; padding: 10px; text-align: left;">ENFERMARIA / SETOR</th>
+        <th style="padding: 10px; text-align: left;">NOME DO PACIENTE</th>
+        <th style="width: 130px; padding: 10px; text-align: left;">BANHO / CUIDADO</th>
+        <th style="width: 100px; padding: 10px; text-align: center;">DIETA ASSIST.</th>
+        <th style="width: 100px; padding: 10px; text-align: left;">RISCO LESÃO</th>
+        <th style="width: 130px; padding: 10px; text-align: left;">SCP (GRAU)</th>
+        <th style="width: 80px; padding: 10px; text-align: center;">HORAS REF.</th>
+        <th style="width: 90px; padding: 10px; text-align: center;">TOTAL HORAS</th>
+        <th style="width: 70px; padding: 10px; text-align: center;">AÇÃO</th>
+    </tr>
+</thead>
                         <tbody id="corpo-tabela-quadro1-geral">
                             <tr>
                                 <td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">Nenhum paciente carregado. Clique em "Atualizar Lista de Pacientes".</td>
@@ -782,6 +783,13 @@
                                     </select>
                                 </div>
                                 <div class="input-group">
+                                    <label>DIETA ASSISTIDA:</label>
+                                    <select class="input-dieta-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
+                                        <option value="NÃO">NÃO</option>
+                                        <option value="SIM">SIM</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
                                     <label>RISCO LESÃO:</label>
                                     <select class="input-lesao-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
                                         <option value="NÃO">NÃO</option>
@@ -799,7 +807,7 @@
                                     </select>
                                 </div>
                             </div>
-                        </div>
+                        
                         <div class="table-responsive">
                             <table class="vitals-table pews-table">
                                 <thead>
@@ -1188,57 +1196,64 @@
     <!-- Script Principal -->
     <script src="dashboard.js"></script>
     
-    <script>
-        // Gerenciamento da posição da barra de pesquisa e ocultação de elementos durante a busca
-        const _mudarSetorOriginal = window.mudarSetor;
-        window.mudarSetor = function(idSetor) {
-            if (typeof _mudarSetorOriginal === 'function') {
-                _mudarSetorOriginal(idSetor);
-            }
-
-            // Ao mudar para a aba de dimensionamento, atualiza a lista de histórico de escalas
-            if (idSetor === 'aba-dimensionamento') {
-                if (typeof carregarListaHistoricoEscalas === 'function') {
-                    carregarListaHistoricoEscalas();
-                }
-            }
-
-            const barraGlobal = document.querySelector('.barra-filtro-global');
-            const mainContent = document.querySelector('main.content');
-
-            if (barraGlobal && mainContent) {
-                // Oculta a barra de pesquisa nas abas especiais (Auditoria e Dimensionamento)
-                if (idSetor === 'aba-auditoria-sepse' || idSetor === 'aba-dimensionamento') {
-                    barraGlobal.style.display = 'none';
-                } else {
-                    barraGlobal.style.display = 'flex';
-                    if (idSetor === 'painel-central') {
-                        const painelCentral = document.getElementById('painel-central');
-                        if (painelCentral) {
-                            painelCentral.appendChild(barraGlobal);
-                            barraGlobal.style.marginTop = "20px";
-                        }
-                    } else {
-                        mainContent.insertBefore(barraGlobal, mainContent.firstChild);
-                        barraGlobal.style.marginTop = "0px";
-                        barraGlobal.style.marginBottom = "15px";
-                    }
-                }
-            }
-        };
-
-        // Monitora o campo de busca global para ocultar o botão de adicionar/barra inferior ao filtrar
-        const inputBuscaGlobal = document.getElementById('filtro-global');
-        if (inputBuscaGlobal) {
-            inputBuscaGlobal.addEventListener('input', function() {
-                if (this.value.trim().length > 0) {
-                    document.body.classList.add('buscando-ativo');
-                } else {
-                    document.body.classList.remove('buscando-ativo');
-                }
-            });
+   <script>
+    // Gerenciamento da posição da barra de pesquisa e atualização automática da auditoria
+    const _mudarSetorOriginal = window.mudarSetor;
+    window.mudarSetor = function(idSetor) {
+        if (typeof _mudarSetorOriginal === 'function') {
+            _mudarSetorOriginal(idSetor);
         }
-    </script>
+
+        // Atualiza a lista de histórico de escalas ao entrar na aba de dimensionamento
+        if (idSetor === 'aba-dimensionamento') {
+            if (typeof carregarListaHistoricoEscalas === 'function') {
+                carregarListaHistoricoEscalas();
+            }
+        }
+
+        // ATUALIZAÇÃO AUTOMÁTICA: Dispara o carregamento da auditoria ao entrar na aba
+        if (idSetor === 'aba-auditoria-sepse') {
+            if (typeof carregarDadosAuditoria === 'function') {
+                carregarDadosAuditoria();
+            }
+        }
+
+        const barraGlobal = document.querySelector('.barra-filtro-global');
+        const mainContent = document.querySelector('main.content');
+
+        if (barraGlobal && mainContent) {
+            // Oculta a barra de pesquisa nas abas especiais (Auditoria e Dimensionamento)
+            if (idSetor === 'aba-auditoria-sepse' || idSetor === 'aba-dimensionamento') {
+                barraGlobal.style.display = 'none';
+            } else {
+                barraGlobal.style.display = 'flex';
+                if (idSetor === 'painel-central') {
+                    const painelCentral = document.getElementById('painel-central');
+                    if (painelCentral) {
+                        painelCentral.appendChild(barraGlobal);
+                        barraGlobal.style.marginTop = "20px";
+                    }
+                } else {
+                    mainContent.insertBefore(barraGlobal, mainContent.firstChild);
+                    barraGlobal.style.marginTop = "0px";
+                    barraGlobal.style.marginBottom = "15px";
+                }
+            }
+        }
+    };
+
+    // Monitora o campo de busca global para ocultar elementos ao filtrar
+    const inputBuscaGlobal = document.getElementById('filtro-global');
+    if (inputBuscaGlobal) {
+        inputBuscaGlobal.addEventListener('input', function() {
+            if (this.value.trim().length > 0) {
+                document.body.classList.add('buscando-ativo');
+            } else {
+                document.body.classList.remove('buscando-ativo');
+            }
+        });
+    }
+</script>
     
 </body>
 </html>
