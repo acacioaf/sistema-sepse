@@ -2583,6 +2583,7 @@ function atualizarListaPacientesDimensionamento() {
                 const lesao = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
                 const scpSelect = card.querySelector('.input-scp-paciente');
                 
+                // DEFINE AS HORAS APENAS COM BASE NO SCP SELECIONADO
                 let horasBaseNum = 1.34; 
                 const valScp = scpSelect ? scpSelect.value : "minimo";
                 
@@ -2592,16 +2593,8 @@ function atualizarListaPacientesDimensionamento() {
                 else if (valScp === 'intermediario') horasBaseNum = 2.01;
                 else if (valScp === 'minimo') horasBaseNum = 1.34;
 
-                let acréscimoNum = 0;
-                if (banho === 'Leito Diá' || banho === 'Leito Noite') acréscimoNum += 2.0;
-                else if (banho === 'Auxílio Dia' || banho === 'Auxílio Noite') acréscimoNum += 1.0;
-                if (dieta === 'SIM') acréscimoNum += 1.0;
-                if (lesao === 'SIM') acréscimoNum += 1.0;
-
-                const totalHorasDecimal = horasBaseNum + acréscimoNum;
-                
                 const horasRefStr = horasBaseNum.toFixed(2).replace('.', ',');
-                const segundosTotais = converterDecimalParaSegundos(totalHorasDecimal);
+                const segundosTotais = converterDecimalParaSegundos(horasBaseNum);
                 const horasPacienteStr = formatarSegundosParaHHMMSS(segundosTotais);
 
                 const optsBanho = ['-', 'Aspersão', 'Leito Diá', 'Leito Noite', 'Auxílio Dia', 'Auxílio Noite']
@@ -2614,11 +2607,11 @@ function atualizarListaPacientesDimensionamento() {
                     .map(o => `<option value="${o}" ${lesao === o ? 'selected' : ''}>${o}</option>`).join('');
                 
                 const scpArr = [
-                    { v: 'intensivo', t: 'INTENSIVOS' },
-                    { v: 'semi', t: 'SEMI-INTENSIVO' },
-                    { v: 'alta', t: 'ALTA DEP.' },
-                    { v: 'intermediario', t: 'INTERMEDIÁRIOS' },
-                    { v: 'minimo', t: 'MÍNIMOS' }
+                    { v: 'intensivo', t: 'INTENSIVOS (4,3h)' },
+                    { v: 'semi', t: 'SEMI-INTENSIVO (2,9h)' },
+                    { v: 'alta', t: 'ALTA DEP. (3,2h)' },
+                    { v: 'intermediario', t: 'INTERMEDIÁRIOS (2,01h)' },
+                    { v: 'minimo', t: 'MÍNIMOS (1,34h)' }
                 ];
                 const optsScp = scpArr.map(o => `<option value="${o.v}" ${valScp === o.v ? 'selected' : ''}>${o.t}</option>`).join('');
 
