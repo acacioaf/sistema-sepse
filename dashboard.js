@@ -2696,15 +2696,34 @@ function executarGeracaoEscalaTecnica() {
                 return td.textContent.trim();
             };
 
+            const scpStr = obterValor(tds[5]);
+            const banhoStr = obterValor(tds[2]);
+            const lesaoStr = obterValor(tds[4]);
+            const horasPac = obterValor(tds[7]);
+
+            let segundos = 4824;
+            if (horasPac.includes(':')) {
+                const partes = horasPac.split(':').map(Number);
+                segundos = (partes[0] * 3600) + (partes[1] * 60) + (partes[2] || 0);
+            }
+
+            // Identifica se o paciente é considerado de alta complexidade/cuidado intensivo
+            const isComplexo = scpStr.includes('INTENSIVO') || 
+                               scpStr.includes('ALTA DEP') || 
+                               banhoStr.includes('Leito') || 
+                               lesaoStr === 'SIM';
+
             listaPacientes.push({
                 setor: obterValor(tds[0]),
                 nome: obterValor(tds[1]),
-                banho: obterValor(tds[2]),
+                banho: banhoStr,
                 dieta: obterValor(tds[3]),
-                lesao: obterValor(tds[4]),
-                scp: obterValor(tds[5]),
+                lesao: lesaoStr,
+                scp: scpStr,
                 horasRef: obterValor(tds[6]),
-                horasPaciente: obterValor(tds[7])
+                horasPaciente: horasPac,
+                segundosTotais: segundos,
+                isComplexo: isComplexo
             });
         }
     });
@@ -2714,6 +2733,10 @@ function executarGeracaoEscalaTecnica() {
         fecharModalGerarEscalaTecnica();
         return;
     }
+
+    // Separa os pacientes em complexos e gerais, ordenando ambos por carga horária decrescente
+    let pacientesComplexos = listaPacientes.filter(p => p.isComplexo).sort((a, b) => b.segundosTotais - a.segundosTotais);
+    let pacientesGerais = listaPacientes.filter(p => !p.isComplexo).sort((a, b) => b.segundosTotais - a.segundosTotais);
 
     const tabelaQuadro2Div = document.getElementById('area-impressao-escala');
     if (tabelaQuadro2Div) {
@@ -2740,23 +2763,46 @@ function executarGeracaoEscalaTecnica() {
 
     tbodyQuadro2.innerHTML = '';
     
-    let indexTecnico = 0;
     let distribuicao = {};
-
     tecnicos.forEach(tec => {
-        distribuicao[tec] = { pacientes: [], somaSegundos: 0 };
+        distribuicao[tec] = { pacientes: [], somaSegundos: 0, qtdComplexos: 0 };
     });
 
-    function converterHHMMSSParaSegundos(strTempo) {
-        if (!strTempo) return 4824;
-        if (String(strTempo).includes(':')) {
-            const partes = String(strTempo).split(':').map(Number);
-            return (partes[0] * 3600) + (partes[1] * 60) + (partes[2] || 0);
-        }
-        let num = parseFloat(String(strTempo).replace(',', '.'));
-        if (isNaN(num)) num = 1.34;
-        return Math.round(num * 3600);
-    }
+    // 1. Distribui primeiro os pacientes complexos alternando entre os técnicos com menos complexos/carga
+    pacientesComplexos.forEach(pac => {
+        let tecEscolhido = tecnicos[0];
+        let menorComplexos = distribuicao[tecEscolhido].qtdComplexos;
+        let menorCarga = distribuicao[tecEscolhido].somaSegundos;
+
+        tecnicos.forEach(tec => {
+            if (distribuicao[tec].qtdComplexos < menorComplexos || 
+               (distribuicao[tec].qtdComplexos === menorComplexos && distribuicao[tec].somaSegundos < menorCarga)) {
+                menorComplexos = distribuicao[tec].qtdComplexos;
+                menorCarga = distribuicao[tec].somaSegundos;
+                tecEscolhido = tec;
+            }
+        });
+
+        distribuicao[tecEscolhido].pacientes.push(pac);
+        distribuicao[tecEscolhido].somaSegundos += pac.segundosTotais;
+        distribuicao[tecEscolhido].qtdComplexos++;
+    });
+
+    // 2. Distribui os demais pacientes visando o equilíbrio da jornada total
+    pacientesGerais.forEach(pac => {
+        let tecMaisLivre = tecnicos[0];
+        let menorCarga = distribuicao[tecMaisLivre].somaSegundos;
+
+        tecnicos.forEach(tec => {
+            if (distribuicao[tec].somaSegundos < menorCarga) {
+                menorCarga = distribuicao[tec].somaSegundos;
+                tecMaisLivre = tec;
+            }
+        });
+
+        distribuicao[tecMaisLivre].pacientes.push(pac);
+        distribuicao[tecMaisLivre].somaSegundos += pac.segundosTotais;
+    });
 
     function formatarSegundosParaHHMMSS(totalSegundos) {
         const horas = Math.floor(totalSegundos / 3600);
@@ -2764,16 +2810,6 @@ function executarGeracaoEscalaTecnica() {
         const segundos = totalSegundos % 60;
         return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
     }
-
-    listaPacientes.forEach(pac => {
-        const tecAtual = tecnicos[indexTecnico];
-        distribuicao[tecAtual].pacientes.push(pac);
-        
-        const segundosPaciente = converterHHMMSSParaSegundos(pac.horasPaciente);
-        distribuicao[tecAtual].somaSegundos += segundosPaciente;
-
-        indexTecnico = (indexTecnico + 1) % tecnicos.length;
-    });
 
     let contadorN = 1;
     let htmlQuadro2 = '';
@@ -2837,7 +2873,7 @@ function executarGeracaoEscalaTecnica() {
     if (lblQtdTecnicos) lblQtdTecnicos.textContent = tecnicos.length;
 
     fecharModalGerarEscalaTecnica();
-    alert("✅ Escala de trabalho gerada com sucesso[cite: 6]!");
+    alert("✅ Escalagerada com sucesso!");
 }
 
 // Função para sincronizar edições no Quadro 1 de volta para os cards dos pacientes
