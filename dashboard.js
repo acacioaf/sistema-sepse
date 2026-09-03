@@ -1441,7 +1441,7 @@ function executarBuscaGlobal() {
     const tipoFiltro = document.getElementById('tipo-busca').value;
     const termoFiltro = document.getElementById('filtro-global').value.toLowerCase().trim();
 
-    const todasAsAbasEnfermaria = document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)');
+    const todasAsAbasEnfermaria = document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse):not(#aba-dimensionamento)');
     const todosOsCards = document.querySelectorAll('.patient-card');
 
     if (termoFiltro === "") {
@@ -1450,6 +1450,8 @@ function executarBuscaGlobal() {
         return;
     }
 
+    let primeiraAbaComResultado = null;
+
     todasAsAbasEnfermaria.forEach(aba => {
         let encontrouNaAba = false;
         const cardsDaAba = aba.querySelectorAll('.patient-card');
@@ -1457,13 +1459,19 @@ function executarBuscaGlobal() {
         cardsDaAba.forEach(card => {
             const inputNome = card.querySelector('.nome-input');
             const inputTec = card.querySelector('.tec-input');
+            const inputProntuario = card.querySelector('.prontuario-input');
 
             const valorNome = inputNome ? inputNome.value.toLowerCase().trim() : "";
             const valorTec = inputTec ? inputTec.value.toLowerCase().trim() : "";
+            const valorProntuario = inputProntuario ? inputProntuario.value.toLowerCase().trim() : "";
 
             let exibir = false;
-            if (tipoFiltro === "paciente" && valorNome.includes(termoFiltro)) exibir = true;
-            if (tipoFiltro === "tecnico" && valorTec.includes(termoFiltro)) exibir = true;
+            if (tipoFiltro === "paciente" && (valorNome.includes(termoFiltro) || valorProntuario.includes(termoFiltro))) {
+                exibir = true;
+            }
+            if (tipoFiltro === "tecnico" && valorTec.includes(termoFiltro)) {
+                exibir = true;
+            }
 
             if (exibir) {
                 card.style.display = 'block';
@@ -1474,11 +1482,14 @@ function executarBuscaGlobal() {
         });
 
         if (encontrouNaAba) {
+            aba.style.setProperty('display', 'block', 'important');
             aba.classList.add('active');
-            aba.style.display = 'block';
+            if (!primeiraAbaComResultado) {
+                primeiraAbaComResultado = aba.id;
+            }
         } else {
+            aba.style.setProperty('display', 'none', 'important');
             aba.classList.remove('active');
-            aba.style.display = 'none';
         }
     });
 }
@@ -2383,6 +2394,7 @@ async function carregarDadosAuditoria() {
     if (eObito) eObito.textContent = auditSaidasMes.obito;
 
     tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Dados sincronizados com sucesso! Utilize os filtros acima para exibir os registros.</td></tr>`;
+    filtrarTabelaAuditoria();
 }
 
 // --- NOVAS FUNÇÕES: SALVAR, PESQUISAR E IMPRIMIR ESCALA ---
@@ -2873,7 +2885,7 @@ function executarGeracaoEscalaTecnica() {
     if (lblQtdTecnicos) lblQtdTecnicos.textContent = tecnicos.length;
 
     fecharModalGerarEscalaTecnica();
-    alert("✅ Escalagerada com sucesso!");
+    alert("✅ Escala gerada com sucesso!");
 }
 
 // Função para sincronizar edições no Quadro 1 de volta para os cards dos pacientes
@@ -2911,3 +2923,84 @@ window.sincronizarAlteracaoDimensionamento = function(idSetor, indexCard, tipo, 
     
     atualizarListaPacientesDimensionamento();
 };
+
+// --- CORREÇÃO DOS FILTROS DA ABA DE AUDITORIA ---
+function filtrarTabelaAuditoria() {
+    const tbody = document.getElementById('corpo-tabela-auditoria');
+    if (!tbody) return;
+
+    // Seleção robusta do select e input na aba de auditoria
+    const selectStatus = document.getElementById('filtro-auditoria-status') || document.querySelector('#aba-auditoria-sepse select');
+    const inputBusca = document.getElementById('filtro-auditoria-texto') || document.querySelector('#aba-auditoria-sepse input[type="text"]');
+
+    const criterioStatus = selectStatus ? selectStatus.value.trim().toLowerCase() : "";
+    const termoBusca = inputBusca ? inputBusca.value.trim().toLowerCase() : "";
+
+    // Se nenhum filtro foi selecionado (ou está na opção padrão/vazia) e não há busca por texto
+    if ((!criterioStatus || criterioStatus === "" || criterioStatus.includes("selecione") || criterioStatus.includes("todos") || criterioStatus.includes("filtrar")) && termoBusca === "") {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Selecione um status no filtro acima ou digite para buscar registros.</td></tr>`;
+        return;
+    }
+
+    if (!window.dadosAuditoriaGlobal || window.dadosAuditoriaGlobal.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b; font-style: italic;">Nenhum registro encontrado para este mês. Clique em "Atualizar Dados".</td></tr>`;
+        return;
+    }
+
+    const filtrados = window.dadosAuditoriaGlobal.filter(item => {
+        // Validação de texto (Nome ou Prontuário)
+        const nomeMatch = item.nome.toLowerCase().includes(termoBusca) || item.prontuario.toLowerCase().includes(termoBusca);
+        
+        // Se não bate com a busca, descarta imediatamente (a menos que não haja termo de busca)
+        if (!nomeMatch && termoBusca !== "") return false;
+
+        // Se não selecionou status válido ou escolheu "todos", retorna true para os registros que já passaram na validação do texto
+        if (!criterioStatus || criterioStatus === "" || criterioStatus.includes("selecione") || criterioStatus.includes("todos") || criterioStatus.includes("filtrar")) {
+            return true;
+        }
+
+        const scoreNum = parseInt(item.score);
+        const hasScore = !isNaN(scoreNum) && item.score !== "-";
+
+        if (criterioStatus.includes("sepse") && item.protocolo.toLowerCase() === "sim") return true;
+        if (criterioStatus.includes("alta") && item.desfecho.toLowerCase().includes("alta")) return true;
+        if (criterioStatus.includes("transferido") && item.desfecho.toLowerCase() !== "internado" && !item.desfecho.toLowerCase().includes("alta") && !item.desfecho.toLowerCase().includes("óbito")) return true;
+        if (criterioStatus.includes("obito") && item.desfecho.toLowerCase().includes("óbito")) return true;
+        
+        // Filtros de Risco (NEWS / PEWS) com verificação estrita por pontuação
+        if (criterioStatus.includes("alto") && hasScore && scoreNum >= 5) return true;
+        if (criterioStatus.includes("medio") && hasScore && scoreNum >= 3 && scoreNum <= 4) return true;
+        if (criterioStatus.includes("baixo") && hasScore && scoreNum === 2) return true;
+        if (criterioStatus.includes("estavel") && hasScore && scoreNum <= 1) return true;
+
+        return false;
+    });
+
+    if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545; font-style: italic;">Nenhum registro corresponde ao filtro selecionado.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtrados.map(item => `
+        <tr>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${item.data}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${item.setor}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${item.nome}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${item.prontuario}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0; color: ${item.protocolo === 'Sim' ? '#dc3545' : 'inherit'}; font-weight: ${item.protocolo === 'Sim' ? 'bold' : 'normal'};">${item.protocolo}</td>
+            <td style="padding: 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${item.desfecho}</td>
+        </tr>
+    `).join('');
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const inputBuscaAuditoria = document.getElementById('filtro-auditoria-texto') || document.querySelector('#aba-auditoria-sepse input[type="text"]');
+    const selectStatusAuditoria = document.getElementById('filtro-auditoria-status') || document.querySelector('#aba-auditoria-sepse select');
+
+    if (inputBuscaAuditoria) {
+        inputBuscaAuditoria.addEventListener('input', filtrarTabelaAuditoria);
+    }
+    if (selectStatusAuditoria) {
+        selectStatusAuditoria.addEventListener('change', filtrarTabelaAuditoria);
+    }
+});
