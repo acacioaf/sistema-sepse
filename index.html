@@ -28,7 +28,7 @@
         </div>
     </div>
 
-<script>
+    <script>
         function realizarLogin(event) {
             event.preventDefault();
             
@@ -45,15 +45,15 @@
                 return;
             }
 
-            // Acesso do Enfermeiro (Painel Completo): Aceita a senha do enfermeiro 
+            // Acesso do Enfermeiro (Painel Completo)
             if (senhaDigitada === SENHA_ENF) {
                 localStorage.setItem('enfermeiro_logado_nome', usuarioDigitado);
                 window.location.href = "dashboard.html";
             } 
-            // Acesso do Técnico: Se usar a senha padrão dos técnicos
+            // Acesso do Técnico: Apontando para dashboard_tecnico.html conforme sua pasta
             else if (senhaDigitada === SENHA_PADRAO_TECNICOS) {
                 localStorage.setItem('tecnico_logado_nome', usuarioDigitado);
-                window.location.href = "dashboard_tecnico_5.html";
+                window.location.href = "dashboard_tecnico.html";
             } 
             else {
                 alert("❌ Senha incorreta! Tente novamente.");
