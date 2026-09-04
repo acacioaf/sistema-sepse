@@ -28,31 +28,36 @@
         </div>
     </div>
 
-    <script>
+<script>
         function realizarLogin(event) {
             event.preventDefault();
             
             const usuarioDigitado = document.getElementById('usuario').value.trim();
             const senhaDigitada = document.getElementById('senha').value.trim();
             
-            // 1. Credenciais do Enfermeiro (Painel Completo)
-            const USUARIO_ENF = "admin";
+            // 1. Senhas e Credenciais dos Perfis
             const SENHA_ENF = "missao2026";
-
-            // 2. Senha padrão unificada para todos os Técnicos
             const SENHA_PADRAO_TECNICOS = "enfermagem";
 
-            if (usuarioDigitado === USUARIO_ENF && senhaDigitada === SENHA_ENF) {
-                // Acesso do Enfermeiro
+            if (!usuarioDigitado) {
+                alert("⚠️ Por favor, digite sua identificação ou nome.");
+                document.getElementById('usuario').focus();
+                return;
+            }
+
+            // Acesso do Enfermeiro (Painel Completo): Aceita a senha do enfermeiro 
+            // (mantém compatibilidade caso digite "admin" ou qualquer nome com a senha correta)
+            if (senhaDigitada === SENHA_ENF) {
+                localStorage.setItem('enfermeiro_logado_nome', usuarioDigitado);
                 window.location.href = "dashboard.html";
             } 
+            // Acesso do Técnico: Se usar a senha padrão dos técnicos
             else if (senhaDigitada === SENHA_PADRAO_TECNICOS) {
-                // Acesso do Técnico: Salvamos o nome digitado no navegador para o formulário reconhecer
                 localStorage.setItem('tecnico_logado_nome', usuarioDigitado);
-                window.location.href = "dashboard_tecnico.html";
+                window.location.href = "dashboard_tecnico_5.html";
             } 
             else {
-                alert("❌ Usuário ou senha incorretos! Tente novamente.");
+                alert("❌ Senha incorreta! Tente novamente.");
                 document.getElementById('senha').value = "";
                 document.getElementById('senha').focus();
             }
