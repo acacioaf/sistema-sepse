@@ -46,7 +46,6 @@
             }
 
             // Acesso do Enfermeiro (Painel Completo): Aceita a senha do enfermeiro 
-            // (mantém compatibilidade caso digite "admin" ou qualquer nome com a senha correta)
             if (senhaDigitada === SENHA_ENF) {
                 localStorage.setItem('enfermeiro_logado_nome', usuarioDigitado);
                 window.location.href = "dashboard.html";
