@@ -341,8 +341,11 @@
             📋 Gerar Relatório
         </button>
 
-        <div class="user-info" style="font-size: 0.85rem; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.3); padding-left: 12px;">Usuário Logado</div>
-    </div>
+       <span style="color: #fff; font-size: 0.85rem; margin-left: 10px;">
+    Enfermeiro(a): <strong id="lbl-enfermeiro-logado" style="color: #ffeb3b;">---</strong>
+    <button onclick="sairDoPainelEnfermeiro()" style="background: none; border: none; color: #ff9999; font-weight: bold; cursor: pointer; font-size: 0.78rem; margin-left: 8px; text-decoration: underline;">Sair / Trocar</button>
+</span>
+
 </header>
 
     <div class="main-container">
@@ -613,10 +616,6 @@
                     📋 GESTÃO DE PACIENTES E ESCALA DE DIMENSIONAMENTO
                 </h2>
                 <span style="font-size: 0.8rem; opacity: 0.85;">Normativa de referência: Resolução Cofen nº 743/2024</span>
-            </div>
-            <div style="display: flex; gap: 20px; font-size: 0.88rem; align-items: center; background: rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 6px;">
-                <span>Enfermeiro(a) RT: <strong>Acácio Alves Ferreira</strong></span>
-                <span>Turno: <strong id="lbl-turno-dimensionamento" style="color: #38b2ac;">DIURNO</strong></span>
             </div>
         </div>
 
@@ -1224,6 +1223,20 @@
     <script src="dashboard.js"></script>
     
    <script>
+
+    document.addEventListener("DOMContentLoaded", () => {
+    const nomeEnfermeiro = localStorage.getItem('enfermeiro_logado_nome') || "Enfermeiro(a)";
+    const lblEnfermeiro = document.getElementById('lbl-enfermeiro-logado');
+    if (lblEnfermeiro) {
+        lblEnfermeiro.textContent = nomeEnfermeiro;
+    }
+});
+
+function sairDoPainelEnfermeiro() {
+    localStorage.removeItem('enfermeiro_logado_nome');
+    window.location.href = "index.html";
+}
+
     // Função para reordenar os cards instantaneamente ao trocar o leito no select
     function ordenarCardsPorLeito(elementoSelect) {
         const card = elementoSelect.closest('.patient-card');
