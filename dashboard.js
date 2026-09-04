@@ -51,8 +51,19 @@ function gerarTabelaAdulto() {
                     <button class="btn-excluir-card" onclick="removerCardPaciente(this)" title="Excluir leito criado por engano">✖</button>
                 </div>
 
-                <!-- LINHA INFERIOR: ISENTO DE ESCORE + BANHO + DIETA ASSISTIDA + RISCO DE LESÃO + SCP -->
+                <!-- LINHA INFERIOR: LEITO + ISENTO DE ESCORE + BANHO + DIETA ASSISTIDA + RISCO DE LESÃO + SCP -->
                 <div class="linha-inferior-dim">
+                    <div class="input-group" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
+                        <label style="font-size: 0.78rem; color: var(--azul-escuro); font-weight: 600;">LEITO:</label>
+                        <input type="text" class="leito-input" placeholder="Ex: 01" list="lista-leitos" style="width: 60px; padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; text-align: center;">
+                        <datalist id="lista-leitos">
+                            <option value="01"></option><option value="02"></option>
+                            <option value="03"></option><option value="04"></option>
+                            <option value="05"></option><option value="06"></option>
+                            <option value="07"></option><option value="08"></option>
+                        </datalist>
+                    </div>
+
                     <div class="input-group">
                         <label style="font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; gap: 4px; color: var(--azul-escuro); font-weight: 600;">
                             <input type="checkbox" class="isento-relatorio" style="cursor: pointer;"> Isento de Escore
@@ -644,6 +655,7 @@ async function salvarDadosDoDia(dataChave) {
             const isento = card.querySelector('.isento-relatorio')?.checked || false;
             const desfecho = card.getAttribute('data-desfecho') || "Internado";
             
+            const leito = card.querySelector('.leito-input')?.value || "";
             const banho = card.querySelector('.input-banho-paciente')?.value || "-";
             const dieta = card.querySelector('.input-dieta-paciente')?.value || "NÃO";
             const lesao = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
@@ -658,7 +670,7 @@ async function salvarDadosDoDia(dataChave) {
             });
 
             if (nome.trim() !== "") {
-                dadosGerais.push({ setor: idSetor, nome, dtNasc, prontuario, tec, isento, desfecho, banho, dieta, lesao, scp, vitais });
+                dadosGerais.push({ setor: idSetor, leito, nome, dtNasc, prontuario, tec, isento, desfecho, banho, dieta, lesao, scp, vitais });
             }
         });
     });
@@ -730,6 +742,9 @@ async function carregarDadosDoDia(dataChave) {
 
         card.querySelector('.nome-input').value = p.nome;
         if (p.desfecho) card.setAttribute('data-desfecho', p.desfecho);
+        
+        if (card.querySelector('.leito-input')) card.querySelector('.leito-input').value = p.leito || "";
+
         if (card.querySelector('.dtnasc-input')) {
             card.querySelector('.dtnasc-input').value = p.dtNasc;
             atualizarBadgeIdade(card.querySelector('.dtnasc-input'));
@@ -931,6 +946,7 @@ async function iniciarNovoPlantao() {
     if (pacientesParaMigrar.length > 0) {
         const novosDados = pacientesParaMigrar.map(p => ({
             setor: p.setor,
+            leito: p.leito || "",
             nome: p.nome || "",
             dtNasc: p.dtNasc || "",
             prontuario: p.prontuario || "",
@@ -981,7 +997,7 @@ async function tratarMudancaVitais(event) {
         atualizarCorSelectScp(elemento);
     }
 
-    if (elemento.classList.contains('nome-input') || elemento.classList.contains('isento-relatorio') || elemento.classList.contains('dtnasc-input') || elemento.classList.contains('input-banho-paciente') || elemento.classList.contains('input-dieta-paciente') || elemento.classList.contains('input-lesao-paciente') || elemento.classList.contains('input-scp-paciente')) {
+    if (elemento.classList.contains('nome-input') || elemento.classList.contains('leito-input') || elemento.classList.contains('isento-relatorio') || elemento.classList.contains('dtnasc-input') || elemento.classList.contains('input-banho-paciente') || elemento.classList.contains('input-dieta-paciente') || elemento.classList.contains('input-lesao-paciente') || elemento.classList.contains('input-scp-paciente')) {
         const card = elemento.closest('.patient-card');
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
@@ -1725,7 +1741,7 @@ function limparCardPaciente(card) {
     card.removeAttribute('data-desfecho');
     card.querySelectorAll('input').forEach(input => {
         if (input.type === 'checkbox') input.checked = false;
-        else input.value = '';
+        else if (!input.classList.contains('leito-input')) input.value = ''; // Preserva o leito
         input.style.border = '';
         input.style.backgroundColor = '';
     });
