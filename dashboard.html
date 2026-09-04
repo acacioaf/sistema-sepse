@@ -310,6 +310,13 @@
             padding-left: 2px;
             margin-top: 2px;
         }
+
+        /* Container flexível para os cards de pacientes se manterem organizados */
+        .patients-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
     </style>
 </head>
 <body>
@@ -743,7 +750,7 @@
             <!-- ENFERMARIA PEDIÁTRICA COM PEWS INTEGRADO -->
             <div id="enf-pediatria" class="tab-pane">
                 <div class="patients-container">
-                    <div class="patient-card">
+                    <div class="patient-card" data-leito="03">
                         <div class="patient-header">
                             <div class="patient-col-left">
                                 <div class="input-group name-group"><label>NOME:</label><input type="text" class="nome-input" placeholder="Nome da Criança"></div>
@@ -771,6 +778,26 @@
 
                             <!-- NOVOS CAMPOS DE DIMENSIONAMENTO LOGO ABAIXO DO ISENTO DE ESCORE -->
                             <div class="linha-inferior-dim">
+                                
+                                <!-- <select> NATIVO PURO GARANTINDO AS OPÇÕES DE 01 A 12 -->
+                                <div class="input-group" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
+                                    <label style="font-size: 0.78rem; color: #003366; font-weight: 600;">LEITO:</label>
+                                    <select class="leito-input" onchange="ordenarCardsPorLeito(this)" style="width: 75px; padding: 3px; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; background: #fff; font-weight: bold; color: #003366; cursor: pointer;">
+                                        <option value="01">01</option>
+                                        <option value="02">02</option>
+                                        <option value="03" selected>03</option>
+                                        <option value="04">04</option>
+                                        <option value="05">05</option>
+                                        <option value="06">06</option>
+                                        <option value="07">07</option>
+                                        <option value="08">08</option>
+                                        <option value="09">09</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                    </select>
+                                </div>
+
                                 <div class="input-group">
                                     <label>BANHO:</label>
                                     <select class="input-banho-paciente" style="padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px;">
@@ -1197,21 +1224,96 @@
     <script src="dashboard.js"></script>
     
    <script>
-    // Gerenciamento da posição da barra de pesquisa e atualização automática da auditoria
+    // Função para reordenar os cards instantaneamente ao trocar o leito no select
+    function ordenarCardsPorLeito(elementoSelect) {
+        const card = elementoSelect.closest('.patient-card');
+        const container = card ? card.closest('.patients-container') : null;
+        if (!card || !container) return;
+
+        card.setAttribute('data-leito', elementoSelect.value.trim());
+
+        const cards = Array.from(container.querySelectorAll('.patient-card'));
+        cards.sort((a, b) => {
+            const selectA = a.querySelector('.leito-input');
+            const selectB = b.querySelector('.leito-input');
+            const leitoA = selectA ? (parseInt(selectA.value.trim()) || 9999) : 9999;
+            const leitoB = selectB ? (parseInt(selectB.value.trim()) || 9999) : 9999;
+            return leitoA - leitoB;
+        });
+
+        const wrapperAdd = container.querySelector('.btn-add-wrapper');
+        cards.forEach(c => {
+            if (wrapperAdd) {
+                container.insertBefore(c, wrapperAdd);
+            } else {
+                container.appendChild(c);
+            }
+        });
+    }
+
+    // Função que converte entradas antigas de leito em selects reais sem recriar se o usuário estiver focado
+    function garantirSelectLeitos() {
+        document.querySelectorAll('.leito-input').forEach(el => {
+            // Evita mexer no elemento se ele já for um select ou se o usuário estiver com o mouse/foco nele (evita fechar a lista)
+            if (el.tagName !== 'SELECT' && document.activeElement !== el) {
+                const valorAtual = el.value.trim() || "03";
+                const novoSelect = document.createElement('select');
+                novoSelect.className = el.className;
+                novoSelect.style.cssText = "width: 75px; padding: 3px; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; background: #fff; font-weight: bold; color: #003366; cursor: pointer;";
+                
+                for (let i = 1; i <= 12; i++) {
+                    const numStr = i < 10 ? '0' + i : '' + i;
+                    const opt = document.createElement('option');
+                    opt.value = numStr;
+                    opt.textContent = numStr;
+                    if (numStr === valorAtual || i == parseInt(valorAtual)) {
+                        opt.selected = true;
+                    }
+                    novoSelect.appendChild(opt);
+                }
+
+                novoSelect.onchange = function() {
+                    ordenarCardsPorLeito(this);
+                };
+
+                el.parentNode.replaceChild(novoSelect, el);
+            }
+        });
+    }
+
+    // Executa na carga inicial da página
+    document.addEventListener('DOMContentLoaded', () => {
+        garantirSelectLeitos();
+        document.querySelectorAll('.patients-container').forEach(container => {
+            const primeiroSelect = container.querySelector('.leito-input');
+            if (primeiroSelect) ordenarCardsPorLeito(primeiroSelect);
+        });
+    });
+
+    // Intercepta a criação de novos pacientes para aplicar o select corretamente
+    const _adicionarPacienteOriginal = window.adicionarPaciente;
+    window.adicionarPaciente = function(botao) {
+        if (typeof _adicionarPacienteOriginal === 'function') {
+            _adicionarPacienteOriginal(botao);
+        }
+        setTimeout(garantirSelectLeitos, 50);
+    };
+
+    // Gerenciamento de abas e troca de setores
     const _mudarSetorOriginal = window.mudarSetor;
     window.mudarSetor = function(idSetor) {
         if (typeof _mudarSetorOriginal === 'function') {
             _mudarSetorOriginal(idSetor);
         }
 
-        // Atualiza a lista de histórico de escalas ao entrar na aba de dimensionamento
+        setTimeout(garantirSelectLeitos, 50);
+
         if (idSetor === 'aba-dimensionamento') {
             if (typeof carregarListaHistoricoEscalas === 'function') {
                 carregarListaHistoricoEscalas();
             }
         }
 
-        // ATUALIZAÇÃO AUTOMÁTICA: Dispara o carregamento da auditoria ao entrar na aba
         if (idSetor === 'aba-auditoria-sepse') {
             if (typeof carregarDadosAuditoria === 'function') {
                 carregarDadosAuditoria();
@@ -1222,7 +1324,6 @@
         const mainContent = document.querySelector('main.content');
 
         if (barraGlobal && mainContent) {
-            // Oculta a barra de pesquisa nas abas especiais (Auditoria e Dimensionamento)
             if (idSetor === 'aba-auditoria-sepse' || idSetor === 'aba-dimensionamento') {
                 barraGlobal.style.display = 'none';
             } else {
@@ -1242,7 +1343,7 @@
         }
     };
 
-    // Monitora o campo de busca global para ocultar elementos ao filtrar
+    // Monitora o campo de busca global
     const inputBuscaGlobal = document.getElementById('filtro-global');
     if (inputBuscaGlobal) {
         inputBuscaGlobal.addEventListener('input', function() {
