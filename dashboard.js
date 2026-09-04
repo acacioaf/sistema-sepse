@@ -1372,7 +1372,7 @@ function gerarRelatorioProfissional(tipo) {
 
     if (tipo === 'enfermeiro') {
         const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%`;
-        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado pelo(a) técnico(a) ${nomeTecnico} apresentando os seguintes sinais vitais: ${sinaisVitais}; NEWS: ${newsVal} (${classificacaoRisco}); Escala de dor: ${dor}. Orientada a equipe a manter vigilância conforme protocolo da unidade e comunicado valor ao médico Dr. [Digite o Nome do Médico].`;
+        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado pelo(a) técnico(a) ${nomeTecnico} apresentando os seguintes sinais vitais: ${sinaisVitais}; NEWS: ${newsVal} (${classificacaoRisco}); Escala de dor: ${dor}. Orientada a equipe a manter vigilância conforme protocolo da unidade e comunicado valor ao médico Dr. `;
     } else if (tipo === 'medico') {
         const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%, NEWS: ${newsVal} (${classificacaoRisco}), Dor: ${dor}`;
         textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pela equipe de enfermagem acerca dos valores de sinais vitais (${sinaisVitais}). Orientada a equipe a manter as condutas conforme protocolo da unidade.`;
