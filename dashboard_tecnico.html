@@ -30,20 +30,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* Tela de Autenticação Inicial do Técnico */
-        #auth-container {
-            max-width: 400px;
-            width: 90%;
-            margin: auto;
-            background: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            text-align: center;
-        }
-
         .main-form {
-            display: none; /* Oculto até que o técnico faça o login */
             max-width: 580px;
             width: 100%;
             margin: 15px auto;
@@ -107,7 +94,6 @@
             font-weight: 600;
         }
 
-        /* Caixa visual que aparece se o paciente não for encontrado */
         .novo-paciente-box {
             display: none;
             background: #fff8f1;
@@ -138,7 +124,6 @@
             padding: 2px !important;
         }
 
-        /* Badge unificada em bloco com suporte a subtítulo explicativo */
         .status-alerta-texto {
             font-size: 0.82rem;
             font-weight: bold;
@@ -163,13 +148,11 @@
             opacity: 0.9;
         }
 
-        /* Padrão visual de alerta para dados alterados */
         .input-destacado-alerta {
             border: 2px solid #ff9933 !important;
             background-color: rgba(255, 153, 51, 0.08) !important;
         }
 
-        /* Botões Lado a Lado */
         .button-row {
             display: flex;
             gap: 10px;
@@ -193,7 +176,6 @@
         .btn-relatorio { background: #17a2b8; }
         .btn-relatorio:hover { background: #138496; }
 
-        /* Modal Customizado para o Relatório */
         #modal-relatorio {
             display: none;
             position: fixed;
@@ -219,25 +201,7 @@
         LANÇAMENTO RÁPIDO DE SINAIS VITAIS
     </header>
 
-    <!-- TELA DE IDENTIFICAÇÃO DO TÉCNICO -->
-    <div id="auth-container">
-        <h3 style="color: #003366; margin-top: 0; margin-bottom: 5px;">Identificação do Técnico</h3>
-        <p style="font-size: 0.82rem; color: #666; margin-bottom: 20px;">Informe seus dados para acessar o sistema.</p>
-        
-        <div style="text-align: left; margin-bottom: 12px;">
-            <label style="font-size: 0.78rem; font-weight: bold; color: #444; display: block; margin-bottom: 4px;">SEU NOME COMPLETO</label>
-            <input type="text" id="auth-nome" placeholder="Ex: Thais / João..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        </div>
-
-        <div style="text-align: left; margin-bottom: 20px;">
-            <label style="font-size: 0.78rem; font-weight: bold; color: #444; display: block; margin-bottom: 4px;">SENHA PADRÃO DO PLANTÃO</label>
-            <input type="password" id="auth-senha" placeholder="Digite a senha..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        </div>
-
-        <button onclick="validarAcessoTecnico()" style="width: 100%; background: #003366; color: #fff; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">Entrar no Lançamento</button>
-    </div>
-
-    <!-- FORMULÁRIO PRINCIPAL -->
+    <!-- FORMULÁRIO PRINCIPAL DIRETO -->
     <main class="main-form" id="form-container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.8rem; color: #666; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
             <span>Técnico Responsável: <strong id="lbl-tecnico-logado" style="color: #003366;">---</strong></span>
@@ -273,12 +237,10 @@
                 </div>
             </div>
 
-            <!-- Caixa exibida se o paciente já estiver na base -->
             <div id="paciente-info" class="paciente-info-box">
                 Paciente: <span id="span-nome" style="font-weight: normal;">---</span> | Setor/Leito: <span id="span-setor" style="font-weight: normal;">---</span> <span id="span-idade-info" style="font-style: italic; opacity: 0.8;"></span>
             </div>
 
-            <!-- Caixa visual para cadastrar novo paciente se não encontrado -->
             <div id="novo-paciente-container" class="novo-paciente-box">
                 <div style="font-size: 0.78rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário não encontrado na base. Deseja cadastrar?</div>
                 <div class="form-row" style="margin-bottom: 6px;">
@@ -326,11 +288,9 @@
             </div>
         </div>
 
-        <!-- SEÇÃO DINÂMICA DE PARÂMETROS (NEWS vs PEWS) -->
         <div class="step-section" style="border-bottom: none; margin-bottom: 8px;">
             <div class="step-title" id="titulo-secao-escore">🩺 Parâmetros, Escala de Dor e Escore NEWS</div>
             
-            <!-- CAMPOS ADULTOS (NEWS) -->
             <div id="bloco-campos-news">
                 <div class="form-row">
                     <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
@@ -359,7 +319,6 @@
                 </div>
             </div>
 
-            <!-- CAMPOS PEDIÁTRICOS (PEWS) - Inicialmente Ocultos -->
             <div id="bloco-campos-pews" style="display: none;">
                 <div class="form-row">
                     <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc"></div>
@@ -425,14 +384,12 @@
             </div>
         </div>
 
-        <!-- Botões de Ação na ordem correta -->
         <div class="button-row">
             <button class="btn-acao btn-relatorio">Gerar Relatório</button>
             <button class="btn-acao btn-enviar">Enviar p/ Planilha</button>
         </div>
     </main>
 
-    <!-- MODAL DE EXIBIÇÃO DO RELATÓRIO GERADO -->
     <div id="modal-relatorio">
         <div class="modal-box">
             <h3 style="color: #003366; margin-top: 0; font-size: 1.1rem;">📋 Relatório para Lançamento</h3>
@@ -444,28 +401,20 @@
         </div>
     </div>
 
-    <!-- SCRIPT DE LÓGICA E CONEXÃO COM O SUPABASE -->
     <script>
         const SUPABASE_URL = 'https://fwaheunpekyvwyysqncz.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_er3si1epfRHUz8SQP26B1A__aFx0cTy';
         const { createClient } = supabase;
         const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let tecnicoLogadoGlobal = localStorage.getItem('tecnico_logado_nome') || "";
-        const SENHA_PADRAO_TECNICOS = "enfermagem";
+        let tecnicoLogadoGlobal = localStorage.getItem('tecnico_logado_nome') || "Técnico(a)";
         let modoPediátricoAtivo = false;
         let dataNascimentoPacienteAtual = "";
 
         document.addEventListener("DOMContentLoaded", () => {
-            if (tecnicoLogadoGlobal && tecnicoLogadoGlobal !== "admin") {
-                document.getElementById('auth-container').style.display = 'none';
-                document.getElementById('form-container').style.display = 'block';
-                document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
-                document.getElementById('input-prontuario').focus();
-            } else {
-                document.getElementById('auth-container').style.display = 'block';
-                document.getElementById('form-container').style.display = 'none';
-            }
+            // Exibe direto o nome salvo na tela de login anterior
+            document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
+            document.getElementById('input-prontuario').focus();
 
             const selectHora = document.getElementById('select-hora');
             const inputHoraCustom = document.getElementById('input-hora-custom');
@@ -517,32 +466,6 @@
             const btnFechar = document.getElementById('btn-fechar-modal');
             if (btnFechar) btnFechar.addEventListener('click', fecharModalRelatorio);
         });
-
-        function validarAcessoTecnico() {
-            const nomeInput = document.getElementById('auth-nome').value.trim();
-            const senhaInput = document.getElementById('auth-senha').value.trim();
-
-            if (!nomeInput) {
-                alert("⚠️ Por favor, digite seu nome.");
-                document.getElementById('auth-nome').focus();
-                return;
-            }
-
-            if (senhaInput !== SENHA_PADRAO_TECNICOS) {
-                alert("❌ Senha padrão incorreta!");
-                document.getElementById('auth-senha').value = "";
-                document.getElementById('auth-senha').focus();
-                return;
-            }
-
-            tecnicoLogadoGlobal = nomeInput;
-            localStorage.setItem('tecnico_logado_nome', tecnicoLogadoGlobal);
-            
-            document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
-            document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('form-container').style.display = 'block';
-            document.getElementById('input-prontuario').focus();
-        }
 
         function sairDoPainel() {
             localStorage.removeItem('tecnico_logado_nome');
