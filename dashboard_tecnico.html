@@ -120,9 +120,8 @@
         .news-preview-container {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 6px;
-            text-align: center;
             margin-bottom: 10px;
             display: flex;
             align-items: center;
@@ -139,9 +138,29 @@
             padding: 2px !important;
         }
 
+        /* Badge unificada em bloco com suporte a subtítulo explicativo */
         .status-alerta-texto {
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: bold;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex: 1;
+            text-align: center;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            margin-left: 10px;
+            line-height: 1.3;
+        }
+
+        .status-alerta-texto .subtexto-conduta {
+            font-size: 0.72rem;
+            font-weight: normal;
+            margin-top: 2px;
+            opacity: 0.9;
         }
 
         /* Padrão visual de alerta para dados alterados */
@@ -256,7 +275,7 @@
 
             <!-- Caixa exibida se o paciente já estiver na base -->
             <div id="paciente-info" class="paciente-info-box">
-                Paciente: <span id="span-nome" style="font-weight: normal;">---</span> | Leito: <span id="span-setor" style="font-weight: normal;">---</span>
+                Paciente: <span id="span-nome" style="font-weight: normal;">---</span> | Setor/Leito: <span id="span-setor" style="font-weight: normal;">---</span> <span id="span-idade-info" style="font-style: italic; opacity: 0.8;"></span>
             </div>
 
             <!-- Caixa visual para cadastrar novo paciente se não encontrado -->
@@ -269,13 +288,13 @@
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <label>DATA DE NASCIMENTO</label>
-                        <input type="date" id="novo-dtnasc-paciente">
+                        <input type="date" id="novo-dtnasc-paciente" onchange="verificarIdadeNovoPaciente()">
                     </div>
                 </div>
-                <div class="form-row" style="margin-bottom: 0;">
-                    <div class="form-group" style="width: 100%;">
+                <div class="form-row" style="margin-bottom: 0; gap: 12px;">
+                    <div class="form-group" style="flex: 2;">
                         <label>LOCAL / SETOR</label>
-                        <select id="novo-setor-paciente">
+                        <select id="novo-setor-paciente" onchange="verificarSetorOuIdade()">
                             <option value="enf1">Enfermaria 1</option>
                             <option value="enf2">Enfermaria 2</option>
                             <option value="enf3">Enfermaria 3</option>
@@ -286,38 +305,104 @@
                             <option value="sala-emergencia">Emergência</option>
                         </select>
                     </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Nº LEITO</label>
+                        <select id="novo-leito-paciente" style="cursor: pointer; font-weight: bold; color: #003366;">
+                            <option value="01">01</option>
+                            <option value="02">02</option>
+                            <option value="03">03</option>
+                            <option value="04">04</option>
+                            <option value="05">05</option>
+                            <option value="06">06</option>
+                            <option value="07">07</option>
+                            <option value="08">08</option>
+                            <option value="09">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
 
+        <!-- SEÇÃO DINÂMICA DE PARÂMETROS (NEWS vs PEWS) -->
         <div class="step-section" style="border-bottom: none; margin-bottom: 8px;">
-            <div class="step-title">🩺 Parâmetros, Escala de Dor e Escore NEWS</div>
+            <div class="step-title" id="titulo-secao-escore">🩺 Parâmetros, Escala de Dor e Escore NEWS</div>
             
-            <div class="form-row">
-                <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
-                <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp"></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr"></div>
-                <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc"></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>O₂ Suplementar?</label>
-                    <select id="o2"><option selected></option><option>Sim</option><option>Não</option></select>
+            <!-- CAMPOS ADULTOS (NEWS) -->
+            <div id="bloco-campos-news">
+                <div class="form-row">
+                    <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
+                    <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp"></div>
                 </div>
-                <div class="form-group"><label>Sat %</label><input type="number" id="sat"></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group" style="flex: 2;"><label>Nível de Consciência</label>
-                    <select id="consc">
-                        <option selected></option>
-                        <option>Alerta</option>
-                        <option>AGITADO/CONFUSO</option>
-                        <option>VOZ, DOR OU NÃO REAGE</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr"></div>
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc"></div>
                 </div>
-                <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>O₂ Suplementar?</label>
+                        <select id="o2"><option selected></option><option>Sim</option><option>Não</option></select>
+                    </div>
+                    <div class="form-group"><label>Sat %</label><input type="number" id="sat"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;"><label>Nível de Consciência</label>
+                        <select id="consc">
+                            <option selected></option>
+                            <option>Alerta</option>
+                            <option>AGITADO/CONFUSO</option>
+                            <option>VOZ, DOR OU NÃO REAGE</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia"></div>
+                </div>
             </div>
+
+            <!-- CAMPOS PEDIÁTRICOS (PEWS) - Inicialmente Ocultos -->
+            <div id="bloco-campos-pews" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc"></div>
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="pews-fr"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>COMPORTAMENTO</label>
+                        <select id="pews-comp">
+                            <option value="" selected></option>
+                            <option value="0">0 - Normal / Brincando</option>
+                            <option value="1">1 - Sonolento</option>
+                            <option value="2">2 - Irritado</option>
+                            <option value="3">3 - Confuso / Letárgico / Resposta red. a dor</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>VÔMITOS</label>
+                        <select id="pews-vomitos">
+                            <option value="" selected></option>
+                            <option value="0">0 - Ausentes</option>
+                            <option value="2">2 - Vômitos Persistentes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>NEBULIZADOR / ESPAÇADOR</label>
+                        <select id="pews-nebulizador">
+                            <option value="" selected></option>
+                            <option value="0">0 - Não</option>
+                            <option value="1">1 - A cada 20 min / Freq. > que a cada 20 min</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>TEMP (°C)</label><input type="number" step="0.1" id="pews-temp">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Glicemia (Opcional)</label><input type="number" id="glicemia-pews"></div>
+                </div>
+            </div>
+
             <div class="form-row" style="margin-top: 6px;">
                 <div class="form-group" style="width: 100%;">
                     <label>ESCALA DE DOR</label>
@@ -333,7 +418,7 @@
 
             <div class="news-preview-container" style="margin-top: 10px;">
                 <div>
-                    <label style="margin: 0; font-size: 0.7rem;">NEWS Total</label>
+                    <label style="margin: 0; font-size: 0.7rem;" id="lbl-titulo-escore-total">NEWS Total</label>
                     <input type="number" id="news-total" class="news-preview-input" readonly>
                 </div>
                 <div id="status-news-texto" class="status-alerta-texto">Aguardando...</div>
@@ -368,6 +453,8 @@
 
         let tecnicoLogadoGlobal = localStorage.getItem('tecnico_logado_nome') || "";
         const SENHA_PADRAO_TECNICOS = "enfermagem";
+        let modoPediátricoAtivo = false;
+        let dataNascimentoPacienteAtual = "";
 
         document.addEventListener("DOMContentLoaded", () => {
             if (tecnicoLogadoGlobal && tecnicoLogadoGlobal !== "admin") {
@@ -406,10 +493,16 @@
                 });
             }
 
-            const inputsVitais = document.querySelectorAll('#pas, #temp, #fr, #fc, #o2, #sat, #consc');
-            inputsVitais.forEach(el => {
+            const inputsVitaisNews = document.querySelectorAll('#pas, #temp, #fr, #fc, #o2, #sat, #consc');
+            inputsVitaisNews.forEach(el => {
                 el.addEventListener('input', calcularNewsTecnico);
                 el.addEventListener('change', calcularNewsTecnico);
+            });
+
+            const inputsVitaisPews = document.querySelectorAll('#pews-fc, #pews-fr, #pews-comp, #pews-vomitos, #pews-nebulizador, #pews-temp');
+            inputsVitaisPews.forEach(el => {
+                el.addEventListener('input', calcularPewsTecnico);
+                el.addEventListener('change', calcularPewsTecnico);
             });
 
             const btnEnviar = document.querySelector('.btn-enviar');
@@ -456,10 +549,81 @@
             window.location.href = "index.html";
         }
 
+        function calcularIdadeAnos(dtNascStr) {
+            if (!dtNascStr) return null;
+            const hoje = new Date();
+            const nascimento = new Date(dtNascStr);
+            let anos = hoje.getFullYear() - nascimento.getFullYear();
+            const m = hoje.getMonth() - nascimento.getMonth();
+            if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) {
+                anos--;
+            }
+            return anos;
+        }
+
+        function obterFaixaEtariaPews(dataNascStr) {
+            if (!dataNascStr) return "1-3 anos";
+
+            const nasc = new Date(dataNascStr);
+            const hoje = new Date();
+            
+            let anos = hoje.getFullYear() - nasc.getFullYear();
+            let meses = (hoje.getFullYear() - nasc.getFullYear()) * 12 + (hoje.getMonth() - nasc.getMonth());
+            let dias = hoje.getDate() - nasc.getDate();
+            if (dias < 0) meses--;
+
+            if (meses < 3) return "< 3 meses";
+            if (meses < 12 || (meses === 12 && dias === 0)) return "3 meses a 11m29d";
+            if (anos >= 1 && anos <= 3) return "1-3 anos";
+            if (anos >= 4 && anos <= 7) return "4-7 anos";
+            if (anos >= 8 && anos <= 12) return "8-12 anos";
+            return "> 12 anos";
+        }
+
+        function alternarModoFormulario(isPediatrico) {
+            modoPediátricoAtivo = isPediatrico;
+            const blocoNews = document.getElementById('bloco-campos-news');
+            const blocoPews = document.getElementById('bloco-campos-pews');
+            const tituloSecao = document.getElementById('titulo-secao-escore');
+            const lblEscoreTotal = document.getElementById('lbl-titulo-escore-total');
+
+            if (isPediatrico) {
+                blocoNews.style.display = 'none';
+                blocoPews.style.display = 'block';
+                tituloSecao.textContent = "👶 Parâmetros, Escala de Dor e Escore PEWS (Pediatria)";
+                lblEscoreTotal.textContent = "PEWS Total";
+                calcularPewsTecnico();
+            } else {
+                blocoNews.style.display = 'block';
+                blocoPews.style.display = 'none';
+                tituloSecao.textContent = "🩺 Parâmetros, Escala de Dor e Escore NEWS";
+                lblEscoreTotal.textContent = "NEWS Total";
+                calcularNewsTecnico();
+            }
+        }
+
+        function verificarSetorOuIdade() {
+            const setorSelect = document.getElementById('novo-setor-paciente').value;
+            const dtNasc = document.getElementById('novo-dtnasc-paciente').value;
+            const idade = calcularIdadeAnos(dtNasc);
+
+            if (setorSelect === 'enf-pediatria' || (idade !== null && idade < 18)) {
+                alternarModoFormulario(true);
+            } else {
+                alternarModoFormulario(false);
+            }
+        }
+
+        function verificarIdadeNovoPaciente() {
+            verificarSetorOuIdade();
+        }
+
         async function buscarPacientePorProntuario() {
             const prontuarioInput = document.getElementById('input-prontuario').value.trim();
             const infoBox = document.getElementById('paciente-info');
             const novoBox = document.getElementById('novo-paciente-container');
+
+            dataNascimentoPacienteAtual = "";
 
             if (!prontuarioInput) {
                 if (infoBox) infoBox.style.display = 'none';
@@ -477,12 +641,15 @@
 
             let pacienteEncontrado = null;
             let setorEncontrado = null;
+            let leitoEncontrado = null;
 
             if (data && data.dados_json && Array.isArray(data.dados_json)) {
                 for (const p of data.dados_json) {
                     if (p.prontuario && p.prontuario.toString().trim() === prontuarioInput) {
                         pacienteEncontrado = p;
                         setorEncontrado = p.setor;
+                        leitoEncontrado = p.leito || "01";
+                        dataNascimentoPacienteAtual = p.dtNasc || "";
                         break;
                     }
                 }
@@ -490,19 +657,34 @@
 
             if (pacienteEncontrado) {
                 document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
-                document.getElementById('span-setor').textContent = setorEncontrado.toUpperCase();
+                document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
+                
+                let idadeTexto = "";
+                let ehPed = (setorEncontrado === 'enf-pediatria');
+                if (dataNascimentoPacienteAtual) {
+                    const idadeVal = calcularIdadeAnos(dataNascimentoPacienteAtual);
+                    idadeTexto = ` — ${idadeVal} anos`;
+                    if (idadeVal < 18) ehPed = true;
+                }
+                document.getElementById('span-idade-info').textContent = idadeTexto;
+
                 if (infoBox) infoBox.style.display = 'block';
                 if (novoBox) novoBox.style.display = 'none';
+
+                alternarModoFormulario(ehPed);
             } else {
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) {
                     novoBox.style.display = 'block';
                     document.getElementById('novo-nome-paciente').focus();
+                    verificarSetorOuIdade();
                 }
             }
         }
 
         function calcularNewsTecnico() {
+            if (modoPediátricoAtivo) return;
+
             const pPas = document.getElementById('pas');
             const pTemp = document.getElementById('temp');
             const pFr = document.getElementById('fr');
@@ -529,8 +711,10 @@
             if (preenchidos === 0) {
                 if (inputNewsTotal) inputNewsTotal.value = "";
                 if (statusTexto) {
-                    statusTexto.textContent = "Aguardando...";
+                    statusTexto.innerHTML = "Aguardando...";
+                    statusTexto.style.backgroundColor = "transparent";
                     statusTexto.style.color = "#333";
+                    statusTexto.style.border = "1px solid transparent";
                 }
                 return;
             }
@@ -565,10 +749,10 @@
             }
 
             let pConscVal = 0;
-            if (consc.includes("VOZ") || consc.includes("DOR") || consc.includes("NÃO REAGE")) {
+            if (consc === "VOZ, DOR OU NÃO REAGE") {
                 pConscVal = 3;
                 if (pConsc) pConsc.classList.add('input-destacado-alerta');
-            } else if (consc.includes("AGITADO") || consc.includes("CONFUSO")) {
+            } else if (consc === "AGITADO/CONFUSO") {
                 pConscVal = 2;
             }
             score += pConscVal;
@@ -586,28 +770,165 @@
             if (inputNewsTotal) inputNewsTotal.value = score;
 
             if (statusTexto) {
-                let textoRisco = "";
-                let corRisco = "#28a745";
-
-                if (score >= 5) {
-                    textoRisco = `ALTO RISCO (NEWS ${score})`;
-                    corRisco = "#dc3545";
-                } else if (score >= 3) {
-                    textoRisco = `MÉDIO RISCO (NEWS ${score})`;
-                    corRisco = "#d97706";
-                } else if (score >= 1) {
-                    textoRisco = `BAIXO RISCO (NEWS ${score})`;
-                    corRisco = "#17a2b8";
-                } else {
-                    textoRisco = `ESTÁVEL (NEWS 0)`;
-                    corRisco = "#28a745";
-                }
+                let corBg = "#e6ffe6";
+                let corTxt = "#28a745";
+                let corBorda = "#28a745";
+                let titulo = "";
+                let subtexto = "";
 
                 if (isAlertaSepse) {
-                    statusTexto.innerHTML = `🚨 ALERTA SEPSE / <span style="color: ${corRisco};">${textoRisco}</span>`;
+                    corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
+                    titulo = `🚨 ALERTA SEPSE`;
+                    subtexto = `Acionar Enfermeiro / Médico imediato`;
+                } else if (score >= 6) {
+                    corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
+                    titulo = `🚨 ALTO RISCO (NEWS ${score})`;
+                    subtexto = `Acionar Enfermeiro / Avaliação médica urgente`;
+                } else if (score >= 4) {
+                    corBg = "#fff3cd"; corTxt = "#856404"; corBorda = "#ffeeba";
+                    titulo = `🟡 MÉDIO RISCO (NEWS ${score})`;
+                    subtexto = `Solicitar avaliação do Enfermeiro`;
+                } else if (score >= 1) {
+                    corBg = "#d1ecf1"; corTxt = "#0c5460"; corBorda = "#bee5eb";
+                    titulo = `🟢 BAIXO RISCO (NEWS ${score})`;
+                    subtexto = `Monitorização rotineira`;
                 } else {
-                    statusTexto.innerHTML = `<span style="color: ${corRisco};">${textoRisco}</span>`;
+                    corBg = "#e6ffe6"; corTxt = "#28a745"; corBorda = "#28a745";
+                    titulo = `✔️ ESTÁVEL (NEWS 0)`;
+                    subtexto = `Manter vigilância padrão`;
                 }
+
+                statusTexto.innerHTML = `${titulo}<span class="subtexto-conduta">${subtexto}</span>`;
+                statusTexto.style.backgroundColor = corBg;
+                statusTexto.style.color = corTxt;
+                statusTexto.style.border = `1px solid ${corBorda}`;
+            }
+        }
+
+        function calcularPewsTecnico() {
+            if (!modoPediátricoAtivo) return;
+
+            const dtNasc = dataNascimentoPacienteAtual || document.getElementById('novo-dtnasc-paciente')?.value || "";
+            const faixaEtaria = obterFaixaEtariaPews(dtNasc);
+
+            const fc = parseInt(document.getElementById('pews-fc').value) || 0;
+            const fr = parseInt(document.getElementById('pews-fr').value) || 0;
+            const comp = parseInt(document.getElementById('pews-comp')?.value || 0);
+            const vomitos = parseInt(document.getElementById('pews-vomitos')?.value || 0);
+            const nebulizador = parseInt(document.getElementById('pews-nebulizador')?.value || 0);
+            const temp = parseFloat(String(document.getElementById('pews-temp')?.value || '').replace(',', '.')) || 0;
+
+            let pFC = 0, pFR = 0, pTemp = 0;
+
+            if (fc > 0) {
+                if (faixaEtaria === "< 3 meses") {
+                    if (fc <= 89 || fc >= 220) pFC = 3;
+                    else if (fc >= 180 && fc <= 219) pFC = 2;
+                    else if (fc >= 160 && fc <= 179) pFC = 1;
+                } else if (faixaEtaria === "3 meses a 11m29d") {
+                    if (fc <= 89 || fc >= 210) pFC = 3;
+                    else if (fc >= 170 && fc <= 209) pFC = 2;
+                    else if (fc >= 160 && fc <= 169) pFC = 1;
+                } else if (faixaEtaria === "1-3 anos") {
+                    if (fc <= 89 || fc >= 200) pFC = 3;
+                    else if (fc >= 160 && fc <= 199) pFC = 2;
+                    else if (fc >= 140 && fc <= 159) pFC = 1;
+                } else if (faixaEtaria === "4-7 anos") {
+                    if (fc <= 60 || fc >= 190) pFC = 3;
+                    else if (fc >= 150 && fc <= 189) pFC = 2;
+                    else if (fc >= 111 && fc <= 149 || (fc >= 61 && fc <= 69)) pFC = 1;
+                } else {
+                    if (fc <= 60 || fc >= 170) pFC = 3;
+                    else if (fc >= 130 && fc <= 169) pFC = 2;
+                    else if (fc >= 101 && fc <= 129 || (fc >= 60 && fc <= 65)) pFC = 1;
+                }
+            }
+
+            if (fr > 0) {
+                if (faixaEtaria === "< 3 meses") {
+                    if (fr <= 25 || fr >= 90) pFR = 3;
+                    else if (fr >= 79 && fr <= 89) pFR = 2;
+                    else if (fr >= 60 && fr <= 78 || (fr >= 26 && fr <= 29)) pFR = 1;
+                } else if (faixaEtaria === "3 meses a 11m29d") {
+                    if (fr <= 20 || fr >= 80) pFR = 3;
+                    else if (fr >= 69 && fr <= 79) pFR = 2;
+                    else if (fr >= 54 && fr <= 68 || (fr >= 21 && fr <= 29)) pFR = 1;
+                } else if (faixaEtaria === "1-3 anos") {
+                    if (fr <= 15 || fr >= 70) pFR = 3;
+                    else if (fr >= 59 && fr <= 69) pFR = 2;
+                    else if (fr >= 40 && fr <= 58 || (fr >= 16 && fr <= 19)) pFR = 1;
+                } else if (faixaEtaria === "4-7 anos") {
+                    if (fr <= 15 || fr >= 60) pFR = 3;
+                    else if (fr >= 49 && fr <= 59) pFR = 2;
+                    else if (fr >= 30 && fr <= 48 || (fr >= 16 && fr <= 19)) pFR = 1;
+                } else {
+                    if (fr <= 10 || fr >= 50) pFR = 3;
+                    else if (fr >= 39 && fr <= 49) pFR = 2;
+                    else if (fr >= 26 && fr <= 38 || (fr >= 11 && fr <= 17)) pFR = 1;
+                }
+            }
+
+            if (document.getElementById('pews-temp')?.value !== "") {
+                if (temp < 35 || temp >= 40) pTemp = 3;
+                else if (temp >= 39.1 && temp <= 39.9) pTemp = 2;
+                else if ((temp >= 38.1 && temp <= 39.0) || (temp >= 35.1 && temp <= 36.0)) pTemp = 1;
+            }
+
+            const inputPewsTotal = document.getElementById('news-total');
+            const statusTexto = document.getElementById('status-news-texto');
+
+            const preenchidos = [
+                document.getElementById('pews-fc')?.value,
+                document.getElementById('pews-fr')?.value,
+                document.getElementById('pews-comp')?.value,
+                document.getElementById('pews-vomitos')?.value,
+                document.getElementById('pews-nebulizador')?.value,
+                document.getElementById('pews-temp')?.value
+            ].filter(v => v !== "").length;
+
+            if (preenchidos === 0) {
+                if (inputPewsTotal) inputPewsTotal.value = "";
+                if (statusTexto) {
+                    statusTexto.innerHTML = "Aguardando...";
+                    statusTexto.style.backgroundColor = "transparent";
+                    statusTexto.style.color = "#333";
+                    statusTexto.style.border = "1px solid transparent";
+                }
+                return;
+            }
+
+            const totalPews = pFC + pFR + comp + vomitos + nebulizador + pTemp;
+            if (inputPewsTotal) inputPewsTotal.value = totalPews;
+
+            if (statusTexto) {
+                let corBg = "#e6ffe6";
+                let corTxt = "#28a745";
+                let corBorda = "#28a745";
+                let titulo = "";
+                let subtexto = "";
+
+                if (totalPews <= 1) {
+                    corBg = "#e6ffe6"; corTxt = "#28a745"; corBorda = "#28a745";
+                    titulo = `🟢 ESCORE ${totalPews} (SEM RISCO)`;
+                    subtexto = `Reavaliar a cada 4h / Ou conforme necessidade`;
+                } else if (totalPews === 2) {
+                    corBg = "#fff3cd"; corTxt = "#856404"; corBorda = "#ffeeba";
+                    titulo = `🟡 ESCORE 2 (BAIXO RISCO)`;
+                    subtexto = `Solicitar avaliação do Enfermeiro (Reavaliar em 3h)`;
+                } else if (totalPews >= 3 && totalPews <= 4) {
+                    corBg = "#ffe8cc"; corTxt = "#d97706"; corBorda = "#fbd38d";
+                    titulo = `🟠 ESCORE ${totalPews} (MÉDIO RISCO)`;
+                    subtexto = `Avaliação do pediatra em 30 min (Reavaliar em 1h)`;
+                } else {
+                    corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
+                    titulo = `🚨 ESCORE ${totalPews} (ALTO RISCO)`;
+                    subtexto = `Acionar Enfermeiro/Médico imediato`;
+                }
+
+                statusTexto.innerHTML = `${titulo}<span class="subtexto-conduta">${subtexto}</span>`;
+                statusTexto.style.backgroundColor = corBg;
+                statusTexto.style.color = corTxt;
+                statusTexto.style.border = `1px solid ${corBorda}`;
             }
         }
 
@@ -639,20 +960,36 @@
 
             let listaPacientes = plantaoAtual && plantaoAtual.dados_json ? plantaoAtual.dados_json : [];
 
-            // Ordem rigorosamente igual à tabela do painel: PAS, Temp, FR, FC, O2, Sat, Consc, Glicemia, Dor, NEWS Total, Protocolo
-            const valoresVitaisForm = [
-                document.getElementById('pas').value,
-                document.getElementById('temp').value,
-                document.getElementById('fr').value,
-                document.getElementById('fc').value,
-                document.getElementById('o2').value,
-                document.getElementById('sat').value,
-                document.getElementById('consc').value,
-                document.getElementById('glicemia').value,
-                document.getElementById('escala-dor').value, // <--- CAMINHO CORRETO DA DOR INSERIDO AQUI
-                document.getElementById('news-total').value,
-                "" // Protocolo vazio por padrão no lançamento rápido do técnico
-            ];
+            let valoresVitaisForm = [];
+            if (modoPediátricoAtivo) {
+                valoresVitaisForm = [
+                    "-",
+                    document.getElementById('pews-temp').value,
+                    document.getElementById('pews-fr').value,
+                    document.getElementById('pews-fc').value,
+                    "-",
+                    "-",
+                    document.getElementById('pews-comp').value,
+                    document.getElementById('glicemia-pews').value,
+                    document.getElementById('escala-dor').value,
+                    document.getElementById('news-total').value,
+                    ""
+                ];
+            } else {
+                valoresVitaisForm = [
+                    document.getElementById('pas').value,
+                    document.getElementById('temp').value,
+                    document.getElementById('fr').value,
+                    document.getElementById('fc').value,
+                    document.getElementById('o2').value,
+                    document.getElementById('sat').value,
+                    document.getElementById('consc').value,
+                    document.getElementById('glicemia').value,
+                    document.getElementById('escala-dor').value,
+                    document.getElementById('news-total').value,
+                    ""
+                ];
+            }
 
             let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
 
@@ -674,6 +1011,7 @@
                 const novoNome = document.getElementById('novo-nome-paciente')?.value.trim();
                 const novaDtNasc = document.getElementById('novo-dtnasc-paciente')?.value || "";
                 const novoSetor = document.getElementById('novo-setor-paciente')?.value || 'corredor';
+                const novoLeito = document.getElementById('novo-leito-paciente')?.value || '01';
 
                 if (!novoNome) {
                     alert("⚠️ Prontuário não encontrado. Preencha o Nome e o Setor para cadastrar o novo paciente.");
@@ -683,6 +1021,7 @@
 
                 const novoPacienteObj = {
                     setor: novoSetor,
+                    leito: novoLeito,
                     nome: novoNome,
                     dtNasc: novaDtNasc,
                     prontuario: prontuario,
@@ -722,25 +1061,24 @@
             const hora = document.getElementById('select-hora').value === 'outro' ? document.getElementById('input-hora-custom').value : document.getElementById('select-hora').value;
             const enfermeiro = document.getElementById('input-enfermeiro').value.trim() || "[Nome do Enfermeiro]";
             
-            const pas = document.getElementById('pas').value || "-";
-            const temp = document.getElementById('temp').value || "-";
-            const fr = document.getElementById('fr').value || "-";
-            const fc = document.getElementById('fc').value || "-";
-            const sat = document.getElementById('sat').value || "-";
             const selectDor = document.getElementById('escala-dor');
             const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
-            const newsVal = parseInt(document.getElementById('news-total').value) || 0;
+            const escoreVal = parseInt(document.getElementById('news-total').value) || 0;
 
-            let classificacaoNews = "Estável";
-            if (newsVal >= 5) {
-                classificacaoNews = "Alto Risco";
-            } else if (newsVal >= 3) {
-                classificacaoNews = "Médio Risco";
-            } else if (newsVal >= 1) {
-                classificacaoNews = "Baixo Risco";
+            let texto = "";
+            if (modoPediátricoAtivo) {
+                const fc = document.getElementById('pews-fc').value || "-";
+                const fr = document.getElementById('pews-fr').value || "-";
+                const temp = document.getElementById('pews-temp').value || "-";
+                texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado à enfermeira ${enfermeiro}.`;
+            } else {
+                const pas = document.getElementById('pas').value || "-";
+                const temp = document.getElementById('temp').value || "-";
+                const fr = document.getElementById('fr').value || "-";
+                const fc = document.getElementById('fc').value || "-";
+                const sat = document.getElementById('sat').value || "-";
+                texto = `Em tempo, às ${hora} horas, comunico valores de sinais vitais: PA ${pas}mmHg, Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, SatO₂ ${sat}%, Dor: ${dor}. Valor de NEWS: ${escoreVal}. Comunicado à enfermeira ${enfermeiro}.`;
             }
-
-            const texto = `Em tempo, às ${hora} horas, comunico valores de sinais vitais: PA ${pas}mmHg, Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, SatO₂ ${sat}%, Dor: ${dor}. Valor de NEWS: ${newsVal} (${classificacaoNews}). Comunicado à enfermeira ${enfermeiro}.`;
 
             const modal = document.getElementById('modal-relatorio');
             const textarea = document.getElementById('texto-relatorio-gerado');
@@ -778,18 +1116,21 @@
         function limparFormularioTecnico() {
             document.getElementById('input-prontuario').value = "";
             document.getElementById('input-enfermeiro').value = "";
-            document.getElementById('pas').value = "";
-            document.getElementById('temp').value = "";
-            document.getElementById('fr').value = "";
-            document.getElementById('fc').value = "";
-            document.getElementById('o2').selectedIndex = 0;
-            document.getElementById('sat').value = "";
-            document.getElementById('consc').selectedIndex = 0;
-            document.getElementById('glicemia').value = "";
-            document.getElementById('escala-dor').selectedIndex = 0;
+            
+            ['pas', 'temp', 'fr', 'fc', 'sat', 'glicemia', 'pews-fc', 'pews-fr', 'pews-temp', 'glicemia-pews'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+            ['o2', 'consc', 'escala-dor', 'pews-comp', 'pews-vomitos', 'pews-nebulizador'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.selectedIndex = 0;
+            });
+
             document.getElementById('news-total').value = "";
             document.getElementById('status-news-texto').textContent = "Aguardando...";
+            document.getElementById('status-news-texto').style.backgroundColor = "transparent";
             document.getElementById('status-news-texto').style.color = "#333";
+            document.getElementById('status-news-texto').style.border = "1px solid transparent";
             
             const infoBox = document.getElementById('paciente-info');
             const novoBox = document.getElementById('novo-paciente-container');
