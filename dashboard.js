@@ -2003,9 +2003,10 @@ async function atualizarPainelCentral() {
                             p.vitais.forEach(v => {
                                 const horaV = v.hora || "08:00";
                                 const inputs = v.inputs || [];
-                                const isSimProtocolo = inputs.includes("Sim");
+                                // O select "ABERTO PROTOCOLO?" fica na última posição do array de inputs da linha
+                                const protocoloManualInput = (inputs[inputs.length - 1] || "").toUpperCase();
 
-                                if (isSimProtocolo) {
+                                if (protocoloManualInput === "SIM") {
                                     const dataHoraAberturaStr = `${dataPlantaoStr}T${horaV}:00`;
                                     const dataAberturaObj = new Date(dataHoraAberturaStr);
                                     const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
