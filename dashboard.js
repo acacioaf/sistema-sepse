@@ -55,13 +55,14 @@ function gerarTabelaAdulto() {
                 <div class="linha-inferior-dim">
                     <div class="input-group" style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
                         <label style="font-size: 0.78rem; color: var(--azul-escuro); font-weight: 600;">LEITO:</label>
-                        <input type="text" class="leito-input" placeholder="Ex: 01" list="lista-leitos" style="width: 60px; padding: 3px; font-size: 0.75rem; border: 1px solid var(--borda); border-radius: 4px; text-align: center;">
-                        <datalist id="lista-leitos">
-                            <option value="01"></option><option value="02"></option>
-                            <option value="03"></option><option value="04"></option>
-                            <option value="05"></option><option value="06"></option>
-                            <option value="07"></option><option value="08"></option>
-                        </datalist>
+                        <select class="leito-input" onchange="ordenarCardsPorLeito(this)" style="width: 75px; padding: 3px; font-size: 0.75rem; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; background: #fff; font-weight: bold; color: #003366; cursor: pointer;">
+                            <option value="01">01</option><option value="02">02</option>
+                            <option value="03">03</option><option value="04">04</option>
+                            <option value="05">05</option><option value="06">06</option>
+                            <option value="07">07</option><option value="08">08</option>
+                            <option value="09">09</option><option value="10">10</option>
+                            <option value="11">11</option><option value="12">12</option>
+                        </select>
                     </div>
 
                     <div class="input-group">
@@ -194,9 +195,11 @@ let anoExibido = dataAtualReal.getFullYear();
 const historicoOcupacaoDiaria = Array(31).fill(0);
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // Garante que todas as enfermarias e a sala de emergência carreguem o layout padrão corretamente
     ['enf1', 'enf2', 'enf3', 'enf4', 'enf5', 'corredor', 'sala-emergencia'].forEach(id => {
         const setor = document.getElementById(id);
-        if (setor && setor.innerHTML.trim() === "") {
+        // Adicionada a checagem setor.children.length === 0
+        if (setor && (setor.innerHTML.trim() === "" || setor.children.length === 0)) {
             setor.innerHTML = gerarTabelaAdulto();
         }
     });
@@ -2611,7 +2614,6 @@ function atualizarListaPacientesDimensionamento() {
                 const lesao = card.querySelector('.input-lesao-paciente')?.value || "NÃO";
                 const scpSelect = card.querySelector('.input-scp-paciente');
                 
-                // DEFINE AS HORAS APENAS COM BASE NO SCP SELECIONADO
                 let horasBaseNum = 1.34; 
                 const valScp = scpSelect ? scpSelect.value : "minimo";
                 
@@ -2735,7 +2737,6 @@ function executarGeracaoEscalaTecnica() {
                 segundos = (partes[0] * 3600) + (partes[1] * 60) + (partes[2] || 0);
             }
 
-            // Identifica se o paciente é considerado de alta complexidade/cuidado intensivo
             const isComplexo = scpStr.includes('INTENSIVO') || 
                                scpStr.includes('ALTA DEP') || 
                                banhoStr.includes('Leito') || 
@@ -2762,7 +2763,6 @@ function executarGeracaoEscalaTecnica() {
         return;
     }
 
-    // Separa os pacientes em complexos e gerais, ordenando ambos por carga horária decrescente
     let pacientesComplexos = listaPacientes.filter(p => p.isComplexo).sort((a, b) => b.segundosTotais - a.segundosTotais);
     let pacientesGerais = listaPacientes.filter(p => !p.isComplexo).sort((a, b) => b.segundosTotais - a.segundosTotais);
 
@@ -2796,7 +2796,6 @@ function executarGeracaoEscalaTecnica() {
         distribuicao[tec] = { pacientes: [], somaSegundos: 0, qtdComplexos: 0 };
     });
 
-    // 1. Distribui primeiro os pacientes complexos alternando entre os técnicos com menos complexos/carga
     pacientesComplexos.forEach(pac => {
         let tecEscolhido = tecnicos[0];
         let menorComplexos = distribuicao[tecEscolhido].qtdComplexos;
@@ -2816,7 +2815,6 @@ function executarGeracaoEscalaTecnica() {
         distribuicao[tecEscolhido].qtdComplexos++;
     });
 
-    // 2. Distribui os demais pacientes visando o equilíbrio da jornada total
     pacientesGerais.forEach(pac => {
         let tecMaisLivre = tecnicos[0];
         let menorCarga = distribuicao[tecMaisLivre].somaSegundos;
@@ -2904,7 +2902,6 @@ function executarGeracaoEscalaTecnica() {
     alert("✅ Escala gerada com sucesso!");
 }
 
-// Função para sincronizar edições no Quadro 1 de volta para os cards dos pacientes
 window.sincronizarAlteracaoDimensionamento = function(idSetor, indexCard, tipo, valor) {
     const aba = document.getElementById(idSetor);
     if (!aba) return;
@@ -2940,19 +2937,16 @@ window.sincronizarAlteracaoDimensionamento = function(idSetor, indexCard, tipo, 
     atualizarListaPacientesDimensionamento();
 };
 
-// --- CORREÇÃO DOS FILTROS DA ABA DE AUDITORIA ---
 function filtrarTabelaAuditoria() {
     const tbody = document.getElementById('corpo-tabela-auditoria');
     if (!tbody) return;
 
-    // Seleção robusta do select e input na aba de auditoria
     const selectStatus = document.getElementById('filtro-auditoria-status') || document.querySelector('#aba-auditoria-sepse select');
     const inputBusca = document.getElementById('filtro-auditoria-texto') || document.querySelector('#aba-auditoria-sepse input[type="text"]');
 
     const criterioStatus = selectStatus ? selectStatus.value.trim().toLowerCase() : "";
     const termoBusca = inputBusca ? inputBusca.value.trim().toLowerCase() : "";
 
-    // Se nenhum filtro foi selecionado (ou está na opção padrão/vazia) e não há busca por texto
     if ((!criterioStatus || criterioStatus === "" || criterioStatus.includes("selecione") || criterioStatus.includes("todos") || criterioStatus.includes("filtrar")) && termoBusca === "") {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 25px; color: #64748b; font-style: italic;">Selecione um status no filtro acima ou digite para buscar registros.</td></tr>`;
         return;
@@ -2964,13 +2958,10 @@ function filtrarTabelaAuditoria() {
     }
 
     const filtrados = window.dadosAuditoriaGlobal.filter(item => {
-        // Validação de texto (Nome ou Prontuário)
         const nomeMatch = item.nome.toLowerCase().includes(termoBusca) || item.prontuario.toLowerCase().includes(termoBusca);
         
-        // Se não bate com a busca, descarta imediatamente (a menos que não haja termo de busca)
         if (!nomeMatch && termoBusca !== "") return false;
 
-        // Se não selecionou status válido ou escolheu "todos", retorna true para os registros que já passaram na validação do texto
         if (!criterioStatus || criterioStatus === "" || criterioStatus.includes("selecione") || criterioStatus.includes("todos") || criterioStatus.includes("filtrar")) {
             return true;
         }
@@ -2983,7 +2974,6 @@ function filtrarTabelaAuditoria() {
         if (criterioStatus.includes("transferido") && item.desfecho.toLowerCase() !== "internado" && !item.desfecho.toLowerCase().includes("alta") && !item.desfecho.toLowerCase().includes("óbito")) return true;
         if (criterioStatus.includes("obito") && item.desfecho.toLowerCase().includes("óbito")) return true;
         
-        // Filtros de Risco (NEWS / PEWS) com verificação estrita por pontuação
         if (criterioStatus.includes("alto") && hasScore && scoreNum >= 5) return true;
         if (criterioStatus.includes("medio") && hasScore && scoreNum >= 3 && scoreNum <= 4) return true;
         if (criterioStatus.includes("baixo") && hasScore && scoreNum === 2) return true;
