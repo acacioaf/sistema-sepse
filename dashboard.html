@@ -321,7 +321,6 @@
 </head>
 <body>
 
-  <!-- Cabeçalho do Sistema Otimizado com Botões -->
 <header class="top-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 25px;">
     <h1 style="font-size: 1.2rem; margin: 0;">Controle de Sinais Vitais</h1>
     
@@ -345,7 +344,7 @@
     Enfermeiro(a): <strong id="lbl-enfermeiro-logado" style="color: #ffeb3b;">---</strong>
     <button onclick="sairDoPainelEnfermeiro()" style="background: none; border: none; color: #ff9999; font-weight: bold; cursor: pointer; font-size: 0.78rem; margin-left: 8px; text-decoration: underline;">Sair / Trocar</button>
 </span>
-
+    </div>
 </header>
 
     <div class="main-container">
@@ -832,7 +831,8 @@
                                         <option value="minimo" selected>MÍNIMOS (4h)</option>
                                     </select>
                                 </div>
-                            </div>
+                            </div> <!-- Fecha linha-inferior-dim -->
+                        </div> <!-- FECHA PATIENT-HEADER AQUI! -->
                         
                         <div class="table-responsive">
                             <table class="vitals-table pews-table">
