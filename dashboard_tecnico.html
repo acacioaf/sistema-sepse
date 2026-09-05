@@ -1010,7 +1010,7 @@
             }
         }
 
-        function gerarRelatorioTecnico() {
+      function gerarRelatorioTecnico() {
             const hora = document.getElementById('select-hora').value === 'outro' ? document.getElementById('input-hora-custom').value : document.getElementById('select-hora').value;
             const enfermeiro = document.getElementById('input-enfermeiro').value.trim() || "[Nome do Enfermeiro]";
             
@@ -1023,17 +1023,16 @@
                 const fc = document.getElementById('pews-fc').value || "-";
                 const fr = document.getElementById('pews-fr').value || "-";
                 const temp = document.getElementById('pews-temp').value || "-";
-                texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado à enfermeira ${enfermeiro}.`;
+                texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
             } else {
                 const pas = document.getElementById('pas').value || "-";
                 const temp = document.getElementById('temp').value || "-";
                 const fr = document.getElementById('fr').value || "-";
                 const fc = document.getElementById('fc').value || "-";
                 const sat = document.getElementById('sat').value || "-";
-                const o2 = document.getElementById('o2').value || "Não";
+                const o2SimNao = document.getElementById('o2').value || "Não";
                 const consc = document.getElementById('consc').value || "Alerta";
 
-                // Avalia parâmetro isolado 3
                 let temIsoladoTres = false;
                 const fVal = parseFloat(fr) || 0;
                 const sVal = parseFloat(sat) || 0;
@@ -1045,22 +1044,34 @@
                     temIsoladoTres = true;
                 }
 
-                let classificacaoRisco = "Estável";
-                if (escoreVal === 0) classificacaoRisco = "Estável";
-                else if (escoreVal >= 1 && escoreVal <= 3 && !temIsoladoTres) classificacaoRisco = "Baixo Risco";
-                else if ((escoreVal >= 4 && escoreVal <= 5) || temIsoladoTres) classificacaoRisco = "Médio Risco";
-                else if (escoreVal >= 6) classificacaoRisco = "Alto Risco";
+                // Critérios de Alerta de Sepse
+                let sirsCount = 0;
+                if (cVal > 90) sirsCount++;
+                if (fVal > 20) sirsCount++;
+                if (tVal > 38.3 || (tVal > 0 && tVal < 35)) sirsCount++;
 
-                const sinaisVitaisStr = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}% (${o2}), Nív Consc: ${consc}`;
+                const conscUpper = consc.toUpperCase();
+                const pConscVal = (conscUpper === "VOZ, DOR OU NÃO REAGE") ? 3 : (conscUpper === "AGITADO/CONFUSO" ? 2 : 0);
+                const sepseSat = (sVal > 0 && ((sVal < 90 && o2SimNao.toUpperCase() !== "SIM") || (sVal < 94 && o2SimNao.toUpperCase() === "SIM")));
+                
+                const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pVal > 0 && pVal < 90) || sepseSat);
 
-                if (escoreVal === 0) {
-                    texto = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${tecnicoLogadoGlobal} que paciente apresenta News com Escore 0 (Estável), paciente estável hemodinamicamente. Oriento verificar SSVV de 4/4 horas conforme rotina da unidade, comunicar intercorrências.`;
+                const usoO2Texto = o2SimNao.toUpperCase() === "SIM" ? "Usa O₂ suplementar" : "Não usa O₂ suplementar";
+                
+                // STRING COMPLETA COM OS SINAIS VITAIS E A ESCALA DE DOR INCLUSAS
+                const sinaisVitaisStr = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}% (${usoO2Texto}), Nív Consc: ${consc}, Dor: ${dor}`;
+
+                // SELEÇÃO DO MODELO DE RELATÓRIO COM OS SINAIS VITAIS E DOR
+                if (isAlertaSepse) {
+                    texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreVal}. Segue orientações conforme protocolo da unidade.`;
+                } else if (escoreVal === 0) {
+                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente apresenta NEWS com Escore 0 (Estável), encontrando-se estável hemodinamicamente. Oriento manter monitorização e avaliar novos sinais a cada 04 horas conforme rotina da unidade. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
                 } else if (escoreVal >= 1 && escoreVal <= 3 && !temIsoladoTres) {
-                    texto = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${tecnicoLogadoGlobal}, paciente avaliado seguindo escore de alerta NEWS e classificado como Baixo Risco (${escoreVal}). Realizo visita no leito, paciente estável e sem queixas. Oriento verificar SSVV em 4h, conforme rotina da unidade, manter vigilância dos sintomas ou comunicar se intercorrências.`;
-                } else if ((escoreVal >= 4 && escoreVal <= 5) || temIsoladoTres) {
-                    texto = `Em tempo, às ${hora} horas, sou comunicado(a) pelo(a) técnico(a) ${tecnicoLogadoGlobal} que paciente apresenta News Médio Risco (${escoreVal}). Sinais vitais: ${sinaisVitaisStr}. Realizo visita no leito, paciente estável, sem queixas, sem desconforto respiratório no momento. Comunico ao Dr. ${enfermeiro}, que avalia e orienta aferir SSVV em 4h, manter vigilância dos sinais e sintomas, comunicar intercorrências.`;
+                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}) e aplicação do escore NEWS, classificado como Baixo Risco (${escoreVal}). Paciente estável, sem queixas no momento. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
+                } else if ((escoreVal >= 4 && escoreVal <= 5) || (temIsoladoTres && escoreVal < 6)) {
+                    texto = `Em tempo, às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Médio Risco (${escoreVal}). Sinais vitais e parâmetros: ${sinaisVitaisStr}. Mantido em vigilância conforme orientação.`;
                 } else {
-                    texto = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${tecnicoLogadoGlobal} que o paciente apresenta News Alto Risco (${escoreVal}). Sinais vitais: ${sinaisVitaisStr}. Realizo visita no leito, comunico ao Dr. ${enfermeiro}, que avalia e orienta reavaliar SSVV, manter vigilância de sinais e sintomas, comunicar se intercorrências.`;
+                    texto = `Às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Alto Risco (${escoreVal}). Sinais vitais e parâmetros: ${sinaisVitaisStr}. Aguardando condutas.`;
                 }
             }
 
