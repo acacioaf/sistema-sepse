@@ -1914,7 +1914,6 @@ async function atualizarPainelCentral() {
 
     document.querySelectorAll('.tab-pane:not(#aba-auditoria-sepse) .patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
-        const isento = card.querySelector('.isento-relatorio')?.checked;
         const nome = inputNome ? inputNome.value.trim() : "";
 
         const abaPai = card.closest('.tab-pane');
@@ -1923,28 +1922,30 @@ async function atualizarPainelCentral() {
         if (nome !== "") {
             totalPacientes++;
 
-            let cardTemSepse = false;
-            let cardTemProtocoloAberto = false;
+            let cardTemSepseAlerta = false;      // Para o card da esquerda
+            let cardTemProtocoloSim = false;     // Para a lista da direita
             let dataHoraAberturaStr = null;
 
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => {
+                const inputNews = tr.querySelector('.news-input');
+                const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
+                const isento = card.querySelector('.isento-relatorio')?.checked;
+                
+                const horaTabela = tr.getAttribute('data-hora') || (tr.querySelector('.time-col') ? tr.querySelector('.time-col')?.textContent.trim() : "08:00");
                 const tdStatusElement = tr.querySelector('.status-cell');
                 const htmlStatus = tdStatusElement ? tdStatusElement.innerHTML : '';
                 
-                const inputNews = tr.querySelector('.news-input');
-                const newsVal = inputNews ? parseInt(inputNews.value) : NaN;
-                
-                const horaTabela = tr.getAttribute('data-hora') || (tr.querySelector('.time-col') ? tr.querySelector('.time-col')?.textContent.trim() : "08:00");
                 const protocoloSelect = tr.querySelector('.protocolo-select');
                 const abertoProtocolo = protocoloSelect ? protocoloSelect.value : "";
 
+                // 1. Regra da Esquerda: Detecta se gerou alerta automático de sepse
                 if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
-                    cardTemSepse = true; 
+                    cardTemSepseAlerta = true;
                 }
 
-                // O protocolo ativo sό deve contar e abrir se o select manual estiver explicitamente como "Sim"
+                // 2. Regra da Direita: Detecta estritamente se o select manual está como "Sim"
                 if (abertoProtocolo === "Sim") {
-                    cardTemProtocoloAberto = true;
+                    cardTemProtocoloSim = true;
                     if (!dataHoraAberturaStr) {
                         dataHoraAberturaStr = `${dataSelecionadaStr}T${horaTabela}:00`;
                     }
@@ -1958,28 +1959,30 @@ async function atualizarPainelCentral() {
                 }
             });
 
-            if (cardTemSepse) {
-                totalSepseAtivaNoDia++; 
+            // Soma no contador da esquerda (SEPSE ALTA) se teve alerta automático
+            if (cardTemSepseAlerta) {
+                totalSepseAtivaNoDia++;
+            }
 
-                if (cardTemProtocoloAberto && dataHoraAberturaStr) {
-                    const dataAberturaObj = new Date(dataHoraAberturaStr);
-                    const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
-                    const diffMs = vencimentoObj - agoraRelogio;
-                    
-                    if (diffMs > 0) {
-                        const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
-                        const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
-                        let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
+            // Adiciona na lista da direita APENAS se o protocolo foi aberto como "Sim"
+            if (cardTemProtocoloSim && dataHoraAberturaStr) {
+                const dataAberturaObj = new Date(dataHoraAberturaStr);
+                const vencimentoObj = new Date(dataAberturaObj.getTime() + (24 * 60 * 60 * 1000));
+                const diffMs = vencimentoObj - agoraRelogio;
+                
+                if (diffMs > 0) {
+                    const horasRestantes = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutosRestantes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    let tempoRestanteFormatado = `${horasRestantes}h ${minutosRestantes}m restantes`;
+                    let corVigencia = horasRestantes <= 6 ? "#d97706" : "#dc3545";
 
-                        listaProtocolosAtivosMap.set(nome.toUpperCase(), {
-                            nome: nome,
-                            setor: idSetor,
-                            dataHora: `${dataHoraAberturaStr.split('T')[0].split('-').reverse().join('/')} às ${dataHoraAberturaStr.split('T')[1].substring(0, 5)}`,
-                            vigenciaTexto: tempoRestanteFormatado,
-                            corBgVigencia: corVigencia
-                        });
-                    }
+                    listaProtocolosAtivosMap.set(nome.toUpperCase(), {
+                        nome: nome,
+                        setor: idSetor,
+                        dataHora: `${dataHoraAberturaStr.split('T')[0].split('-').reverse().join('/')} às ${dataHoraAberturaStr.split('T')[1].substring(0, 5)}`,
+                        vigenciaTexto: tempoRestanteFormatado,
+                        corBgVigencia: corVigencia
+                    });
                 }
             }
         }
