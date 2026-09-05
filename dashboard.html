@@ -1223,51 +1223,55 @@
     <script src="dashboard.js"></script>
     
    <script>
-
     document.addEventListener("DOMContentLoaded", () => {
-    const nomeEnfermeiro = localStorage.getItem('enfermeiro_logado_nome') || "Enfermeiro(a)";
-    const lblEnfermeiro = document.getElementById('lbl-enfermeiro-logado');
-    if (lblEnfermeiro) {
-        lblEnfermeiro.textContent = nomeEnfermeiro;
+        const nomeEnfermeiro = localStorage.getItem('enfermeiro_logado_nome') || "Enfermeiro(a)";
+        const lblEnfermeiro = document.getElementById('lbl-enfermeiro-logado');
+        if (lblEnfermeiro) {
+            lblEnfermeiro.textContent = nomeEnfermeiro;
+        }
+    });
+
+    function sairDoPainelEnfermeiro() {
+        localStorage.removeItem('enfermeiro_logado_nome');
+        window.location.href = "index.html";
     }
-});
 
-function sairDoPainelEnfermeiro() {
-    localStorage.removeItem('enfermeiro_logado_nome');
-    window.location.href = "index.html";
-}
+    // 1. FUNÇÃO DEFINITIVA PARA FORÇAR ORDEM NUMÉRICA DOS LEITOS
+    function ordenarTodosOsSetoresNumericamente() {
+        document.querySelectorAll('.patients-container').forEach(container => {
+            const cards = Array.from(container.querySelectorAll('.patient-card'));
+            
+            cards.sort((a, b) => {
+                const selectA = a.querySelector('.leito-input');
+                const selectB = b.querySelector('.leito-input');
+                
+                // O parseInt converte a string "10" no número matemático 10 para evitar erros alfabéticos
+                const leitoA = selectA ? (parseInt(selectA.value.trim(), 10) || 9999) : 9999;
+                const leitoB = selectB ? (parseInt(selectB.value.trim(), 10) || 9999) : 9999;
+                
+                return leitoA - leitoB; // Ordena crescente
+            });
 
-    // Função para reordenar os cards instantaneamente ao trocar o leito no select
+            // Reinsere os cards na tela já ordenados
+            const wrapperAdd = container.querySelector('.btn-add-wrapper');
+            cards.forEach(c => {
+                if (wrapperAdd) {
+                    container.insertBefore(c, wrapperAdd);
+                } else {
+                    container.appendChild(c);
+                }
+            });
+        });
+    }
+
+    // 2. Acionada ao trocar o valor do select na mão
     function ordenarCardsPorLeito(elementoSelect) {
-        const card = elementoSelect.closest('.patient-card');
-        const container = card ? card.closest('.patients-container') : null;
-        if (!card || !container) return;
-
-        card.setAttribute('data-leito', elementoSelect.value.trim());
-
-        const cards = Array.from(container.querySelectorAll('.patient-card'));
-        cards.sort((a, b) => {
-            const selectA = a.querySelector('.leito-input');
-            const selectB = b.querySelector('.leito-input');
-            const leitoA = selectA ? (parseInt(selectA.value.trim()) || 9999) : 9999;
-            const leitoB = selectB ? (parseInt(selectB.value.trim()) || 9999) : 9999;
-            return leitoA - leitoB;
-        });
-
-        const wrapperAdd = container.querySelector('.btn-add-wrapper');
-        cards.forEach(c => {
-            if (wrapperAdd) {
-                container.insertBefore(c, wrapperAdd);
-            } else {
-                container.appendChild(c);
-            }
-        });
+        ordenarTodosOsSetoresNumericamente();
     }
 
-    // Função que converte entradas antigas de leito em selects reais sem recriar se o usuário estiver focado
+    // 3. Garante que os inputs antigos virem selects limitados de 01 a 12
     function garantirSelectLeitos() {
         document.querySelectorAll('.leito-input').forEach(el => {
-            // Evita mexer no elemento se ele já for um select ou se o usuário estiver com o mouse/foco nele (evita fechar a lista)
             if (el.tagName !== 'SELECT' && document.activeElement !== el) {
                 const valorAtual = el.value.trim() || "03";
                 const novoSelect = document.createElement('select');
@@ -1279,7 +1283,7 @@ function sairDoPainelEnfermeiro() {
                     const opt = document.createElement('option');
                     opt.value = numStr;
                     opt.textContent = numStr;
-                    if (numStr === valorAtual || i == parseInt(valorAtual)) {
+                    if (numStr === valorAtual || i === parseInt(valorAtual, 10)) {
                         opt.selected = true;
                     }
                     novoSelect.appendChild(opt);
@@ -1294,45 +1298,47 @@ function sairDoPainelEnfermeiro() {
         });
     }
 
-    // Executa na carga inicial da página
+    // Executa as ordenações no carregamento inicial da página (Dá 500ms para o Supabase carregar tudo)
     document.addEventListener('DOMContentLoaded', () => {
-        garantirSelectLeitos();
-        document.querySelectorAll('.patients-container').forEach(container => {
-            const primeiroSelect = container.querySelector('.leito-input');
-            if (primeiroSelect) ordenarCardsPorLeito(primeiroSelect);
-        });
+        setTimeout(() => {
+            garantirSelectLeitos();
+            ordenarTodosOsSetoresNumericamente();
+        }, 500); 
     });
 
-    // Intercepta a criação de novos pacientes para aplicar o select corretamente
+    // Força a reordenação sempre que adicionar um paciente novo
     const _adicionarPacienteOriginal = window.adicionarPaciente;
     window.adicionarPaciente = function(botao) {
         if (typeof _adicionarPacienteOriginal === 'function') {
             _adicionarPacienteOriginal(botao);
         }
-        setTimeout(garantirSelectLeitos, 50);
+        setTimeout(() => {
+            garantirSelectLeitos();
+            ordenarTodosOsSetoresNumericamente();
+        }, 50);
     };
 
-    // Gerenciamento de abas e troca de setores
+    // Força a reordenação sempre que trocar de aba
     const _mudarSetorOriginal = window.mudarSetor;
     window.mudarSetor = function(idSetor) {
         if (typeof _mudarSetorOriginal === 'function') {
             _mudarSetorOriginal(idSetor);
         }
 
-        setTimeout(garantirSelectLeitos, 50);
+        setTimeout(() => {
+            garantirSelectLeitos();
+            ordenarTodosOsSetoresNumericamente();
+        }, 50);
 
-        if (idSetor === 'aba-dimensionamento') {
-            if (typeof carregarListaHistoricoEscalas === 'function') {
-                carregarListaHistoricoEscalas();
-            }
+        if (idSetor === 'aba-dimensionamento' && typeof carregarListaHistoricoEscalas === 'function') {
+            carregarListaHistoricoEscalas();
         }
 
-        if (idSetor === 'aba-auditoria-sepse') {
-            if (typeof carregarDadosAuditoria === 'function') {
-                carregarDadosAuditoria();
-            }
+        if (idSetor === 'aba-auditoria-sepse' && typeof carregarDadosAuditoria === 'function') {
+            carregarDadosAuditoria();
         }
 
+        // Controle da barra de pesquisa global
         const barraGlobal = document.querySelector('.barra-filtro-global');
         const mainContent = document.querySelector('main.content');
 
@@ -1356,7 +1362,7 @@ function sairDoPainelEnfermeiro() {
         }
     };
 
-    // Monitora o campo de busca global
+    // Oculta/Exibe interface caso esteja realizando uma busca ativa
     const inputBuscaGlobal = document.getElementById('filtro-global');
     if (inputBuscaGlobal) {
         inputBuscaGlobal.addEventListener('input', function() {
