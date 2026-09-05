@@ -653,8 +653,11 @@ async function salvarDadosDoDia(dataChave) {
         aba.querySelectorAll('.patient-card').forEach(card => {
             const nome = card.querySelector('.nome-input')?.value || "";
             const dtNasc = card.querySelector('.dtnasc-input')?.value || "";
+            
+            // CAPTURA CORRETA USANDO AS CLASSES DOS INPUTS DA TELA
             const prontuario = card.querySelector('.prontuario-input')?.value || "";
             const tec = card.querySelector('.tec-input')?.value || "";
+            
             const isento = card.querySelector('.isento-relatorio')?.checked || false;
             const desfecho = card.getAttribute('data-desfecho') || "Internado";
             
@@ -676,7 +679,7 @@ async function salvarDadosDoDia(dataChave) {
                 dadosGerais.push({ setor: idSetor, leito, nome, dtNasc, prontuario, tec, isento, desfecho, banho, dieta, lesao, scp, vitais });
             }
         });
-    });
+    }); 
 
     const { data: existingData } = await _supabase.from('plantoes').select('dados_json').eq('data_chave', dataChave).maybeSingle();
     
@@ -1000,7 +1003,17 @@ async function tratarMudancaVitais(event) {
         atualizarCorSelectScp(elemento);
     }
 
-    if (elemento.classList.contains('nome-input') || elemento.classList.contains('leito-input') || elemento.classList.contains('isento-relatorio') || elemento.classList.contains('dtnasc-input') || elemento.classList.contains('input-banho-paciente') || elemento.classList.contains('input-dieta-paciente') || elemento.classList.contains('input-lesao-paciente') || elemento.classList.contains('input-scp-paciente')) {
+    if (elemento.classList.contains('nome-input') || 
+        elemento.classList.contains('prontuario-input') || 
+        elemento.classList.contains('tec-input') || 
+        elemento.classList.contains('leito-input') || 
+        elemento.classList.contains('isento-relatorio') || 
+        elemento.classList.contains('dtnasc-input') || 
+        elemento.classList.contains('input-banho-paciente') || 
+        elemento.classList.contains('input-dieta-paciente') || 
+        elemento.classList.contains('input-lesao-paciente') || 
+        elemento.classList.contains('input-scp-paciente')) {
+        
         const card = elemento.closest('.patient-card');
         if (card && card.closest('.tab-pane')?.id === 'enf-pediatria') {
             card.querySelectorAll('.vitals-table tbody tr').forEach(tr => atualizarLinhaPews(tr));
