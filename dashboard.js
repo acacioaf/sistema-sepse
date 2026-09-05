@@ -1940,12 +1940,13 @@ async function atualizarPainelCentral() {
 
                 if (htmlStatus.includes('ALTO RISCO') || htmlStatus.includes('Time de Resposta Rápida') || htmlStatus.includes('ALERTA SEPSE')) {
                     cardTemSepse = true; 
-                    
-                    if (abertoProtocolo === "Sim") {
-                        cardTemProtocoloAberto = true;
-                        if (!dataHoraAberturaStr) {
-                            dataHoraAberturaStr = `${dataSelecionadaStr}T${horaTabela}:00`;
-                        }
+                }
+
+                // O protocolo ativo sό deve contar e abrir se o select manual estiver explicitamente como "Sim"
+                if (abertoProtocolo === "Sim") {
+                    cardTemProtocoloAberto = true;
+                    if (!dataHoraAberturaStr) {
+                        dataHoraAberturaStr = `${dataSelecionadaStr}T${horaTabela}:00`;
                     }
                 }
 
