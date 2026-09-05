@@ -1196,48 +1196,75 @@ function atualizarLinhaClinica(linha) {
     }
 
     let score = 0;
+    let temParametroIsoladoTres = false;
+
+    // 1. FR (Frequência Respiratória)
     if (pFr.value !== "") {
-        if (fr <= 8 || fr >= 25) score += 3;
-        else if (fr >= 21) score += 2;
-        else if (fr >= 9 && fr <= 11) score += 1;
+        let ptsFr = 0;
+        if (fr <= 8) { ptsFr = 3; temParametroIsoladoTres = true; }
+        else if (fr >= 25) { ptsFr = 3; temParametroIsoladoTres = true; }
+        else if (fr >= 21 && fr <= 24) ptsFr = 2;
+        else if (fr >= 9 && fr <= 11) ptsFr = 1;
+        score += ptsFr;
     }
 
+    // 2. O2 Suplementar
     if (o2SimNao === "SIM") score += 2;
 
+    // 3. Saturação (SPO2) conforme tabela oficial
     if (pSat.value !== "") {
-        if (sat <= 91) score += 3;
-        else if (sat <= 93) score += 2;
-        else if (sat <= 95) score += 1;
+        let ptsSat = 0;
+        if (sat <= 91) { ptsSat = 3; temParametroIsoladoTres = true; }
+        else if (sat >= 92 && sat <= 93) ptsSat = 2;
+        else if (sat >= 94 && sat <= 95) ptsSat = 1;
+        score += ptsSat;
     }
 
-if (pPas.value !== "") {
-        if (pas < 90) { score += 3; destacarLaranja(pPas); }
-        else if (pas >= 220) score += 3;
-        else if ((pas >= 90 && pas <= 100) || (pas >= 200 && pas <= 219)) score += 2;
-        else if (pas <= 110 || (pas >= 131 && pas <= 199)) score += 1;
+    // 4. PAS (Pressão Arterial Sistólica)
+    if (pPas.value !== "") {
+        let ptsPas = 0;
+        if (pas <= 90) { ptsPas = 3; temParametroIsoladoTres = true; destacarLaranja(pPas); }
+        else if (pas >= 220) { ptsPas = 3; temParametroIsoladoTres = true; }
+        else if ((pas >= 91 && pas <= 100)) ptsPas = 2;
+        else if ((pas >= 200 && pas <= 219)) ptsPas = 2;
+        else if ((pas >= 101 && pas <= 110)) ptsPas = 1;
+        else if ((pas >= 131 && pas <= 199)) ptsPas = 1;
+        score += ptsPas;
     }
 
+    // 5. FC (Frequência Cardíaca) conforme tabela oficial
     if (pFc.value !== "") {
-        if (fc <= 40 || fc >= 131) score += 3;
-        else if (fc >= 111) score += 2;
-        else if ((fc >= 41 && fc <= 50) || (fc >= 91 && fc <= 130)) score += 1;
+        let ptsFc = 0;
+        if (fc <= 40) { ptsFc = 3; temParametroIsoladoTres = true; }
+        else if (fc >= 131) { ptsFc = 3; temParametroIsoladoTres = true; }
+        else if (fc >= 111 && fc <= 130) ptsFc = 2;
+        else if (fc >= 41 && fc <= 50) ptsFc = 1;
+        else if (fc >= 91 && fc <= 110) ptsFc = 1;
+        score += ptsFc;
     }
 
+    // 6. Temperatura (TC) conforme tabela oficial
     if (pTemp.value !== "") {
-        if (temp < 35) score += 3;
-        else if (temp >= 39.1) score += 2;
-        else if ((temp >= 35 && temp <= 36) || (temp >= 38.1 && temp <= 39)) score += 1;
+        let ptsTemp = 0;
+        if (temp <= 35.0) { ptsTemp = 3; temParametroIsoladoTres = true; }
+        else if (temp >= 39.1) ptsTemp = 2;
+        else if (temp >= 38.1 && temp <= 39.0) ptsTemp = 1;
+        else if (temp >= 35.1 && temp <= 36.0) ptsTemp = 1;
+        score += ptsTemp;
     }
 
+    // 7. SNC (Nível de Consciência)
     let pConscVal = 0;
     if (consc === "VOZ, DOR OU NÃO REAGE") {
         pConscVal = 3;
+        temParametroIsoladoTres = true;
         destacarLaranja(pConsc);
     } else if (consc === "AGITADO/CONFUSO") {
         pConscVal = 2;
     }
     score += pConscVal;
 
+    // Critérios de Alerta de Sepse / SIRS
     let sirsCount = 0;
     if (pFc.value && fc > 90) { sirsCount++; destacarLaranja(pFc); }
     if (pFr.value && fr > 20) { sirsCount++; destacarLaranja(pFr); }
@@ -1251,9 +1278,12 @@ if (pPas.value !== "") {
 
     pNews.value = score;
 
-    if (score === 0 || score <= 3) {
+    // Cores e Classificação baseadas rigorosamente no fluxograma oficial (Escore 0, 1-3, 4-5 ou parâmetro isolado 3, e >= 6)
+    if (score === 0) {
         pNews.style.backgroundColor = "#e6ffe6"; pNews.style.color = "#28a745";
-    } else if (score <= 5) {
+    } else if (score >= 1 && score <= 3 && !temParametroIsoladoTres) {
+        pNews.style.backgroundColor = "#d1ecf1"; pNews.style.color = "#0c5460";
+    } else if ((score >= 4 && score <= 5) || temParametroIsoladoTres) {
         pNews.style.backgroundColor = "#fff3cd"; pNews.style.color = "#856404";
     } else {
         pNews.style.backgroundColor = "#ffe6e6"; pNews.style.color = "#dc3545";
@@ -1262,13 +1292,13 @@ if (pPas.value !== "") {
     if (isAlertaSepse) {
         tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALERTA SEPSE</span>`;
     } else if (score >= 6) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALTO RISCO</span>`;
-    } else if (score >= 4) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">🟡 MÉDIO RISCO</span>`;
-    } else if (score >= 1) {
-        tdStatus.innerHTML = `<span class="status-badge" style="background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;">🟢 BAIXO RISCO</span>`;
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#ffe6e6; color:#dc3545; border:1px solid #dc3545;">🚨 ALTO RISCO </span>`;
+    } else if ((score >= 4 && score <= 5) || temParametroIsoladoTres) {
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#fff3cd; color:#856404; border:1px solid #ffeeba;">🟡 MÉDIO RISCO </span>`;
+    } else if (score >= 1 && score <= 3) {
+        tdStatus.innerHTML = `<span class="status-badge" style="background:#d1ecf1; color:#0c5460; border:1px solid #bee5eb;">🟢 BAIXO RISCO </span>`;
     } else {
-        tdStatus.innerHTML = `<span class="status-badge status-estavel">✔️ ESTÁVEL</span>`;
+        tdStatus.innerHTML = `<span class="status-badge status-estavel">✔️ ESTÁVEL </span>`;
     }
 }
 
@@ -1373,14 +1403,27 @@ function gerarRelatorioProfissional(tipo) {
     
     const newsVal = parseInt(linha.querySelector('.news-input')?.value) || 0;
 
+    // Verifica se possui algum parâmetro isolado pontuando 3
+    let temIsoladoTres = false;
+    const frVal = parseFloat(inputs[2]?.value) || 0;
+    const satVal = parseFloat(inputs[5]?.value) || 0;
+    const pasVal = parseFloat(inputs[0]?.value) || 0;
+    const fcVal = parseFloat(inputs[3]?.value) || 0;
+    const tempVal = parseFloat(String(inputs[1]?.value || '').replace(',', '.')) || 0;
+    const conscVal = inputs[6]?.value ? inputs[6].value.toUpperCase() : "";
+
+    if (frVal <= 8 || frVal >= 25 || satVal <= 91 || (pasVal > 0 && pasVal <= 90) || pasVal >= 220 || fcVal <= 40 || fcVal >= 131 || tempVal <= 35.0 || conscVal === "VOZ, DOR OU NÃO REAGE") {
+        temIsoladoTres = true;
+    }
+
     let classificacaoRisco = "Estável";
     if (newsVal === 0) {
         classificacaoRisco = "Estável";
-    } else if (newsVal >= 1 && newsVal <= 2) {
+    } else if (newsVal >= 1 && newsVal <= 3 && !temIsoladoTres) {
         classificacaoRisco = "Baixo Risco";
-    } else if (newsVal >= 3 && newsVal <= 4) {
+    } else if ((newsVal >= 4 && newsVal <= 5) || temIsoladoTres) {
         classificacaoRisco = "Médio Risco";
-    } else if (newsVal >= 5) {
+    } else if (newsVal >= 6) {
         classificacaoRisco = "Alto Risco";
     }
 
@@ -1388,7 +1431,16 @@ function gerarRelatorioProfissional(tipo) {
 
     if (tipo === 'enfermeiro') {
         const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%`;
-        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado pelo(a) técnico(a) ${nomeTecnico} apresentando os seguintes sinais vitais: ${sinaisVitais}; NEWS: ${newsVal} (${classificacaoRisco}); Escala de dor: ${dor}. Orientada a equipe a manter vigilância conforme protocolo da unidade e comunicado valor ao médico Dr. `;
+        
+        if (newsVal === 0) {
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News com Escore 0 (${classificacaoRisco}), paciente estável hemodinamicamente. Oriento verificar SSVV de 4/4 horas conforme rotina da unidade, comunicar intercorrências.`;
+        } else if (newsVal >= 1 && newsVal <= 3 && !temIsoladoTres) {
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico}, paciente avaliado seguindo escore de alerta NEWS e classificado como ${classificacaoRisco} (${newsVal}). Realizo visita no leito, paciente estável e sem queixas. Oriento verificar SSVV em 4h, conforme rotina da unidade, manter vigilância dos sintomas ou comunicar se intercorrências.`;
+        } else if ((newsVal >= 4 && newsVal <= 5) || temIsoladoTres) {
+            textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News ${classificacaoRisco} (${newsVal}). Sinais vitais: ${sinaisVitais}. Realizo visita no leito, paciente estável, sem queixas, sem desconforto respiratório no momento. Comunico ao Dr. __________, que avalia e orienta aferir SSVV em 4h, manter vigilância dos sinais e sintomas, comunicar intercorrências.`;
+        } else {
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que o paciente apresenta News ${classificacaoRisco} (${newsVal}). Sinais vitais: ${sinaisVitais}. Realizo visita no leito, comunico ao Dr. __________, que avalia e orienta reavaliar SSVV, manter vigilância de sinais e sintomas, comunicar se intercorrências.`;
+        }
     } else if (tipo === 'medico') {
         const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%, NEWS: ${newsVal} (${classificacaoRisco}), Dor: ${dor}`;
         textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pela equipe de enfermagem acerca dos valores de sinais vitais (${sinaisVitais}). Orientada a equipe a manter as condutas conforme protocolo da unidade.`;
