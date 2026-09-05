@@ -1197,11 +1197,11 @@ function atualizarLinhaClinica(linha) {
         else if (sat <= 95) score += 1;
     }
 
-    if (pPas.value !== "") {
+if (pPas.value !== "") {
         if (pas < 90) { score += 3; destacarLaranja(pPas); }
         else if (pas >= 220) score += 3;
         else if ((pas >= 90 && pas <= 100) || (pas >= 200 && pas <= 219)) score += 2;
-        else if (pas <= 110) score += 1;
+        else if (pas <= 110 || (pas >= 131 && pas <= 199)) score += 1;
     }
 
     if (pFc.value !== "") {
