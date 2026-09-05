@@ -1390,60 +1390,82 @@ function gerarRelatorioProfissional(tipo) {
     
     const hora = linha.getAttribute('data-hora') || linha.querySelector('.time-col')?.textContent.trim() || "08:00";
     const nomeTecnico = card?.querySelector('.tec-input')?.value.trim() || "Técnico Responsável";
+    const nomeEnfermeiroLogado = localStorage.getItem('enfermeiro_logado_nome') || "Enfermeiro(a)";
+    const isentoEscore = card?.querySelector('.isento-relatorio')?.checked || false;
 
     const inputs = linha.querySelectorAll('input, select');
     const pas = inputs[0]?.value || "-";
     const temp = inputs[1]?.value || "-";
     const fr = inputs[2]?.value || "-";
     const fc = inputs[3]?.value || "-";
+    const o2SimNao = inputs[4]?.value || "Não";
     const sat = inputs[5]?.value || "-";
+    const consc = inputs[6]?.value || "Alerta";
     
     const selectDor = linha.querySelector('td:nth-child(10) select');
     const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
     
     const newsVal = parseInt(linha.querySelector('.news-input')?.value) || 0;
 
-    // Verifica se possui algum parâmetro isolado pontuando 3
     let temIsoladoTres = false;
-    const frVal = parseFloat(inputs[2]?.value) || 0;
-    const satVal = parseFloat(inputs[5]?.value) || 0;
-    const pasVal = parseFloat(inputs[0]?.value) || 0;
-    const fcVal = parseFloat(inputs[3]?.value) || 0;
-    const tempVal = parseFloat(String(inputs[1]?.value || '').replace(',', '.')) || 0;
-    const conscVal = inputs[6]?.value ? inputs[6].value.toUpperCase() : "";
+    let paramIsoladoDescricao = "";
+    
+    const fVal = parseFloat(fr) || 0;
+    const sVal = parseFloat(sat) || 0;
+    const pVal = parseFloat(pas) || 0;
+    const cVal = parseFloat(fc) || 0;
+    const tVal = parseFloat(String(temp).replace(',', '.')) || 0;
+    const conscUpper = consc.toUpperCase();
 
-    if (frVal <= 8 || frVal >= 25 || satVal <= 91 || (pasVal > 0 && pasVal <= 90) || pasVal >= 220 || fcVal <= 40 || fcVal >= 131 || tempVal <= 35.0 || conscVal === "VOZ, DOR OU NÃO REAGE") {
-        temIsoladoTres = true;
-    }
+    if (fVal > 0 && (fVal <= 8 || fVal >= 25)) { temIsoladoTres = true; paramIsoladoDescricao = `FR alterada (${fVal} irpm)`; }
+    else if (sVal > 0 && sVal <= 91) { temIsoladoTres = true; paramIsoladoDescricao = `Saturação crítica (${sVal}%)`; }
+    else if (pVal > 0 && (pVal <= 90 || pVal >= 220)) { temIsoladoTres = true; paramIsoladoDescricao = `PAS crítica (${pVal} mmHg)`; }
+    else if (cVal > 0 && (cVal <= 40 || cVal >= 131)) { temIsoladoTres = true; paramIsoladoDescricao = `FC crítica (${cVal} bpm)`; }
+    else if (tVal > 0 && tVal <= 35.0) { temIsoladoTres = true; paramIsoladoDescricao = `Temperatura crítica (${tVal} °C)`; }
+    else if (conscUpper === "VOZ, DOR OU NÃO REAGE") { temIsoladoTres = true; paramIsoladoDescricao = `Nível de consciência alterado (${consc})`; }
 
-    let classificacaoRisco = "Estável";
-    if (newsVal === 0) {
-        classificacaoRisco = "Estável";
-    } else if (newsVal >= 1 && newsVal <= 3 && !temIsoladoTres) {
-        classificacaoRisco = "Baixo Risco";
-    } else if ((newsVal >= 4 && newsVal <= 5) || temIsoladoTres) {
-        classificacaoRisco = "Médio Risco";
-    } else if (newsVal >= 6) {
-        classificacaoRisco = "Alto Risco";
-    }
+    let sirsCount = 0;
+    if (cVal > 90) sirsCount++;
+    if (fVal > 20) sirsCount++;
+    if (tVal > 38.3 || (tVal > 0 && tVal < 35)) sirsCount++;
+
+    const pConscVal = (conscUpper === "VOZ, DOR OU NÃO REAGE") ? 3 : (conscUpper === "AGITADO/CONFUSO" ? 2 : 0);
+    const sepseSat = (sVal > 0 && ((sVal < 90 && o2SimNao.toUpperCase() !== "SIM") || (sVal < 94 && o2SimNao.toUpperCase() === "SIM")));
+    const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pVal > 0 && pVal < 90) || sepseSat);
+
+    const usoO2Texto = o2SimNao.toUpperCase() === "SIM" ? "Sim" : "Não";
+    const sinaisVitaisStr = `PA: ${pas} mmHg, FC: ${fc} bpm, FR: ${fr} irpm, Temp: ${temp} °C, Sat(%): ${sat}, O2 Supl: ${usoO2Texto}, Nív Consc: ${consc}, Dor: ${dor}`;
 
     let textoRelatorio = "";
 
     if (tipo === 'enfermeiro') {
-        const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%`;
-        
-        if (newsVal === 0) {
-            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News com Escore 0 (${classificacaoRisco}), paciente estável hemodinamicamente. Oriento verificar SSVV de 4/4 horas conforme rotina da unidade, comunicar intercorrências.`;
+        if (isentoEscore) {
+            textoRelatorio = `Em tempo, às ${hora} horas, realizo avaliação de SSVV aferidos pelo(a) técnico(a) ${nomeTecnico}: ${sinaisVitaisStr}. Paciente não avaliado seguindo escore de alerta NEWS, condição clínica de isenção conforme protocolo. Realizo visita no leito, paciente estável, sem queixas no momento e sem desconforto respiratório, comunico ao Médico Plantonista que avalia e orienta verificar SSVV a cada 4 horas, manter vigilância dos sintomas e comunicar intercorrências.`;
+        } else if (isAlertaSepse) {
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} sobre paciente apresentando sinais de alerta de sepse. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${newsVal}${temIsoladoTres ? ' (com parâmetro isolado crítico: ' + paramIsoladoDescricao + ')' : ''}. Realizo visita no leito, comunico à equipe médica e aciono protocolo institucional de sepse.`;
+        } else if (newsVal === 0) {
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News com Escore 0 (Estável). Sinais vitais: ${sinaisVitaisStr}, paciente estável hemodinamicamente. Oriento verificar SSVV de 4/4 horas conforme rotina da unidade, comunicar intercorrências.`;
         } else if (newsVal >= 1 && newsVal <= 3 && !temIsoladoTres) {
-            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico}, paciente avaliado seguindo escore de alerta NEWS e classificado como ${classificacaoRisco} (${newsVal}). Realizo visita no leito, paciente estável e sem queixas. Oriento verificar SSVV em 4h, conforme rotina da unidade, manter vigilância dos sintomas ou comunicar se intercorrências.`;
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico}, paciente avaliado seguindo escore de alerta NEWS e classificado como Baixo Risco (${newsVal}). Sinais vitais: ${sinaisVitaisStr}. Realizo visita no leito, paciente estável e sem queixas. Oriento verificar SSVV em 4h, conforme rotina da unidade, manter vigilância dos sintomas ou comunicar se intercorrências.`;
         } else if ((newsVal >= 4 && newsVal <= 5) || temIsoladoTres) {
-            textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News ${classificacaoRisco} (${newsVal}). Sinais vitais: ${sinaisVitais}. Realizo visita no leito, paciente estável, sem queixas, sem desconforto respiratório no momento. Comunico ao Dr. __________, que avalia e orienta aferir SSVV em 4h, manter vigilância dos sinais e sintomas, comunicar intercorrências.`;
+            textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pelo(a) técnico(a) ${nomeTecnico} que paciente apresenta News Médio Risco (${newsVal})${temIsoladoTres ? ' devido a parâmetro isolado crítico (' + paramIsoladoDescricao + ')' : ''}. Sinais vitais: ${sinaisVitaisStr}. Realizo visita no leito, paciente estável, sem queixas, sem desconforto respiratório no momento. Comunico ao médico plantonista, que avalia e orienta aferir SSVV em 4h, manter vigilância dos sinais e sintomas, comunicar intercorrências.`;
         } else {
-            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que o paciente apresenta News ${classificacaoRisco} (${newsVal}). Sinais vitais: ${sinaisVitais}. Realizo visita no leito, comunico ao Dr. __________, que avalia e orienta reavaliar SSVV, manter vigilância de sinais e sintomas, comunicar se intercorrências.`;
+            textoRelatorio = `Às ${hora} horas, sou comunicada pelo(a) técnico(a) ${nomeTecnico} que o paciente apresenta News Alto Risco (${newsVal}). Sinais vitais: ${sinaisVitaisStr}. Realizo visita no leito, comunico ao médico plantonista, que avalia e orienta reavaliar SSVV, manter vigilância de sinais e sintomas, comunicar intercorrências.`;
         }
     } else if (tipo === 'medico') {
-        const sinaisVitais = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}%, NEWS: ${newsVal} (${classificacaoRisco}), Dor: ${dor}`;
-        textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pela equipe de enfermagem acerca dos valores de sinais vitais (${sinaisVitais}). Orientada a equipe a manter as condutas conforme protocolo da unidade.`;
+        if (isentoEscore) {
+            textoRelatorio = `Em tempo, às ${hora} horas, ciente da avaliação de SSVV repassada pela enfermagem (${sinaisVitaisStr}). Paciente isento de escore NEWS conforme patologia de base. Realizada visita ao leito, paciente estável, orientada a manutenção da verificação de SSVV a cada 4 horas e comunicação imediata de intercorrências.`;
+        } else if (isAlertaSepse) {
+            textoRelatorio = `Em tempo, às ${hora} horas, sou comunicado(a) pela enfermagem (${nomeEnfermeiroLogado}) acerca de paciente com critérios de alerta de sepse. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${newsVal}${temIsoladoTres ? ' (com parâmetro isolado crítico: ' + paramIsoladoDescricao + ')' : ''}. Realizo avaliação clínica no leito, conduta instituída conforme protocolo de sepse.`;
+        } else if (newsVal === 0) {
+            textoRelatorio = `Em tempo, às ${hora} horas, ciente dos sinais vitais aferidos pela enfermagem (${sinaisVitaisStr}, NEWS ${newsVal} - Estável). Paciente sem agudos intercorrentes no momento, mantida monitorização padrão conforme rotina.`;
+        } else if (newsVal >= 1 && newsVal <= 3 && !temIsoladoTres) {
+            textoRelatorio = `Em tempo, às ${hora} horas, avalio dados de sinais vitais repassados pela enfermagem (${sinaisVitaisStr}, NEWS ${newsVal} - Baixo Risco). Paciente estável, orientado manter vigilância e reavaliar conforme evolução.`;
+        } else if ((newsVal >= 4 && newsVal <= 5) || temIsoladoTres) {
+            textoRelatorio = `Em tempo, às ${hora} horas, chamado(a) pela enfermagem para avaliação de paciente com NEWS ${newsVal} (Médio Risco)${temIsoladoTres ? ' com presença de parâmetro isolado crítico (' + paramIsoladoDescricao + ')' : ''}. Sinais vitais: ${sinaisVitaisStr}. Realizada visita ao leito, paciente estável no momento, orientada a manutenção de SSVV em 4h e comunicação imediata de intercorrências.`;
+        } else {
+            textoRelatorio = `Em tempo, às ${hora} horas, acionado(a) com urgência pela enfermagem para avaliação de paciente em Alto Risco (NEWS ${newsVal}). Sinais vitais: ${sinaisVitaisStr}. Realizada avaliação imediata no leito, ajustadas condutas terapêuticas e mantida monitorização contínua.`;
+        }
     }
 
     fecharSeletorRelatorio();
