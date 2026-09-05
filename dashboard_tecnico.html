@@ -654,12 +654,13 @@
                 else if (sat <= 93) score += 2;
                 else if (sat <= 95) score += 1;
             }
-            if (pPas.value !== "") {
+          if (pPas.value !== "") {
                 if (pas < 90) { score += 3; if (pPas) pPas.classList.add('input-destacado-alerta'); }
                 else if (pas >= 220) score += 3;
                 else if ((pas >= 90 && pas <= 100) || (pas >= 200 && pas <= 219)) score += 2;
-                else if (pas <= 110) score += 1;
+                else if (pas <= 110 || (pas >= 131 && pas <= 199)) score += 1;
             }
+            
             if (pFc.value !== "") {
                 if (fc <= 40 || fc >= 131) score += 3;
                 else if (fc >= 111) score += 2;
