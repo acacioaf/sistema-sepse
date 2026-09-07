@@ -597,6 +597,12 @@
             } else {
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) {
+                    // Adicione estas linhas para zerar os dados sempre que a caixa for aberta
+                    document.getElementById('novo-nome-paciente').value = "";
+                    document.getElementById('novo-dtnasc-paciente').value = "";
+                    document.getElementById('novo-setor-paciente').selectedIndex = 0;
+                    document.getElementById('novo-leito-paciente').selectedIndex = 0;
+
                     novoBox.style.display = 'block';
                     document.getElementById('novo-nome-paciente').focus();
                     verificarSetorOuIdade();
@@ -1113,9 +1119,13 @@
             if (modal) modal.style.display = 'none';
         }
 
-        function limparFormularioTecnico() {
+    function limparFormularioTecnico() {
             document.getElementById('input-prontuario').value = "";
             document.getElementById('input-enfermeiro').value = "";
+            
+            // Adicione a limpeza dos campos de novo paciente aqui:
+            document.getElementById('novo-nome-paciente').value = "";
+            document.getElementById('novo-dtnasc-paciente').value = "";
             
             ['pas', 'temp', 'fr', 'fc', 'sat', 'glicemia', 'pews-fc', 'pews-fr', 'pews-temp', 'glicemia-pews'].forEach(id => {
                 const el = document.getElementById(id);
