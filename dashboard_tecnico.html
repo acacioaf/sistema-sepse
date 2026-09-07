@@ -412,7 +412,6 @@
         let dataNascimentoPacienteAtual = "";
 
         document.addEventListener("DOMContentLoaded", () => {
-            // Exibe direto o nome salvo na tela de login anterior
             document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
             document.getElementById('input-prontuario').focus();
 
@@ -645,7 +644,6 @@
             let score = 0;
             let temParametroIsoladoTres = false;
 
-            // 1. FR
             if (pFr.value !== "") {
                 let ptsFr = 0;
                 if (fr <= 8 || fr >= 25) { ptsFr = 3; temParametroIsoladoTres = true; }
@@ -654,10 +652,8 @@
                 score += ptsFr;
             }
 
-            // 2. O2 Suplementar
             if (o2SimNao === "SIM") score += 2;
 
-            // 3. Saturação (SPO2)
             if (pSat.value !== "") {
                 let ptsSat = 0;
                 if (sat <= 91) { ptsSat = 3; temParametroIsoladoTres = true; }
@@ -666,7 +662,6 @@
                 score += ptsSat;
             }
 
-            // 4. PAS
             if (pPas.value !== "") {
                 let ptsPas = 0;
                 if (pas <= 90) { ptsPas = 3; temParametroIsoladoTres = true; if (pPas) pPas.classList.add('input-destacado-alerta'); }
@@ -678,7 +673,6 @@
                 score += ptsPas;
             }
             
-            // 5. FC
             if (pFc.value !== "") {
                 let ptsFc = 0;
                 if (fc <= 40) { ptsFc = 3; temParametroIsoladoTres = true; }
@@ -689,7 +683,6 @@
                 score += ptsFc;
             }
 
-            // 6. Temperatura (TC)
             if (pTemp.value !== "") {
                 let ptsTemp = 0;
                 if (temp <= 35.0) { ptsTemp = 3; temParametroIsoladoTres = true; }
@@ -699,7 +692,6 @@
                 score += ptsTemp;
             }
 
-            // 7. SNC
             let pConscVal = 0;
             if (consc === "VOZ, DOR OU NÃO REAGE") {
                 pConscVal = 3;
@@ -740,7 +732,7 @@
                 } else if ((score >= 4 && score <= 5) || temParametroIsoladoTres) {
                     corBg = "#fff3cd"; corTxt = "#856404"; corBorda = "#ffeeba";
                     titulo = `🟡 MÉDIO RISCO (4-5 / Isola 3)`;
-                    subtexto = `Solcilitar avaliação do enfermeiro imediatamente`;
+                    subtexto = `Solicitar avaliação do enfermeiro imediatamente`;
                 } else if (score >= 1 && score <= 3) {
                     corBg = "#d1ecf1"; corTxt = "#0c5460"; corBorda = "#bee5eb";
                     titulo = `🟢 BAIXO RISCO (1-3)`;
@@ -954,10 +946,11 @@
                 if (linhaExistente) {
                     linhaExistente.inputs = valoresVitaisForm;
                 } else {
+                    const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
                     pacienteAlvo.vitais.push({
                         hora: horaSelecionada,
                         inputs: valoresVitaisForm,
-                        isExtra: true
+                        isExtra: !horasPadrao.includes(horaSelecionada)
                     });
                 }
             } else {
@@ -972,6 +965,28 @@
                     return;
                 }
 
+                const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
+                let vitaisIniciais = horasPadrao.map(h => ({
+                    hora: h,
+                    inputs: Array(11).fill(""), 
+                    isExtra: false
+                }));
+
+                const isHoraExtra = !horasPadrao.includes(horaSelecionada);
+                
+                if (isHoraExtra) {
+                    vitaisIniciais.push({
+                        hora: horaSelecionada,
+                        inputs: valoresVitaisForm,
+                        isExtra: true
+                    });
+                } else {
+                    let indexPadrao = vitaisIniciais.findIndex(v => v.hora === horaSelecionada);
+                    if (indexPadrao !== -1) {
+                        vitaisIniciais[indexPadrao].inputs = valoresVitaisForm;
+                    }
+                }
+
                 const novoPacienteObj = {
                     setor: novoSetor,
                     leito: novoLeito,
@@ -982,13 +997,7 @@
                     enfermeiro: enfermeiro || "",
                     isento: false,
                     desfecho: "Internado",
-                    vitais: [
-                        {
-                            hora: horaSelecionada,
-                            inputs: valoresVitaisForm,
-                            isExtra: false
-                        }
-                    ]
+                    vitais: vitaisIniciais
                 };
                 listaPacientes.push(novoPacienteObj);
             }
@@ -1010,7 +1019,7 @@
             }
         }
 
-      function gerarRelatorioTecnico() {
+        function gerarRelatorioTecnico() {
             const hora = document.getElementById('select-hora').value === 'outro' ? document.getElementById('input-hora-custom').value : document.getElementById('select-hora').value;
             const enfermeiro = document.getElementById('input-enfermeiro').value.trim() || "[Nome do Enfermeiro]";
             
@@ -1044,7 +1053,6 @@
                     temIsoladoTres = true;
                 }
 
-                // Critérios de Alerta de Sepse
                 let sirsCount = 0;
                 if (cVal > 90) sirsCount++;
                 if (fVal > 20) sirsCount++;
@@ -1057,11 +1065,8 @@
                 const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pVal > 0 && pVal < 90) || sepseSat);
 
                 const usoO2Texto = o2SimNao.toUpperCase() === "SIM" ? "Usa O₂ suplementar" : "Não usa O₂ suplementar";
-                
-                // STRING COMPLETA COM OS SINAIS VITAIS E A ESCALA DE DOR INCLUSAS
                 const sinaisVitaisStr = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}% (${usoO2Texto}), Nív Consc: ${consc}, Dor: ${dor}`;
 
-                // SELEÇÃO DO MODELO DE RELATÓRIO COM OS SINAIS VITAIS E DOR
                 if (isAlertaSepse) {
                     texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreVal}. Segue orientações conforme protocolo da unidade.`;
                 } else if (escoreVal === 0) {
