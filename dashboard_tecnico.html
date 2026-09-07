@@ -539,7 +539,7 @@
             verificarSetorOuIdade();
         }
 
-        async function buscarPacientePorProntuario() {
+       async function buscarPacientePorProntuario() {
             const prontuarioInput = document.getElementById('input-prontuario').value.trim();
             const infoBox = document.getElementById('paciente-info');
             const novoBox = document.getElementById('novo-paciente-container');
@@ -561,9 +561,8 @@
             let pacienteEncontrado = null;
             let setorEncontrado = null;
             let leitoEncontrado = null;
-            let jaCadastradoHoje = false;
 
-            // 1. Procura primeiro no plantão de hoje
+            // 1. Tenta buscar primeiro no plantão de hoje
             const { data: plantaoAtual } = await _supabase
                 .from('plantoes')
                 .select('dados_json')
@@ -577,17 +576,16 @@
                     setorEncontrado = pHoje.setor;
                     leitoEncontrado = pHoje.leito || "01";
                     dataNascimentoPacienteAtual = pHoje.dtNasc || "";
-                    jaCadastradoHoje = true;
                 }
             }
 
-            // 2. Se não achou hoje, varre o histórico de plantões anteriores (dias atrás)
+            // 2. Se não achou hoje, busca em todo o histórico de dias anteriores
             if (!pacienteEncontrado) {
                 const { data: historicoPlantoes } = await _supabase
                     .from('plantoes')
                     .select('dados_json')
                     .order('data_chave', { ascending: false })
-                    .limit(30); // Busca nos últimos 30 dias de histórico
+                    .limit(30);
 
                 if (historicoPlantoes && historicoPlantoes.length > 0) {
                     for (const plantao of historicoPlantoes) {
@@ -606,37 +604,24 @@
             }
 
             if (pacienteEncontrado && pacienteEncontrado.nome) {
-                if (jaCadastradoHoje) {
-                    // Se já foi lançado hoje, exibe apenas a caixinha azul informativa padrão
-                    document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
-                    document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
-                    
-                    let idadeTexto = "";
-                    let ehPed = (setorEncontrado === 'enf-pediatria');
-                    if (dataNascimentoPacienteAtual) {
-                        const idadeVal = calcularIdadeAnos(dataNascimentoPacienteAtual);
-                        idadeTexto = ` — ${idadeVal} anos`;
-                        if (idadeVal < 18) ehPed = true;
-                    }
-                    document.getElementById('span-idade-info').textContent = idadeTexto;
-
-                    if (infoBox) infoBox.style.display = 'block';
-                    if (novoBox) novoBox.style.display = 'none';
-                    alternarModoFormulario(ehPed);
-                } else {
-                    // Se veio de dias atrás, abre a caixa laranja JÁ PREENCHIDA com o nome, data, setor e leito anteriores
-                    if (infoBox) infoBox.style.display = 'none';
-                    if (novoBox) {
-                        novoBox.style.display = 'block';
-                        document.getElementById('novo-nome-paciente').value = pacienteEncontrado.nome;
-                        document.getElementById('novo-dtnasc-paciente').value = dataNascimentoPacienteAtual;
-                        document.getElementById('novo-setor-paciente').value = setorEncontrado;
-                        document.getElementById('novo-leito-paciente').value = leitoEncontrado;
-                        verificarSetorOuIdade();
-                    }
+                // SE JÁ EXISTE (hoje ou no histórico): Exibe direto a caixinha AZUL, idêntica à da sua imagem
+                document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
+                document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
+                
+                let idadeTexto = "";
+                let ehPed = (setorEncontrado === 'enf-pediatria');
+                if (dataNascimentoPacienteAtual) {
+                    const idadeVal = calcularIdadeAnos(dataNascimentoPacienteAtual);
+                    idadeTexto = ` — ${idadeVal} anos`;
+                    if (idadeVal < 18) ehPed = true;
                 }
+                document.getElementById('span-idade-info').textContent = idadeTexto;
+
+                if (infoBox) infoBox.style.display = 'block';
+                if (novoBox) novoBox.style.display = 'none';
+                alternarModoFormulario(ehPed);
             } else {
-                // Se realmente nunca existiu em lugar nenhum, abre limpo para cadastro novo
+                // SE REALMENTE NUNCA EXISTIU: Abre a caixa laranja para novo cadastro
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) {
                     document.getElementById('novo-nome-paciente').value = "";
