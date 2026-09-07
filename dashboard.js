@@ -5,6 +5,24 @@ const SUPABASE_ANON_KEY = 'sb_publishable_er3si1epfRHUz8SQP26B1A__aFx0cTy';
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// --- DELEGAÇÃO GLOBAL CORRIGIDA ---
+document.body.addEventListener('focusout', (e) => {
+    if (e.target.matches('input, textarea, select')) {
+        // Agora passamos a variável 'dataSelecionadaStr' para salvar no dia correto!
+        if (typeof salvarDadosDoDia === 'function' && typeof dataSelecionadaStr !== 'undefined') {
+            salvarDadosDoDia(dataSelecionadaStr);
+        }
+    }
+});
+
+document.body.addEventListener('change', (e) => {
+    if (e.target.matches('select, input[type="checkbox"], input[type="radio"]')) {
+        if (typeof salvarDadosDoDia === 'function' && typeof dataSelecionadaStr !== 'undefined') {
+            salvarDadosDoDia(dataSelecionadaStr);
+        }
+    }
+});
+
 // --- VARIÁVEIS DE CONTROLE DE RELATÓRIO ---
 let linhaAtualParaRelatorio = null;
 let nomesUnicosMes = new Set();
@@ -648,7 +666,7 @@ async function salvarDadosDoDia(dataChave) {
 
     const dadosGerais = [];
 
-    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)').forEach(aba => {
+    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse):not(#aba-dimensionamento)').forEach(aba => {
         const idSetor = aba.id;
         aba.querySelectorAll('.patient-card').forEach(card => {
             const nome = card.querySelector('.nome-input')?.value || "";
@@ -713,7 +731,7 @@ async function carregarDadosDoDia(dataChave) {
         .eq('data_chave', dataChave)
         .maybeSingle();
 
-    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse)').forEach(aba => {
+    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse):not(#aba-dimensionamento)').forEach(aba => {
         const container = aba.querySelector('.patients-container');
         if (!container) return;
 
@@ -1986,7 +2004,8 @@ async function atualizarPainelCentral() {
     const listaProtocolosAtivosMap = new Map();
     const agoraRelogio = new Date();
 
-    document.querySelectorAll('.tab-pane:not(#aba-auditoria-sepse) .patient-card').forEach(card => {
+    // EXCLUÍDAS AS ABAS DE SUPORTE DA CONTAGEM DE LEITOS ATIVOS
+    document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse):not(#aba-dimensionamento) .patient-card').forEach(card => {
         const inputNome = card.querySelector('.nome-input');
         const nome = inputNome ? inputNome.value.trim() : "";
 
@@ -2238,7 +2257,8 @@ async function atualizarTextoRelatorioGerencial() {
             outros: 0
         };
 
-        document.querySelectorAll('.patient-card').forEach(card => {
+        // EXCLUÍDAS AS ABAS DE SUPORTE DO RELATÓRIO DIÁRIO
+        document.querySelectorAll('.tab-pane:not(#painel-central):not(#aba-auditoria-sepse):not(#aba-dimensionamento) .patient-card').forEach(card => {
             const nome = card.querySelector('.nome-input')?.value.trim();
             const isento = card.querySelector('.isento-relatorio')?.checked;
             if (nome) {
