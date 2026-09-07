@@ -241,7 +241,7 @@
             </div>
 
             <div id="novo-paciente-container" class="novo-paciente-box">
-                <div style="font-size: 0.78rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário recuperado de plantão anterior. Confirme os dados:</div>
+                <div style="font-size: 0.78rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário já cadastrado anteriormente. Confirme os dados para hoje:</div>
                 <div class="form-row" style="margin-bottom: 6px;">
                     <div class="form-group" style="flex: 2;">
                         <label>NOME DO PACIENTE</label>
@@ -568,6 +568,7 @@
             let pacienteEncontrado = null;
             let setorEncontrado = null;
             let leitoEncontrado = null;
+            let jaExisteHoje = false;
 
             if (plantaoAtual && plantaoAtual.dados_json && Array.isArray(plantaoAtual.dados_json)) {
                 for (const p of plantaoAtual.dados_json) {
@@ -576,6 +577,7 @@
                         setorEncontrado = p.setor;
                         leitoEncontrado = p.leito || "01";
                         dataNascimentoPacienteAtual = p.dtNasc || "";
+                        jaExisteHoje = true;
                         break;
                     }
                 }
@@ -605,9 +607,8 @@
                 }
             }
 
-            if (pacienteEncontrado) {
-                // Se já estava hoje, mostra direto na caixinha azul informativa
-                if (plantaoAtual && plantaoAtual.dados_json && plantaoAtual.dados_json.some(p => p.prontuario && p.prontuario.toString().trim() === prontuarioInput)) {
+            if (pacienteEncontrado && pacienteEncontrado.nome) {
+                if (jaExisteHoje) {
                     document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
                     document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
                     
@@ -624,11 +625,11 @@
                     if (novoBox) novoBox.style.display = 'none';
                     alternarModoFormulario(ehPed);
                 } else {
-                    // Se veio de dias anteriores, joga os dados preenchidos na caixa de cadastro para confirmação rápida
+                    // Preenche automaticamente os inputs da caixa laranja com os dados resgatados do histórico
                     if (infoBox) infoBox.style.display = 'none';
                     if (novoBox) {
                         novoBox.style.display = 'block';
-                        document.getElementById('novo-nome-paciente').value = pacienteEncontrado.nome || "";
+                        document.getElementById('novo-nome-paciente').value = pacienteEncontrado.nome;
                         document.getElementById('novo-dtnasc-paciente').value = dataNascimentoPacienteAtual;
                         document.getElementById('novo-setor-paciente').value = setorEncontrado;
                         document.getElementById('novo-leito-paciente').value = leitoEncontrado;
