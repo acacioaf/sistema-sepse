@@ -545,6 +545,7 @@
             const novoBox = document.getElementById('novo-paciente-container');
 
             dataNascimentoPacienteAtual = "";
+            window.pacienteHistoricoEncontrado = null; // Reseta
 
             if (!prontuarioInput) {
                 if (infoBox) infoBox.style.display = 'none';
@@ -604,7 +605,8 @@
             }
 
             if (pacienteEncontrado && pacienteEncontrado.nome) {
-                // SE JÁ EXISTE (hoje ou no histórico): Exibe direto a caixinha AZUL, idêntica à da sua imagem
+                window.pacienteHistoricoEncontrado = pacienteEncontrado; // Salva na memória global
+
                 document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
                 document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
                 
@@ -621,7 +623,6 @@
                 if (novoBox) novoBox.style.display = 'none';
                 alternarModoFormulario(ehPed);
             } else {
-                // SE REALMENTE NUNCA EXISTIU: Abre a caixa laranja para novo cadastro
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) {
                     document.getElementById('novo-nome-paciente').value = "";
@@ -975,6 +976,7 @@
             let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
 
             if (pacienteAlvo) {
+                // Se já existe no plantão de hoje, apenas atualiza os sinais vitais
                 pacienteAlvo.tec = tecnicoLogadoGlobal;
                 if (enfermeiro) pacienteAlvo.enfermeiro = enfermeiro;
 
@@ -990,14 +992,30 @@
                     });
                 }
             } else {
-                const novoNome = document.getElementById('novo-nome-paciente')?.value.trim();
-                const novaDtNasc = document.getElementById('novo-dtnasc-paciente')?.value || "";
-                const novoSetor = document.getElementById('novo-setor-paciente')?.value || 'corredor';
-                const novoLeito = document.getElementById('novo-leito-paciente')?.value || '01';
+                // Se veio do histórico (caixinha azul) ou é novo cadastro (caixinha laranja)
+                let nomePacienteFinal = "";
+                let dtNascFinal = "";
+                let setorFinal = "corredor";
+                let leitoFinal = "01";
 
-                if (!novoNome) {
-                    alert("⚠️ Prontuário não encontrado. Preencha o Nome e o Setor para cadastrar o novo paciente.");
-                    document.getElementById('novo-nome-paciente').focus();
+                const infoBoxVisivel = document.getElementById('paciente-info').style.display === 'block';
+
+                if (infoBoxVisivel && window.pacienteHistoricoEncontrado) {
+                    // Pega os dados direto do paciente recuperado do histórico
+                    nomePacienteFinal = window.pacienteHistoricoEncontrado.nome;
+                    dtNascFinal = window.pacienteHistoricoEncontrado.dtNasc || "";
+                    setorFinal = window.pacienteHistoricoEncontrado.setor || "corredor";
+                    leitoFinal = window.pacienteHistoricoEncontrado.leito || "01";
+                } else {
+                    // Pega os dados da caixa laranja de novo cadastro
+                    nomePacienteFinal = document.getElementById('novo-nome-paciente')?.value.trim();
+                    dtNascFinal = document.getElementById('novo-dtnasc-paciente')?.value || "";
+                    setorFinal = document.getElementById('novo-setor-paciente')?.value || 'corredor';
+                    leitoFinal = document.getElementById('novo-leito-paciente')?.value || '01';
+                }
+
+                if (!nomePacienteFinal) {
+                    alert("⚠️ Nome do paciente não identificado. Preencha ou selecione o prontuário corretamente.");
                     return;
                 }
 
@@ -1024,10 +1042,10 @@
                 }
 
                 const novoPacienteObj = {
-                    setor: novoSetor,
-                    leito: novoLeito,
-                    nome: novoNome,
-                    dtNasc: novaDtNasc,
+                    setor: setorFinal,
+                    leito: leitoFinal,
+                    nome: nomePacienteFinal,
+                    dtNasc: dtNascFinal,
                     prontuario: prontuario,
                     tec: tecnicoLogadoGlobal,
                     enfermeiro: enfermeiro || "",
