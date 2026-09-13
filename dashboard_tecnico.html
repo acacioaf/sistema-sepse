@@ -193,6 +193,14 @@
             max-width: 90%;
             box-shadow: 0 4px 20px rgba(0,0,0,0.25);
         }
+
+        .buscando-indicator {
+            font-size: 0.72rem;
+            color: #0056b3;
+            font-style: italic;
+            margin-top: 2px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -213,6 +221,7 @@
                 <div class="form-group" style="flex: 2;">
                     <label>Nº PRONTUÁRIO</label>
                     <input type="text" id="input-prontuario" placeholder="Digite..." autofocus>
+                    <span id="lbl-buscando" class="buscando-indicator">🔍 Buscando paciente...</span>
                 </div>
                 <div class="form-group" style="flex: 1;">
                     <label>HORÁRIO</label>
@@ -300,18 +309,18 @@
             
             <div id="bloco-campos-news">
                 <div class="form-row">
-                    <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas"></div>
-                    <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp"></div>
+                    <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas" min="40" max="300"></div>
+                    <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp" min="30" max="45"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr"></div>
-                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc"></div>
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr" min="5" max="60"></div>
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc" min="20" max="250"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>O₂ Suplementar?</label>
                         <select id="o2"><option selected></option><option>Sim</option><option>Não</option></select>
                     </div>
-                    <div class="form-group"><label>Sat %</label><input type="number" id="sat"></div>
+                    <div class="form-group"><label>Sat %</label><input type="number" id="sat" min="50" max="100"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex: 2;"><label>Nível de Consciência</label>
@@ -322,14 +331,14 @@
                             <option>VOZ, DOR OU NÃO REAGE</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia"></div>
+                    <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia" min="10" max="1000"></div>
                 </div>
             </div>
 
             <div id="bloco-campos-pews" style="display: none;">
                 <div class="form-row">
-                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc"></div>
-                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="pews-fr"></div>
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc" min="30" max="300"></div>
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="pews-fr" min="5" max="100"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -361,11 +370,11 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>TEMP (°C)</label><input type="number" step="0.1" id="pews-temp">
+                        <label>TEMP (°C)</label><input type="number" step="0.1" id="pews-temp" min="30" max="45">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Glicemia (Opcional)</label><input type="number" id="glicemia-pews"></div>
+                    <div class="form-group"><label>Glicemia (Opcional)</label><input type="number" id="glicemia-pews" min="10" max="1000"></div>
                 </div>
             </div>
 
@@ -400,7 +409,7 @@
     <div id="modal-relatorio">
         <div class="modal-box">
             <h3 style="color: #003366; margin-top: 0; font-size: 1.1rem;">📋 Relatório para Lançamento</h3>
-            <textarea id="texto-relatorio-gerado" style="width: 100%; height: 130px; padding: 10px; font-size: 0.88rem; border: 1px solid #ccc; border-radius: 4px; resize: none; box-sizing: border-box; background: #f8fafc;" readonly></textarea>
+            <textarea id="texto-relatorio-gerado" style="width: 100%; height: 130px; padding: 10px; font-size: 0.88rem; border: 1px solid #ccc; border-radius: 4px; resize: none; box-sizing: border-box; background: #fff;" placeholder="Edite o relatório aqui se necessário..."></textarea>
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
                 <button id="btn-copiar-texto" style="background: #28a745; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">📋 Copiar Texto</button>
                 <button id="btn-fechar-modal" style="background: #64748b; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">Fechar</button>
@@ -421,6 +430,12 @@
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
             document.getElementById('input-prontuario').focus();
+
+            // Auto-preenchimento do último enfermeiro salvo no localStorage
+            const ultimoEnfermeiroSalvo = localStorage.getItem('ultimo_enfermeiro_plantao');
+            if (ultimoEnfermeiroSalvo) {
+                document.getElementById('input-enfermeiro').value = ultimoEnfermeiroSalvo;
+            }
 
             const selectHora = document.getElementById('select-hora');
             const inputHoraCustom = document.getElementById('input-hora-custom');
@@ -566,11 +581,40 @@
             verificarSetorOuIdade();
         }
 
+        function validarLimitesBiologicos() {
+            const campos = [
+                { id: 'pas', min: 40, max: 300, nome: 'PAS' },
+                { id: 'temp', min: 30, max: 45, nome: 'Temperatura' },
+                { id: 'fr', min: 5, max: 60, nome: 'FR' },
+                { id: 'fc', min: 20, max: 250, nome: 'FC' },
+                { id: 'sat', min: 50, max: 100, nome: 'SatO₂' },
+                { id: 'glicemia', min: 10, max: 1000, nome: 'Glicemia' },
+                { id: 'pews-fc', min: 30, max: 300, nome: 'FC Pediátrica' },
+                { id: 'pews-fr', min: 5, max: 100, nome: 'FR Pediátrica' },
+                { id: 'pews-temp', min: 30, max: 45, nome: 'Temperatura Pediátrica' },
+                { id: 'glicemia-pews', min: 10, max: 1000, nome: 'Glicemia Pediátrica' }
+            ];
+
+            for (let item of campos) {
+                const el = document.getElementById(item.id);
+                if (el && el.value !== "") {
+                    const val = parseFloat(el.value);
+                    if (val < item.min || val > item.max) {
+                        alert(`⚠️ Valor incomum ou fora dos limites para ${item.nome} (${val}). Por favor, verifique a digitação.`);
+                        el.focus();
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         async function buscarPacientePorProntuario() {
             const prontuarioInput = document.getElementById('input-prontuario').value.trim();
             const infoBox = document.getElementById('paciente-info');
             const novoBox = document.getElementById('novo-paciente-container');
             const checkboxIsento = document.getElementById('check-paciente-isento');
+            const lblBuscando = document.getElementById('lbl-buscando');
 
             dataNascimentoPacienteAtual = "";
             window.pacienteHistoricoEncontrado = null;
@@ -579,8 +623,11 @@
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) novoBox.style.display = 'none';
                 if (checkboxIsento) checkboxIsento.checked = false;
+                if (lblBuscando) lblBuscando.style.display = 'none';
                 return;
             }
+
+            if (lblBuscando) lblBuscando.style.display = 'block';
 
             const dataAtual = new Date();
             const ano = dataAtual.getFullYear();
@@ -592,45 +639,49 @@
             let setorEncontrado = null;
             let leitoEncontrado = null;
 
-            // 1. Tenta buscar primeiro no plantão de hoje
-            const { data: plantaoAtual } = await _supabase
-                .from('plantoes')
-                .select('dados_json')
-                .eq('data_chave', hojeStr)
-                .maybeSingle();
-
-            if (plantaoAtual && plantaoAtual.dados_json && Array.isArray(plantaoAtual.dados_json)) {
-                const pHoje = plantaoAtual.dados_json.find(p => p.prontuario && p.prontuario.toString().trim() === prontuarioInput);
-                if (pHoje) {
-                    pacienteEncontrado = pHoje;
-                    setorEncontrado = pHoje.setor;
-                    leitoEncontrado = pHoje.leito || "01";
-                    dataNascimentoPacienteAtual = pHoje.dtNasc || "";
-                }
-            }
-
-            // 2. Se não achou hoje, busca em todo o histórico de dias anteriores
-            if (!pacienteEncontrado) {
-                const { data: historicoPlantoes } = await _supabase
+            try {
+                const { data: plantaoAtual } = await _supabase
                     .from('plantoes')
                     .select('dados_json')
-                    .order('data_chave', { ascending: false })
-                    .limit(30);
+                    .eq('data_chave', hojeStr)
+                    .maybeSingle();
 
-                if (historicoPlantoes && historicoPlantoes.length > 0) {
-                    for (const plantao of historicoPlantoes) {
-                        if (plantao.dados_json && Array.isArray(plantao.dados_json)) {
-                            const pAntigo = plantao.dados_json.find(p => p.prontuario && p.prontuario.toString().trim() === prontuarioInput);
-                            if (pAntigo) {
-                                pacienteEncontrado = pAntigo;
-                                setorEncontrado = pAntigo.setor || 'corredor';
-                                leitoEncontrado = pAntigo.leito || '01';
-                                dataNascimentoPacienteAtual = pAntigo.dtNasc || "";
-                                break;
+                if (plantaoAtual && plantaoAtual.dados_json && Array.isArray(plantaoAtual.dados_json)) {
+                    const pHoje = plantaoAtual.dados_json.find(p => p.prontuario && p.prontuario.toString().trim() === prontuarioInput);
+                    if (pHoje) {
+                        pacienteEncontrado = pHoje;
+                        setorEncontrado = pHoje.setor;
+                        leitoEncontrado = pHoje.leito || "01";
+                        dataNascimentoPacienteAtual = pHoje.dtNasc || "";
+                    }
+                }
+
+                if (!pacienteEncontrado) {
+                    const { data: historicoPlantoes } = await _supabase
+                        .from('plantoes')
+                        .select('dados_json')
+                        .order('data_chave', { ascending: false })
+                        .limit(30);
+
+                    if (historicoPlantoes && historicoPlantoes.length > 0) {
+                        for (const plantao of historicoPlantoes) {
+                            if (plantao.dados_json && Array.isArray(plantao.dados_json)) {
+                                const pAntigo = plantao.dados_json.find(p => p.prontuario && p.prontuario.toString().trim() === prontuarioInput);
+                                if (pAntigo) {
+                                    pacienteEncontrado = pAntigo;
+                                    setorEncontrado = pAntigo.setor || 'corredor';
+                                    leitoEncontrado = pAntigo.leito || '01';
+                                    dataNascimentoPacienteAtual = pAntigo.dtNasc || "";
+                                    break;
+                                }
                             }
                         }
                     }
                 }
+            } catch (err) {
+                console.error("Erro na busca do prontuário:", err);
+            } finally {
+                if (lblBuscando) lblBuscando.style.display = 'none';
             }
 
             if (pacienteEncontrado && pacienteEncontrado.nome) {
@@ -964,6 +1015,8 @@
         }
 
         async function enviarDadosParaPlanilha() {
+            if (!validarLimitesBiologicos()) return;
+
             const btnEnviarEl = document.querySelector('.btn-enviar');
             const prontuario = document.getElementById('input-prontuario').value.trim();
             const selectHora = document.getElementById('select-hora').value;
@@ -981,6 +1034,11 @@
             if (!horaSelecionada) {
                 alert("⚠️ Por favor, selecione ou informe o horário do registro.");
                 return;
+            }
+
+            // Salva o último enfermeiro digitado no localStorage para auto-preenchimento futuro
+            if (enfermeiro) {
+                localStorage.setItem('ultimo_enfermeiro_plantao', enfermeiro);
             }
 
             if (btnEnviarEl) {
@@ -1062,7 +1120,6 @@
                     }
                 } else {
                     let nomePacienteFinal = "";
-                    let dtNascFinal = "";
                     let setorFinal = "corredor";
                     let leitoFinal = "01";
 
@@ -1070,12 +1127,10 @@
 
                     if (infoBoxVisivel && window.pacienteHistoricoEncontrado) {
                         nomePacienteFinal = window.pacienteHistoricoEncontrado.nome;
-                        dtNascFinal = window.pacienteHistoricoEncontrado.dtNasc || "";
                         setorFinal = window.pacienteHistoricoEncontrado.setor || "corredor";
                         leitoFinal = window.pacienteHistoricoEncontrado.leito || "01";
                     } else {
                         nomePacienteFinal = document.getElementById('novo-nome-paciente')?.value.trim();
-                        dtNascFinal = document.getElementById('novo-dtnasc-paciente')?.value || "";
                         setorFinal = document.getElementById('novo-setor-paciente')?.value || 'corredor';
                         leitoFinal = document.getElementById('novo-leito-paciente')?.value || '01';
                     }
@@ -1111,7 +1166,7 @@
                         setor: setorFinal,
                         leito: leitoFinal,
                         nome: nomePacienteFinal,
-                        dtNasc: dtNascFinal,
+                        dtNasc: document.getElementById('novo-dtnasc-paciente')?.value || "",
                         prontuario: prontuario,
                         tec: tecnicoLogadoGlobal,
                         enfermeiro: enfermeiro || "",
@@ -1140,7 +1195,22 @@
 
             } catch (erro) {
                 console.error("Erro ao enviar dados:", erro);
-                alert("❌ Erro ao enviar dados para a planilha: " + erro.message);
+                try {
+                    const dadosOffline = {
+                        prontuario,
+                        hora: horaSelecionada,
+                        enfermeiro,
+                        isento: isIsento,
+                        data: new Date().toISOString()
+                    };
+                    let filaOffline = JSON.parse(localStorage.getItem('fila_offline_sinais') || '[]');
+                    filaOffline.push(dadosOffline);
+                    localStorage.setItem('fila_offline_sinais', JSON.stringify(filaOffline));
+                    alert("⚠️ Falha na conexão com o servidor. Seus dados foram salvos temporariamente no navegador (Modo Offline) e serão sincronizados assim que houver rede.");
+                    limparFormularioTecnico();
+                } catch (errStorage) {
+                    alert("❌ Erro ao enviar dados e falha ao salvar localmente: " + erro.message);
+                }
             } finally {
                 if (btnEnviarEl) {
                     btnEnviarEl.disabled = false;
@@ -1249,7 +1319,7 @@
 
         function limparFormularioTecnico() {
             document.getElementById('input-prontuario').value = "";
-            document.getElementById('input-enfermeiro').value = "";
+            
             const checkboxIsento = document.getElementById('check-paciente-isento');
             if (checkboxIsento) checkboxIsento.checked = false;
             
@@ -1275,6 +1345,11 @@
             const novoBox = document.getElementById('novo-paciente-container');
             if (infoBox) infoBox.style.display = 'none';
             if (novoBox) novoBox.style.display = 'none';
+
+            const ultimoEnfermeiroSalvo = localStorage.getItem('ultimo_enfermeiro_plantao');
+            if (ultimoEnfermeiroSalvo) {
+                document.getElementById('input-enfermeiro').value = ultimoEnfermeiroSalvo;
+            }
 
             document.getElementById('input-prontuario').focus();
         }
