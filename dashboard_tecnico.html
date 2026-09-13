@@ -26,22 +26,25 @@
             padding: 12px 20px;
             text-align: center;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 1.1rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .main-form {
             max-width: 580px;
             width: 100%;
-            margin: 15px auto;
+            margin: 12px auto;
             background: #fff;
-            padding: 20px 25px;
+            padding: 15px 20px;
             border-radius: 8px;
             border: 1px solid #ddd;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             box-sizing: border-box;
             overflow-y: auto;
-            max-height: calc(100vh - 70px);
+            max-height: calc(100vh - 65px);
         }
 
         .step-section {
@@ -51,7 +54,7 @@
         }
 
         .step-title {
-            font-size: 0.8rem;
+            font-size: 0.9rem; /* Fonte aumentada */
             font-weight: bold;
             color: #0056b3;
             text-transform: uppercase;
@@ -62,34 +65,67 @@
         }
 
         .form-row { display: flex; gap: 12px; margin-bottom: 8px; }
-        .form-group { flex: 1; }
+        .form-group { flex: 1; position: relative; }
         
         .form-group label { 
             display: block; 
-            font-size: 0.75rem; 
+            font-size: 0.85rem; /* Fonte aumentada para leitura nítida */
             color: #555; 
-            margin-bottom: 3px; 
+            margin-bottom: 4px; 
             font-weight: 600; 
         }
 
+        /* Equilíbrio: Letras grandes com espaçamento interno controlado para não estourar a tela */
         .form-group input, .form-group select {
             width: 100%;
-            padding: 7px 10px;
+            padding: 8px 10px; 
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 0.88rem;
+            font-size: 1rem; /* Letras maiores e mais confortáveis */
             color: #333;
             box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #f97316;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+            background-color: #fffaf5;
+        }
+
+        .campo-invalido {
+            border-color: #dc3545 !important;
+            background-color: rgba(220, 53, 69, 0.05) !important;
+            box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2) !important;
+        }
+
+        .input-icon-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-icon-container .icon-lupa {
+            position: absolute;
+            right: 10px;
+            color: #0056b3;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        
+        .input-icon-container input {
+            padding-right: 32px;
         }
 
         .paciente-info-box {
             display: none;
             background: #e6f0fa;
-            padding: 6px 10px;
+            padding: 8px 10px;
             border-radius: 4px;
             border-left: 3px solid #0056b3;
             margin-top: 6px;
-            font-size: 0.82rem;
+            font-size: 0.9rem; /* Fonte aumentada */
             color: #003366;
             font-weight: 600;
         }
@@ -116,16 +152,17 @@
 
         .news-preview-input {
             width: 55px !important;
-            font-size: 1.2rem !important;
+            font-size: 1.3rem !important; /* Destaque maior no número do escore */
             font-weight: bold;
             text-align: center;
             border-radius: 4px;
             border: 1px solid #cbd5e1;
             padding: 2px !important;
+            background: #fff;
         }
 
         .status-alerta-texto {
-            font-size: 0.82rem;
+            font-size: 0.9rem; /* Fonte aumentada */
             font-weight: bold;
             padding: 8px 12px;
             border-radius: 4px;
@@ -142,7 +179,7 @@
         }
 
         .status-alerta-texto .subtexto-conduta {
-            font-size: 0.72rem;
+            font-size: 0.78rem;
             font-weight: normal;
             margin-top: 2px;
             opacity: 0.9;
@@ -161,26 +198,62 @@
 
         .btn-acao {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             border: none;
             border-radius: 4px;
             font-weight: bold;
-            font-size: 0.85rem;
+            font-size: 0.95rem; /* Botões mais legíveis */
             cursor: pointer;
             color: white;
             text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.1s;
         }
+        
+        .btn-acao:active { transform: scale(0.98); }
         .btn-enviar { background: #0056b3; }
         .btn-enviar:hover { background: #004494; }
-        
         .btn-relatorio { background: #17a2b8; }
         .btn-relatorio:hover { background: #138496; }
+
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            min-width: 280px;
+            max-width: 400px;
+            padding: 14px 18px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast.error { background-color: #dc3545; border-left: 6px solid #a71d2a; }
+        .toast.success { background-color: #28a745; border-left: 6px solid #145523; }
+        .toast.warning { background-color: #ffc107; color: #333; border-left: 6px solid #d39e00; }
 
         #modal-relatorio {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             z-index: 9999;
             justify-content: center;
             align-items: center;
@@ -191,28 +264,46 @@
             border-radius: 8px;
             width: 480px;
             max-width: 90%;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 25px rgba(0,0,0,0.3);
         }
 
         .buscando-indicator {
-            font-size: 0.72rem;
+            font-size: 0.78rem;
             color: #0056b3;
             font-style: italic;
             margin-top: 2px;
             display: none;
         }
+
+        .btn-instalar-app {
+            background: #f97316;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: none; 
+            gap: 5px;
+            align-items: center;
+        }
+        .btn-instalar-app:hover { background: #ea580c; }
     </style>
 </head>
 <body>
 
+    <div id="toast-container"></div>
+
     <header class="header-tecnico">
-        LANÇAMENTO RÁPIDO DE SINAIS VITAIS
+        <span>LANÇAMENTO RÁPIDO DE SINAIS VITAIS</span>
+        <button id="btn-instalar-pwa" class="btn-instalar-app">📲 Instalar App</button>
     </header>
 
     <main class="main-form" id="form-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.8rem; color: #666; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.85rem; color: #666; background: #f8fafc; padding: 6px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
             <span>Técnico Responsável: <strong id="lbl-tecnico-logado" style="color: #003366;">---</strong></span>
-            <button onclick="sairDoPainel()" style="background: none; border: none; color: #dc3545; font-weight: bold; cursor: pointer; font-size: 0.75rem;">Sair / Trocar</button>
+            <button onclick="sairDoPainel()" style="background: none; border: none; color: #dc3545; font-weight: bold; cursor: pointer; font-size: 0.85rem;">Sair / Trocar</button>
         </div>
 
         <div class="step-section">
@@ -220,7 +311,10 @@
             <div class="form-row">
                 <div class="form-group" style="flex: 2;">
                     <label>Nº PRONTUÁRIO</label>
-                    <input type="text" id="input-prontuario" placeholder="Digite..." autofocus>
+                    <div class="input-icon-container">
+                        <input type="text" id="input-prontuario" inputmode="numeric" placeholder="Digite..." autofocus>
+                        <span class="icon-lupa" onclick="buscarPacientePorProntuario()" title="Buscar Paciente">🔍</span>
+                    </div>
                     <span id="lbl-buscando" class="buscando-indicator">🔍 Buscando paciente...</span>
                 </div>
                 <div class="form-group" style="flex: 1;">
@@ -232,7 +326,7 @@
                         <option value="20:00">20:00</option>
                         <option value="00:00">00:00</option>
                         <option value="04:00">04:00</option>
-                        <option value="outro">Outro (Digitar...)</option>
+                        <option value="outro">Outro...</option>
                     </select>
                     <input type="time" id="input-hora-custom" style="display: none; margin-top: 5px; width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;" placeholder="HH:mm">
                 </div>
@@ -245,10 +339,9 @@
                 </div>
             </div>
 
-            <!-- Checkbox de Isenção de Escores -->
             <div class="form-row" style="margin-top: 6px; margin-bottom: 0;">
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="check-paciente-isento" style="width: auto; cursor: pointer;" onchange="alternarModoIsento()">
+                    <input type="checkbox" id="check-paciente-isento" style="width: 16px; height: 16px; cursor: pointer;" onchange="alternarModoIsento()">
                     <label for="check-paciente-isento" style="margin: 0; color: #c2410c; font-weight: bold; cursor: pointer;">Paciente Isento de Escores (NEWS / PEWS)</label>
                 </div>
             </div>
@@ -258,14 +351,14 @@
             </div>
 
             <div id="novo-paciente-container" class="novo-paciente-box">
-                <div style="font-size: 0.78rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário já cadastrado anteriormente. Confirme os dados para hoje:</div>
+                <div style="font-size: 0.85rem; font-weight: bold; color: #c2410c; margin-bottom: 6px;">⚠️ Prontuário novo. Confirme os dados para hoje:</div>
                 <div class="form-row" style="margin-bottom: 6px;">
                     <div class="form-group" style="flex: 2;">
                         <label>NOME DO PACIENTE</label>
                         <input type="text" id="novo-nome-paciente" placeholder="Nome completo...">
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label>DATA DE NASCIMENTO</label>
+                        <label>NASCIMENTO</label>
                         <input type="date" id="novo-dtnasc-paciente" onchange="verificarIdadeNovoPaciente()">
                     </div>
                 </div>
@@ -286,18 +379,7 @@
                     <div class="form-group" style="flex: 1;">
                         <label>Nº LEITO</label>
                         <select id="novo-leito-paciente" style="cursor: pointer; font-weight: bold; color: #003366;">
-                            <option value="01">01</option>
-                            <option value="02">02</option>
-                            <option value="03">03</option>
-                            <option value="04">04</option>
-                            <option value="05">05</option>
-                            <option value="06">06</option>
-                            <option value="07">07</option>
-                            <option value="08">08</option>
-                            <option value="09">09</option>
-                            <option value="10">10</option>
-                            <option value="11">11</option>
-                            <option value="12">12</option>
+                            <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
                         </select>
                     </div>
                 </div>
@@ -309,18 +391,18 @@
             
             <div id="bloco-campos-news">
                 <div class="form-row">
-                    <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas" min="40" max="300"></div>
-                    <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp" min="30" max="45"></div>
+                    <div class="form-group"><label>PAS (mmHg)</label><input type="number" id="pas" inputmode="decimal" min="40" max="300"></div>
+                    <div class="form-group"><label>TEMP (°C)</label><input type="number" step="0.1" id="temp" inputmode="decimal" min="30" max="45"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr" min="5" max="60"></div>
-                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc" min="20" max="250"></div>
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="fr" inputmode="decimal" min="5" max="60"></div>
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="fc" inputmode="decimal" min="20" max="250"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>O₂ Suplementar?</label>
                         <select id="o2"><option selected></option><option>Sim</option><option>Não</option></select>
                     </div>
-                    <div class="form-group"><label>Sat %</label><input type="number" id="sat" min="50" max="100"></div>
+                    <div class="form-group"><label>Sat %</label><input type="number" id="sat" inputmode="decimal" min="50" max="100"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex: 2;"><label>Nível de Consciência</label>
@@ -331,14 +413,14 @@
                             <option>VOZ, DOR OU NÃO REAGE</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia" min="10" max="1000"></div>
+                    <div class="form-group"><label>Glicemia</label><input type="number" id="glicemia" inputmode="decimal" min="10" max="1000"></div>
                 </div>
             </div>
 
             <div id="bloco-campos-pews" style="display: none;">
                 <div class="form-row">
-                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc" min="30" max="300"></div>
-                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="pews-fr" min="5" max="100"></div>
+                    <div class="form-group"><label>FC (bpm)</label><input type="number" id="pews-fc" inputmode="decimal" min="30" max="300"></div>
+                    <div class="form-group"><label>FR (irpm)</label><input type="number" id="pews-fr" inputmode="decimal" min="5" max="100"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -370,11 +452,11 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>TEMP (°C)</label><input type="number" step="0.1" id="pews-temp" min="30" max="45">
+                        <label>TEMP (°C)</label><input type="number" step="0.1" id="pews-temp" inputmode="decimal" min="30" max="45">
                     </div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Glicemia (Opcional)</label><input type="number" id="glicemia-pews" min="10" max="1000"></div>
+                    <div class="form-group"><label>Glicemia (Opcional)</label><input type="number" id="glicemia-pews" inputmode="decimal" min="10" max="1000"></div>
                 </div>
             </div>
 
@@ -393,7 +475,7 @@
 
             <div class="news-preview-container" style="margin-top: 10px;">
                 <div>
-                    <label style="margin: 0; font-size: 0.7rem;" id="lbl-titulo-escore-total">NEWS Total</label>
+                    <label style="margin: 0; font-size: 0.75rem;" id="lbl-titulo-escore-total">NEWS Total</label>
                     <input type="text" id="news-total" class="news-preview-input" readonly style="width: 75px !important;">
                 </div>
                 <div id="status-news-texto" class="status-alerta-texto">Aguardando...</div>
@@ -401,18 +483,18 @@
         </div>
 
         <div class="button-row">
-            <button class="btn-acao btn-relatorio">Gerar Relatório</button>
-            <button class="btn-acao btn-enviar">Enviar p/ Planilha</button>
+            <button class="btn-acao btn-relatorio">📄 Gerar Relatório</button>
+            <button class="btn-acao btn-enviar">🚀 Enviar p/ Planilha</button>
         </div>
     </main>
 
     <div id="modal-relatorio">
         <div class="modal-box">
-            <h3 style="color: #003366; margin-top: 0; font-size: 1.1rem;">📋 Relatório para Lançamento</h3>
-            <textarea id="texto-relatorio-gerado" style="width: 100%; height: 130px; padding: 10px; font-size: 0.88rem; border: 1px solid #ccc; border-radius: 4px; resize: none; box-sizing: border-box; background: #fff;" placeholder="Edite o relatório aqui se necessário..."></textarea>
+            <h3 style="color: #003366; margin-top: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">📋 Relatório para Lançamento</h3>
+            <textarea id="texto-relatorio-gerado" style="width: 100%; height: 130px; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; resize: none; box-sizing: border-box; background: #fff; outline: none;" placeholder="Edite o relatório aqui se necessário..."></textarea>
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
-                <button id="btn-copiar-texto" style="background: #28a745; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">📋 Copiar Texto</button>
-                <button id="btn-fechar-modal" style="background: #64748b; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; font-weight: bold; cursor: pointer;">Fechar</button>
+                <button id="btn-copiar-texto" style="background: #28a745; color: #fff; border: none; padding: 10px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.95rem;">📋 Copiar Texto</button>
+                <button id="btn-fechar-modal" style="background: #64748b; color: #fff; border: none; padding: 10px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.95rem;">Fechar</button>
             </div>
         </div>
     </div>
@@ -427,11 +509,108 @@
         let modoPediátricoAtivo = false;
         let dataNascimentoPacienteAtual = "";
 
+        // Sistema de Toasts
+        function showToast(message, type = 'error') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = '❌';
+            if (type === 'success') icon = '✅';
+            if (type === 'warning') icon = '⚠️';
+            
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Configuração central dos limites para ser usada nas duas validações
+        const configLimitesCampos = [
+            { id: 'pas', min: 40, max: 300, nome: 'PAS' },
+            { id: 'temp', min: 30, max: 45, nome: 'Temperatura' },
+            { id: 'fr', min: 5, max: 60, nome: 'FR' },
+            { id: 'fc', min: 20, max: 250, nome: 'FC' },
+            { id: 'sat', min: 50, max: 100, nome: 'SatO₂' },
+            { id: 'glicemia', min: 10, max: 1000, nome: 'Glicemia' },
+            { id: 'pews-fc', min: 30, max: 300, nome: 'FC Pediátrica' },
+            { id: 'pews-fr', min: 5, max: 100, nome: 'FR Pediátrica' },
+            { id: 'pews-temp', min: 30, max: 45, nome: 'Temp. Pediátrica' },
+            { id: 'glicemia-pews', min: 10, max: 1000, nome: 'Glicemia Pediátrica' }
+        ];
+
+        // Validação Visual em Tempo Real + Alerta ao Sair do Campo (Blur)
+        function aplicarValidacaoTempoReal() {
+            configLimitesCampos.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (!el) return;
+
+                // Valida enquanto digita
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    if (e.target.value !== "" && (val < item.min || val > item.max)) {
+                        e.target.classList.add('campo-invalido');
+                    } else {
+                        e.target.classList.remove('campo-invalido');
+                    }
+                });
+
+                // Valida ao sair do campo
+                el.addEventListener('blur', (e) => {
+                    const val = parseFloat(e.target.value);
+                    if (e.target.value !== "" && (val < item.min || val > item.max)) {
+                        showToast(`Valor fora do limite para ${item.nome} (${val}). Verifique a digitação.`, 'warning');
+                    }
+                });
+            });
+        }
+
+        // Bloqueio final ao tentar enviar dados errados
+        function validarLimitesBiologicos() {
+            for (let item of configLimitesCampos) {
+                const el = document.getElementById(item.id);
+                if (el && el.value !== "") {
+                    const val = parseFloat(el.value);
+                    if (val < item.min || val > item.max) {
+                        showToast(`Valor fora do limite para ${item.nome} (${val}). Verifique a digitação antes de enviar.`, 'warning');
+                        el.focus();
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btnInstalar = document.getElementById('btn-instalar-pwa');
+            if (btnInstalar) {
+                btnInstalar.style.display = 'flex';
+                btnInstalar.addEventListener('click', async () => {
+                    btnInstalar.style.display = 'none';
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                });
+            }
+        });
+
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('lbl-tecnico-logado').textContent = tecnicoLogadoGlobal;
             document.getElementById('input-prontuario').focus();
+            
+            aplicarValidacaoTempoReal();
 
-            // Auto-preenchimento do último enfermeiro salvo no localStorage
             const ultimoEnfermeiroSalvo = localStorage.getItem('ultimo_enfermeiro_plantao');
             if (ultimoEnfermeiroSalvo) {
                 document.getElementById('input-enfermeiro').value = ultimoEnfermeiroSalvo;
@@ -486,6 +665,18 @@
 
             const btnFechar = document.getElementById('btn-fechar-modal');
             if (btnFechar) btnFechar.addEventListener('click', fecharModalRelatorio);
+            
+            // Foca visualização nos Toasts em campos de erro
+            document.querySelectorAll('#texto-relatorio-gerado').forEach(el => {
+                el.addEventListener('focus', function() {
+                    this.style.borderColor = "#0056b3";
+                    this.style.boxShadow = "0 0 0 3px rgba(0, 86, 179, 0.2)";
+                });
+                el.addEventListener('blur', function() {
+                    this.style.borderColor = "#ccc";
+                    this.style.boxShadow = "none";
+                });
+            });
         });
 
         function sairDoPainel() {
@@ -507,10 +698,8 @@
 
         function obterFaixaEtariaPews(dataNascStr) {
             if (!dataNascStr) return "1-3 anos";
-
             const nasc = new Date(dataNascStr + 'T00:00:00');
             const hoje = new Date();
-            
             let anos = hoje.getFullYear() - nasc.getFullYear();
             let meses = (hoje.getFullYear() - nasc.getFullYear()) * 12 + (hoje.getMonth() - nasc.getMonth());
             let dias = hoje.getDate() - nasc.getDate();
@@ -554,7 +743,7 @@
             if (isIsento) {
                 if (inputNewsTotal) inputNewsTotal.value = "ISENTO";
                 if (statusTexto) {
-                    statusTexto.innerHTML = `🛡️ PACIENTE ISENTO<span class="subtexto-conduta">Dispensado de pontuação NEWS/PEWS conforme conduta</span>`;
+                    statusTexto.innerHTML = `🛡️ PACIENTE ISENTO<span class="subtexto-conduta">Dispensado de pontuação NEWS/PEWS</span>`;
                     statusTexto.style.backgroundColor = "#e2e8f0";
                     statusTexto.style.color = "#475569";
                     statusTexto.style.border = "1px solid #cbd5e1";
@@ -579,34 +768,6 @@
 
         function verificarIdadeNovoPaciente() {
             verificarSetorOuIdade();
-        }
-
-        function validarLimitesBiologicos() {
-            const campos = [
-                { id: 'pas', min: 40, max: 300, nome: 'PAS' },
-                { id: 'temp', min: 30, max: 45, nome: 'Temperatura' },
-                { id: 'fr', min: 5, max: 60, nome: 'FR' },
-                { id: 'fc', min: 20, max: 250, nome: 'FC' },
-                { id: 'sat', min: 50, max: 100, nome: 'SatO₂' },
-                { id: 'glicemia', min: 10, max: 1000, nome: 'Glicemia' },
-                { id: 'pews-fc', min: 30, max: 300, nome: 'FC Pediátrica' },
-                { id: 'pews-fr', min: 5, max: 100, nome: 'FR Pediátrica' },
-                { id: 'pews-temp', min: 30, max: 45, nome: 'Temperatura Pediátrica' },
-                { id: 'glicemia-pews', min: 10, max: 1000, nome: 'Glicemia Pediátrica' }
-            ];
-
-            for (let item of campos) {
-                const el = document.getElementById(item.id);
-                if (el && el.value !== "") {
-                    const val = parseFloat(el.value);
-                    if (val < item.min || val > item.max) {
-                        alert(`⚠️ Valor incomum ou fora dos limites para ${item.nome} (${val}). Por favor, verifique a digitação.`);
-                        el.focus();
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
 
         async function buscarPacientePorProntuario() {
@@ -679,20 +840,17 @@
                     }
                 }
             } catch (err) {
-                console.error("Erro na busca do prontuário:", err);
+                console.error("Erro na busca:", err);
             } finally {
                 if (lblBuscando) lblBuscando.style.display = 'none';
             }
 
             if (pacienteEncontrado && pacienteEncontrado.nome) {
                 window.pacienteHistoricoEncontrado = pacienteEncontrado;
-
                 document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
                 document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
                 
-                if (checkboxIsento) {
-                    checkboxIsento.checked = !!pacienteEncontrado.isento;
-                }
+                if (checkboxIsento) checkboxIsento.checked = !!pacienteEncontrado.isento;
                 
                 let idadeTexto = "";
                 let ehPed = (setorEncontrado === 'enf-pediatria');
@@ -706,10 +864,7 @@
                 if (infoBox) infoBox.style.display = 'block';
                 if (novoBox) novoBox.style.display = 'none';
                 alternarModoFormulario(ehPed);
-                
-                if (pacienteEncontrado.isento) {
-                    alternarModoIsento();
-                }
+                if (pacienteEncontrado.isento) alternarModoIsento();
             } else {
                 if (infoBox) infoBox.style.display = 'none';
                 if (checkboxIsento) checkboxIsento.checked = false;
@@ -718,7 +873,6 @@
                     document.getElementById('novo-dtnasc-paciente').value = "";
                     document.getElementById('novo-setor-paciente').selectedIndex = 0;
                     document.getElementById('novo-leito-paciente').selectedIndex = 0;
-
                     novoBox.style.display = 'block';
                     document.getElementById('novo-nome-paciente').focus();
                     verificarSetorOuIdade();
@@ -774,9 +928,7 @@
                 else if (fr >= 9 && fr <= 11) ptsFr = 1;
                 score += ptsFr;
             }
-
             if (o2SimNao === "SIM") score += 2;
-
             if (pSat.value !== "") {
                 let ptsSat = 0;
                 if (sat <= 91) { ptsSat = 3; temParametroIsoladoTres = true; }
@@ -784,7 +936,6 @@
                 else if (sat >= 94 && sat <= 95) ptsSat = 1;
                 score += ptsSat;
             }
-
             if (pPas.value !== "") {
                 let ptsPas = 0;
                 if (pas <= 90) { ptsPas = 3; temParametroIsoladoTres = true; if (pPas) pPas.classList.add('input-destacado-alerta'); }
@@ -795,7 +946,6 @@
                 else if (pas >= 131 && pas <= 199) ptsPas = 1;
                 score += ptsPas;
             }
-            
             if (pFc.value !== "") {
                 let ptsFc = 0;
                 if (fc <= 40) { ptsFc = 3; temParametroIsoladoTres = true; }
@@ -805,7 +955,6 @@
                 else if (fc >= 91 && fc <= 110) ptsFc = 1;
                 score += ptsFc;
             }
-
             if (pTemp.value !== "") {
                 let ptsTemp = 0;
                 if (temp <= 35.0) { ptsTemp = 3; temParametroIsoladoTres = true; }
@@ -817,9 +966,7 @@
 
             let pConscVal = 0;
             if (consc === "VOZ, DOR OU NÃO REAGE") {
-                pConscVal = 3;
-                temParametroIsoladoTres = true;
-                if (pConsc) pConsc.classList.add('input-destacado-alerta');
+                pConscVal = 3; temParametroIsoladoTres = true; if (pConsc) pConsc.classList.add('input-destacado-alerta');
             } else if (consc === "AGITADO/CONFUSO") {
                 pConscVal = 2;
             }
@@ -838,32 +985,22 @@
             if (inputNewsTotal) inputNewsTotal.value = score;
 
             if (statusTexto) {
-                let corBg = "#e6ffe6";
-                let corTxt = "#28a745";
-                let corBorda = "#28a745";
-                let titulo = "";
-                let subtexto = "";
-
+                let corBg = "#e6ffe6", corTxt = "#28a745", corBorda = "#28a745", titulo = "", subtexto = "";
                 if (isAlertaSepse) {
                     corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
-                    titulo = `🚨 ALERTA SEPSE`;
-                    subtexto = `Acionar Enfermeiro / Médico de imediato`;
+                    titulo = `🚨 ALERTA SEPSE`; subtexto = `Acionar Enfermeiro / Médico de imediato`;
                 } else if (score >= 6) {
                     corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
-                    titulo = `🚨 ALTO RISCO (≥ 6)`;
-                    subtexto = `Acionar Enfermeiro / Médico de imediato`
+                    titulo = `🚨 ALTO RISCO (≥ 6)`; subtexto = `Acionar Enfermeiro / Médico de imediato`;
                 } else if ((score >= 4 && score <= 5) || temParametroIsoladoTres) {
                     corBg = "#fff3cd"; corTxt = "#856404"; corBorda = "#ffeeba";
-                    titulo = `🟡 MÉDIO RISCO (4-5 / Isola 3)`;
-                    subtexto = `Solicitar avaliação do enfermeiro imediatamente`;
+                    titulo = `🟡 MÉDIO RISCO (4-5 / Isola 3)`; subtexto = `Solicitar avaliação do enfermeiro imediatamente`;
                 } else if (score >= 1 && score <= 3) {
                     corBg = "#d1ecf1"; corTxt = "#0c5460"; corBorda = "#bee5eb";
-                    titulo = `🟢 BAIXO RISCO (1-3)`;
-                    subtexto = `Acionar e comunicar enfermeiro(a)`;
+                    titulo = `🟢 BAIXO RISCO (1-3)`; subtexto = `Acionar e comunicar enfermeiro(a)`;
                 } else {
                     corBg = "#e6ffe6"; corTxt = "#28a745"; corBorda = "#28a745";
-                    titulo = `✔️ ESTÁVEL (0)`;
-                    subtexto = `Manter monitorização a cada 4h`;
+                    titulo = `✔️ ESTÁVEL (0)`; subtexto = `Manter monitorização a cada 4h`;
                 }
 
                 statusTexto.innerHTML = `${titulo}<span class="subtexto-conduta">${subtexto}</span>`;
@@ -879,7 +1016,6 @@
 
             const dtNasc = dataNascimentoPacienteAtual || document.getElementById('novo-dtnasc-paciente')?.value || "";
             const idadeEmAnos = calcularIdadeAnos(dtNasc);
-
             const inputPewsTotal = document.getElementById('news-total');
             const statusTexto = document.getElementById('status-news-texto');
 
@@ -887,95 +1023,48 @@
                 if (inputPewsTotal) inputPewsTotal.value = "";
                 if (statusTexto) {
                     statusTexto.innerHTML = `⚠️ PEWS Apenas para < 12 Anos<span class="subtexto-conduta">Paciente com ${idadeEmAnos} anos - Utilizar tabela NEWS</span>`;
-                    statusTexto.style.backgroundColor = "#fff3cd";
-                    statusTexto.style.color = "#856404";
-                    statusTexto.style.border = "1px solid #ffeeba";
+                    statusTexto.style.backgroundColor = "#fff3cd"; statusTexto.style.color = "#856404"; statusTexto.style.border = "1px solid #ffeeba";
                 }
                 return;
             }
 
             const faixaEtaria = obterFaixaEtariaPews(dtNasc);
-
             const fc = parseInt(document.getElementById('pews-fc').value) || 0;
             const fr = parseInt(document.getElementById('pews-fr').value) || 0;
             const comp = parseInt(document.getElementById('pews-comp')?.value || 0);
             const vomitos = parseInt(document.getElementById('pews-vomitos')?.value || 0);
             const nebulizador = parseInt(document.getElementById('pews-nebulizador')?.value || 0);
             const temp = parseFloat(String(document.getElementById('pews-temp')?.value || '').replace(',', '.')) || 0;
-
             let pFC = 0, pFR = 0, pTemp = 0;
 
             if (fc > 0) {
-                if (faixaEtaria === "< 3 meses") {
-                    if (fc <= 89 || fc >= 220) pFC = 3;
-                    else if (fc >= 180 && fc <= 219) pFC = 2;
-                    else if (fc >= 160 && fc <= 179) pFC = 1;
-                } else if (faixaEtaria === "3 meses a 11m29d") {
-                    if (fc <= 89 || fc >= 210) pFC = 3;
-                    else if (fc >= 170 && fc <= 209) pFC = 2;
-                    else if (fc >= 160 && fc <= 169) pFC = 1;
-                } else if (faixaEtaria === "1-3 anos") {
-                    if (fc <= 89 || fc >= 200) pFC = 3;
-                    else if (fc >= 160 && fc <= 199) pFC = 2;
-                    else if (fc >= 140 && fc <= 159) pFC = 1;
-                } else if (faixaEtaria === "4-7 anos") {
-                    if (fc <= 60 || fc >= 190) pFC = 3;
-                    else if (fc >= 150 && fc <= 189) pFC = 2;
-                    else if (fc >= 111 && fc <= 149 || (fc >= 61 && fc <= 69)) pFC = 1;
-                } else {
-                    if (fc <= 60 || fc >= 170) pFC = 3;
-                    else if (fc >= 130 && fc <= 169) pFC = 2;
-                    else if (fc >= 101 && fc <= 129 || (fc >= 60 && fc <= 65)) pFC = 1;
-                }
+                if (faixaEtaria === "< 3 meses") { if (fc <= 89 || fc >= 220) pFC = 3; else if (fc >= 180 && fc <= 219) pFC = 2; else if (fc >= 160 && fc <= 179) pFC = 1; }
+                else if (faixaEtaria === "3 meses a 11m29d") { if (fc <= 89 || fc >= 210) pFC = 3; else if (fc >= 170 && fc <= 209) pFC = 2; else if (fc >= 160 && fc <= 169) pFC = 1; }
+                else if (faixaEtaria === "1-3 anos") { if (fc <= 89 || fc >= 200) pFC = 3; else if (fc >= 160 && fc <= 199) pFC = 2; else if (fc >= 140 && fc <= 159) pFC = 1; }
+                else if (faixaEtaria === "4-7 anos") { if (fc <= 60 || fc >= 190) pFC = 3; else if (fc >= 150 && fc <= 189) pFC = 2; else if (fc >= 111 && fc <= 149 || (fc >= 61 && fc <= 69)) pFC = 1; }
+                else { if (fc <= 60 || fc >= 170) pFC = 3; else if (fc >= 130 && fc <= 169) pFC = 2; else if (fc >= 101 && fc <= 129 || (fc >= 60 && fc <= 65)) pFC = 1; }
             }
 
             if (fr > 0) {
-                if (faixaEtaria === "< 3 meses") {
-                    if (fr <= 25 || fr >= 90) pFR = 3;
-                    else if (fr >= 79 && fr <= 89) pFR = 2;
-                    else if (fr >= 60 && fr <= 78 || (fr >= 26 && fr <= 29)) pFR = 1;
-                } else if (faixaEtaria === "3 meses a 11m29d") {
-                    if (fr <= 20 || fr >= 80) pFR = 3;
-                    else if (fr >= 69 && fr <= 79) pFR = 2;
-                    else if (fr >= 54 && fr <= 68 || (fr >= 21 && fr <= 29)) pFR = 1;
-                } else if (faixaEtaria === "1-3 anos") {
-                    if (fr <= 15 || fr >= 70) pFR = 3;
-                    else if (fr >= 59 && fr <= 69) pFR = 2;
-                    else if (fr >= 40 && fr <= 58 || (fr >= 16 && fr <= 19)) pFR = 1;
-                } else if (faixaEtaria === "4-7 anos") {
-                    if (fr <= 15 || fr >= 60) pFR = 3;
-                    else if (fr >= 49 && fr <= 59) pFR = 2;
-                    else if (fr >= 30 && fr <= 48 || (fr >= 16 && fr <= 19)) pFR = 1;
-                } else {
-                    if (fr <= 10 || fr >= 50) pFR = 3;
-                    else if (fr >= 39 && fr <= 49) pFR = 2;
-                    else if (fr >= 26 && fr <= 38 || (fr >= 11 && fr <= 17)) pFR = 1;
-                }
+                if (faixaEtaria === "< 3 meses") { if (fr <= 25 || fr >= 90) pFR = 3; else if (fr >= 79 && fr <= 89) pFR = 2; else if (fr >= 60 && fr <= 78 || (fr >= 26 && fr <= 29)) pFR = 1; }
+                else if (faixaEtaria === "3 meses a 11m29d") { if (fr <= 20 || fr >= 80) pFR = 3; else if (fr >= 69 && fr <= 79) pFR = 2; else if (fr >= 54 && fr <= 68 || (fr >= 21 && fr <= 29)) pFR = 1; }
+                else if (faixaEtaria === "1-3 anos") { if (fr <= 15 || fr >= 70) pFR = 3; else if (fr >= 59 && fr <= 69) pFR = 2; else if (fr >= 40 && fr <= 58 || (fr >= 16 && fr <= 19)) pFR = 1; }
+                else if (faixaEtaria === "4-7 anos") { if (fr <= 15 || fr >= 60) pFR = 3; else if (fr >= 49 && fr <= 59) pFR = 2; else if (fr >= 30 && fr <= 48 || (fr >= 16 && fr <= 19)) pFR = 1; }
+                else { if (fr <= 10 || fr >= 50) pFR = 3; else if (fr >= 39 && fr <= 49) pFR = 2; else if (fr >= 26 && fr <= 38 || (fr >= 11 && fr <= 17)) pFR = 1; }
             }
 
             if (document.getElementById('pews-temp')?.value !== "") {
-                if (temp < 35 || temp >= 40) pTemp = 3;
-                else if (temp >= 39.1 && temp <= 39.9) pTemp = 2;
-                else if ((temp >= 38.1 && temp <= 39.0) || (temp >= 35.1 && temp <= 36.0)) pTemp = 1;
+                if (temp < 35 || temp >= 40) pTemp = 3; else if (temp >= 39.1 && temp <= 39.9) pTemp = 2; else if ((temp >= 38.1 && temp <= 39.0) || (temp >= 35.1 && temp <= 36.0)) pTemp = 1;
             }
 
             const preenchidos = [
-                document.getElementById('pews-fc')?.value,
-                document.getElementById('pews-fr')?.value,
-                document.getElementById('pews-comp')?.value,
-                document.getElementById('pews-vomitos')?.value,
-                document.getElementById('pews-nebulizador')?.value,
-                document.getElementById('pews-temp')?.value
+                document.getElementById('pews-fc')?.value, document.getElementById('pews-fr')?.value, document.getElementById('pews-comp')?.value,
+                document.getElementById('pews-vomitos')?.value, document.getElementById('pews-nebulizador')?.value, document.getElementById('pews-temp')?.value
             ].filter(v => v !== "").length;
 
             if (preenchidos === 0) {
                 if (inputPewsTotal) inputPewsTotal.value = "";
-                if (statusTexto) {
-                    statusTexto.innerHTML = "Aguardando...";
-                    statusTexto.style.backgroundColor = "transparent";
-                    statusTexto.style.color = "#333";
-                    statusTexto.style.border = "1px solid transparent";
-                }
+                if (statusTexto) { statusTexto.innerHTML = "Aguardando..."; statusTexto.style.backgroundColor = "transparent"; statusTexto.style.color = "#333"; statusTexto.style.border = "1px solid transparent"; }
                 return;
             }
 
@@ -983,34 +1072,21 @@
             if (inputPewsTotal) inputPewsTotal.value = totalPews;
 
             if (statusTexto) {
-                let corBg = "#e6ffe6";
-                let corTxt = "#28a745";
-                let corBorda = "#28a745";
-                let titulo = "";
-                let subtexto = "";
-
+                let corBg = "#e6ffe6", corTxt = "#28a745", corBorda = "#28a745", titulo = "", subtexto = "";
                 if (totalPews <= 1) {
-                    corBg = "#e6ffe6"; corTxt = "#28a745"; corBorda = "#28a745";
-                    titulo = `🟢 ESCORE ${totalPews} (SEM RISCO)`;
-                    subtexto = `Reavaliar a cada 4h / Ou conforme necessidade`;
+                    titulo = `🟢 ESCORE ${totalPews} (SEM RISCO)`; subtexto = `Reavaliar a cada 4h / Ou conforme necessidade`;
                 } else if (totalPews === 2) {
                     corBg = "#fff3cd"; corTxt = "#856404"; corBorda = "#ffeeba";
-                    titulo = `🟡 ESCORE 2 (BAIXO RISCO)`;
-                    subtexto = `Solicitar avaliação do Enfermeiro (Reavaliar em 3h)`;
+                    titulo = `🟡 ESCORE 2 (BAIXO RISCO)`; subtexto = `Solicitar avaliação do Enfermeiro (Reavaliar em 3h)`;
                 } else if (totalPews >= 3 && totalPews <= 4) {
                     corBg = "#ffe8cc"; corTxt = "#d97706"; corBorda = "#fbd38d";
-                    titulo = `🟠 ESCORE ${totalPews} (MÉDIO RISCO)`;
-                    subtexto = `Avaliação do pediatra em 30 min (Reavaliar em 1h)`;
+                    titulo = `🟠 ESCORE ${totalPews} (MÉDIO RISCO)`; subtexto = `Avaliação do pediatra em 30 min (Reavaliar em 1h)`;
                 } else {
                     corBg = "#ffe6e6"; corTxt = "#dc3545"; corBorda = "#dc3545";
-                    titulo = `🚨 ESCORE ${totalPews} (ALTO RISCO)`;
-                    subtexto = `Acionar Enfermeiro/Médico imediato`;
+                    titulo = `🚨 ESCORE ${totalPews} (ALTO RISCO)`; subtexto = `Acionar Enfermeiro/Médico imediato`;
                 }
-
                 statusTexto.innerHTML = `${titulo}<span class="subtexto-conduta">${subtexto}</span>`;
-                statusTexto.style.backgroundColor = corBg;
-                statusTexto.style.color = corTxt;
-                statusTexto.style.border = `1px solid ${corBorda}`;
+                statusTexto.style.backgroundColor = corBg; statusTexto.style.color = corTxt; statusTexto.style.border = `1px solid ${corBorda}`;
             }
         }
 
@@ -1025,25 +1101,24 @@
             const isIsento = document.getElementById('check-paciente-isento')?.checked || false;
 
             if (!prontuario) {
-                alert("⚠️ Por favor, informe o número do prontuário.");
+                showToast("Por favor, informe o número do prontuário.", "warning");
                 document.getElementById('input-prontuario').focus();
                 return;
             }
 
             let horaSelecionada = selectHora === 'outro' ? horaCustom : selectHora;
             if (!horaSelecionada) {
-                alert("⚠️ Por favor, selecione ou informe o horário do registro.");
+                showToast("Por favor, selecione ou informe o horário do registro.", "warning");
                 return;
             }
 
-            // Salva o último enfermeiro digitado no localStorage para auto-preenchimento futuro
             if (enfermeiro) {
                 localStorage.setItem('ultimo_enfermeiro_plantao', enfermeiro);
             }
 
             if (btnEnviarEl) {
                 btnEnviarEl.disabled = true;
-                btnEnviarEl.textContent = "Salvando...";
+                btnEnviarEl.innerHTML = "⏳ Salvando...";
             }
 
             try {
@@ -1059,42 +1134,20 @@
                     .eq('data_chave', hojeStr)
                     .maybeSingle();
 
-                if (erroBusca) {
-                    throw new Error("Erro ao sincronizar com o plantão de hoje: " + erroBusca.message);
-                }
+                if (erroBusca) throw new Error("Erro ao sincronizar com o plantão de hoje.");
 
                 let listaPacientes = plantaoAtual && Array.isArray(plantaoAtual.dados_json) ? plantaoAtual.dados_json : [];
-
-                let valoresVitaisForm = [];
-                if (modoPediátricoAtivo) {
-                    valoresVitaisForm = [
-                        "-",
-                        document.getElementById('pews-temp').value,
-                        document.getElementById('pews-fr').value,
-                        document.getElementById('pews-fc').value,
-                        "-",
-                        "-",
-                        document.getElementById('pews-comp').value,
-                        document.getElementById('glicemia-pews').value,
-                        document.getElementById('escala-dor').value,
-                        document.getElementById('news-total').value,
-                        ""
-                    ];
-                } else {
-                    valoresVitaisForm = [
-                        document.getElementById('pas').value,
-                        document.getElementById('temp').value,
-                        document.getElementById('fr').value,
-                        document.getElementById('fc').value,
-                        document.getElementById('o2').value,
-                        document.getElementById('sat').value,
-                        document.getElementById('consc').value,
-                        document.getElementById('glicemia').value,
-                        document.getElementById('escala-dor').value,
-                        document.getElementById('news-total').value,
-                        ""
-                    ];
-                }
+                let valoresVitaisForm = modoPediátricoAtivo ? [
+                    "-", document.getElementById('pews-temp').value, document.getElementById('pews-fr').value,
+                    document.getElementById('pews-fc').value, "-", "-", document.getElementById('pews-comp').value,
+                    document.getElementById('glicemia-pews').value, document.getElementById('escala-dor').value,
+                    document.getElementById('news-total').value, ""
+                ] : [
+                    document.getElementById('pas').value, document.getElementById('temp').value, document.getElementById('fr').value,
+                    document.getElementById('fc').value, document.getElementById('o2').value, document.getElementById('sat').value,
+                    document.getElementById('consc').value, document.getElementById('glicemia').value, document.getElementById('escala-dor').value,
+                    document.getElementById('news-total').value, ""
+                ];
 
                 let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
 
@@ -1102,10 +1155,7 @@
                     pacienteAlvo.tec = tecnicoLogadoGlobal;
                     if (enfermeiro) pacienteAlvo.enfermeiro = enfermeiro;
                     pacienteAlvo.isento = isIsento;
-
-                    if (!Array.isArray(pacienteAlvo.vitais)) {
-                        pacienteAlvo.vitais = [];
-                    }
+                    if (!Array.isArray(pacienteAlvo.vitais)) pacienteAlvo.vitais = [];
 
                     let linhaExistente = pacienteAlvo.vitais.find(v => v.hora === horaSelecionada);
                     if (linhaExistente) {
@@ -1113,16 +1163,11 @@
                     } else {
                         const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
                         pacienteAlvo.vitais.push({
-                            hora: horaSelecionada,
-                            inputs: valoresVitaisForm,
-                            isExtra: !horasPadrao.includes(horaSelecionada)
+                            hora: horaSelecionada, inputs: valoresVitaisForm, isExtra: !horasPadrao.includes(horaSelecionada)
                         });
                     }
                 } else {
-                    let nomePacienteFinal = "";
-                    let setorFinal = "corredor";
-                    let leitoFinal = "01";
-
+                    let nomePacienteFinal = "", setorFinal = "corredor", leitoFinal = "01";
                     const infoBoxVisivel = document.getElementById('paciente-info').style.display === 'block';
 
                     if (infoBoxVisivel && window.pacienteHistoricoEncontrado) {
@@ -1136,85 +1181,50 @@
                     }
 
                     if (!nomePacienteFinal) {
-                        alert("⚠️ Nome do paciente não identificado. Aguarde a busca do prontuário ou preencha os dados do novo cadastro.");
+                        showToast("Nome do paciente não identificado. Aguarde a busca ou preencha o novo cadastro.", "error");
                         return;
                     }
 
                     const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
-                    let vitaisIniciais = horasPadrao.map(h => ({
-                        hora: h,
-                        inputs: Array(11).fill(""), 
-                        isExtra: false
-                    }));
+                    let vitaisIniciais = horasPadrao.map(h => ({ hora: h, inputs: Array(11).fill(""), isExtra: false }));
 
-                    const isHoraExtra = !horasPadrao.includes(horaSelecionada);
-                    
-                    if (isHoraExtra) {
-                        vitaisIniciais.push({
-                            hora: horaSelecionada,
-                            inputs: valoresVitaisForm,
-                            isExtra: true
-                        });
+                    if (!horasPadrao.includes(horaSelecionada)) {
+                        vitaisIniciais.push({ hora: horaSelecionada, inputs: valoresVitaisForm, isExtra: true });
                     } else {
                         let indexPadrao = vitaisIniciais.findIndex(v => v.hora === horaSelecionada);
-                        if (indexPadrao !== -1) {
-                            vitaisIniciais[indexPadrao].inputs = valoresVitaisForm;
-                        }
+                        if (indexPadrao !== -1) vitaisIniciais[indexPadrao].inputs = valoresVitaisForm;
                     }
 
-                    const novoPacienteObj = {
-                        setor: setorFinal,
-                        leito: leitoFinal,
-                        nome: nomePacienteFinal,
-                        dtNasc: document.getElementById('novo-dtnasc-paciente')?.value || "",
-                        prontuario: prontuario,
-                        tec: tecnicoLogadoGlobal,
-                        enfermeiro: enfermeiro || "",
-                        isento: isIsento,
-                        desfecho: "Internado",
-                        vitais: vitaisIniciais
-                    };
-                    listaPacientes.push(novoPacienteObj);
+                    listaPacientes.push({
+                        setor: setorFinal, leito: leitoFinal, nome: nomePacienteFinal, dtNasc: document.getElementById('novo-dtnasc-paciente')?.value || "",
+                        prontuario: prontuario, tec: tecnicoLogadoGlobal, enfermeiro: enfermeiro || "", isento: isIsento, desfecho: "Internado", vitais: vitaisIniciais
+                    });
                 }
 
                 const { error: erroSave } = await _supabase
                     .from('plantoes')
-                    .upsert({
-                        data_chave: hojeStr,
-                        dados_json: listaPacientes,
-                        mes_ano: hojeStr.substring(0, 7),
-                        updated_at: new Date()
-                    }, { onConflict: 'data_chave' });
+                    .upsert({ data_chave: hojeStr, dados_json: listaPacientes, mes_ano: hojeStr.substring(0, 7), updated_at: new Date() }, { onConflict: 'data_chave' });
 
-                if (erroSave) {
-                    throw new Error(erroSave.message);
-                }
+                if (erroSave) throw new Error(erroSave.message);
 
-                alert("✅ Sinais vitais enviados com sucesso para a planilha do plantão!");
+                showToast("Sinais vitais enviados com sucesso para a planilha!", "success");
                 limparFormularioTecnico();
 
             } catch (erro) {
-                console.error("Erro ao enviar dados:", erro);
+                console.error("Erro ao enviar:", erro);
                 try {
-                    const dadosOffline = {
-                        prontuario,
-                        hora: horaSelecionada,
-                        enfermeiro,
-                        isento: isIsento,
-                        data: new Date().toISOString()
-                    };
                     let filaOffline = JSON.parse(localStorage.getItem('fila_offline_sinais') || '[]');
-                    filaOffline.push(dadosOffline);
+                    filaOffline.push({ prontuario, hora: horaSelecionada, enfermeiro, isento: isIsento, data: new Date().toISOString() });
                     localStorage.setItem('fila_offline_sinais', JSON.stringify(filaOffline));
-                    alert("⚠️ Falha na conexão com o servidor. Seus dados foram salvos temporariamente no navegador (Modo Offline) e serão sincronizados assim que houver rede.");
+                    showToast("Sem conexão. Dados salvos localmente e serão sincronizados após o retorno da rede.", "warning");
                     limparFormularioTecnico();
                 } catch (errStorage) {
-                    alert("❌ Erro ao enviar dados e falha ao salvar localmente: " + erro.message);
+                    showToast("Falha no envio e falha ao salvar localmente no cache.", "error");
                 }
             } finally {
                 if (btnEnviarEl) {
                     btnEnviarEl.disabled = false;
-                    btnEnviarEl.textContent = "Enviar p/ Planilha";
+                    btnEnviarEl.innerHTML = "🚀 Enviar p/ Planilha";
                 }
             }
         }
@@ -1227,8 +1237,8 @@
             const selectDor = document.getElementById('escala-dor');
             const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
             const escoreVal = document.getElementById('news-total').value || "0";
-
             let texto = "";
+
             const pas = document.getElementById('pas').value || "-";
             const temp = document.getElementById('temp').value || "-";
             const fr = document.getElementById('fr').value || "-";
@@ -1248,40 +1258,22 @@
                 texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${tempPed}°C, FC ${fcPed}bpm, FR ${frPed}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
             } else {
                 const escoreNum = parseInt(escoreVal) || 0;
-
                 let temIsoladoTres = false;
-                const fVal = parseFloat(fr) || 0;
-                const sVal = parseFloat(sat) || 0;
-                const pVal = parseFloat(pas) || 0;
-                const cVal = parseFloat(fc) || 0;
-                const tVal = parseFloat(String(temp).replace(',', '.')) || 0;
+                const fVal = parseFloat(fr) || 0, sVal = parseFloat(sat) || 0, pVal = parseFloat(pas) || 0, cVal = parseFloat(fc) || 0, tVal = parseFloat(String(temp).replace(',', '.')) || 0;
 
-                if (fVal <= 8 || fVal >= 25 || sVal <= 91 || (pVal > 0 && pVal <= 90) || pVal >= 220 || cVal <= 40 || cVal >= 131 || tVal <= 35.0 || consc === "VOZ, DOR OU NÃO REAGE") {
-                    temIsoladoTres = true;
-                }
+                if (fVal <= 8 || fVal >= 25 || sVal <= 91 || (pVal > 0 && pVal <= 90) || pVal >= 220 || cVal <= 40 || cVal >= 131 || tVal <= 35.0 || consc === "VOZ, DOR OU NÃO REAGE") temIsoladoTres = true;
 
                 let sirsCount = 0;
-                if (cVal > 90) sirsCount++;
-                if (fVal > 20) sirsCount++;
-                if (tVal > 38.3 || (tVal > 0 && tVal < 35)) sirsCount++;
-
-                const conscUpper = consc.toUpperCase();
-                const pConscVal = (conscUpper === "VOZ, DOR OU NÃO REAGE") ? 3 : (conscUpper === "AGITADO/CONFUSO" ? 2 : 0);
+                if (cVal > 90) sirsCount++; if (fVal > 20) sirsCount++; if (tVal > 38.3 || (tVal > 0 && tVal < 35)) sirsCount++;
+                const pConscVal = (consc.toUpperCase() === "VOZ, DOR OU NÃO REAGE") ? 3 : (consc.toUpperCase() === "AGITADO/CONFUSO" ? 2 : 0);
                 const sepseSat = (sVal > 0 && ((sVal < 90 && o2SimNao.toUpperCase() !== "SIM") || (sVal < 94 && o2SimNao.toUpperCase() === "SIM")));
-                
                 const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pVal > 0 && pVal < 90) || sepseSat);
 
-                if (isAlertaSepse) {
-                    texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreNum}.`;
-                } else if (escoreNum === 0) {
-                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente apresenta NEWS com Escore 0 (Estável). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
-                } else if (escoreNum >= 1 && escoreNum <= 3 && !temIsoladoTres) {
-                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}) e aplicação do escore NEWS, classificado como Baixo Risco (${escoreNum}). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
-                } else if ((escoreNum >= 4 && escoreNum <= 5) || (temIsoladoTres && escoreNum < 6)) {
-                    texto = `Em tempo, às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Médio Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`;
-                } else {
-                    texto = `Às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Alto Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`;
-                }
+                if (isAlertaSepse) { texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreNum}.`; }
+                else if (escoreNum === 0) { texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente apresenta NEWS com Escore 0 (Estável). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`; }
+                else if (escoreNum >= 1 && escoreNum <= 3 && !temIsoladoTres) { texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}) e aplicação do escore NEWS, classificado como Baixo Risco (${escoreNum}). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`; }
+                else if ((escoreNum >= 4 && escoreNum <= 5) || (temIsoladoTres && escoreNum < 6)) { texto = `Em tempo, às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Médio Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`; }
+                else { texto = `Às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Alto Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`; }
             }
 
             const modal = document.getElementById('modal-relatorio');
@@ -1297,17 +1289,13 @@
             if (textarea) {
                 navigator.clipboard.writeText(textarea.value).then(() => {
                     if (btnCopiar) {
-                        const textareaOriginalTexto = btnCopiar.textContent;
-                        btnCopiar.textContent = "✅ Copiado com sucesso!";
+                        const textareaOriginalTexto = btnCopiar.innerHTML;
+                        btnCopiar.innerHTML = "✅ Copiado!";
                         btnCopiar.style.backgroundColor = "#15803d";
-
-                        setTimeout(() => {
-                            btnCopiar.textContent = textareaOriginalTexto;
-                            btnCopiar.style.backgroundColor = "#28a745";
-                        }, 2000);
+                        setTimeout(() => { btnCopiar.innerHTML = textareaOriginalTexto; btnCopiar.style.backgroundColor = "#28a745"; }, 2000);
                     }
                 }).catch(err => {
-                    console.error("Erro ao copiar: ", err);
+                    showToast("Erro ao copiar o texto.", "error");
                 });
             }
         }
@@ -1319,24 +1307,21 @@
 
         function limparFormularioTecnico() {
             document.getElementById('input-prontuario').value = "";
-            
             const checkboxIsento = document.getElementById('check-paciente-isento');
             if (checkboxIsento) checkboxIsento.checked = false;
             
-            document.getElementById('novo-nome-paciente').value = "";
-            document.getElementById('novo-dtnasc-paciente').value = "";
+            document.getElementById('novo-nome-paciente').value = ""; document.getElementById('novo-dtnasc-paciente').value = "";
             
             ['pas', 'temp', 'fr', 'fc', 'sat', 'glicemia', 'pews-fc', 'pews-fr', 'pews-temp', 'glicemia-pews'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.value = "";
+                if (el) { el.value = ""; el.classList.remove('campo-invalido'); }
             });
             ['o2', 'consc', 'escala-dor', 'pews-comp', 'pews-vomitos', 'pews-nebulizador'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.selectedIndex = 0;
+                const el = document.getElementById(id); if (el) el.selectedIndex = 0;
             });
 
             document.getElementById('news-total').value = "";
-            document.getElementById('status-news-texto').textContent = "Aguardando...";
+            document.getElementById('status-news-texto').innerHTML = "Aguardando...";
             document.getElementById('status-news-texto').style.backgroundColor = "transparent";
             document.getElementById('status-news-texto').style.color = "#333";
             document.getElementById('status-news-texto').style.border = "1px solid transparent";
@@ -1347,10 +1332,8 @@
             if (novoBox) novoBox.style.display = 'none';
 
             const ultimoEnfermeiroSalvo = localStorage.getItem('ultimo_enfermeiro_plantao');
-            if (ultimoEnfermeiroSalvo) {
-                document.getElementById('input-enfermeiro').value = ultimoEnfermeiroSalvo;
-            }
-
+            if (ultimoEnfermeiroSalvo) document.getElementById('input-enfermeiro').value = ultimoEnfermeiroSalvo;
+            
             document.getElementById('input-prontuario').focus();
         }
     </script>
