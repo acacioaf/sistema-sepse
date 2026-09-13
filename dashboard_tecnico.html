@@ -236,6 +236,14 @@
                 </div>
             </div>
 
+            <!-- Checkbox de Isenção de Escores -->
+            <div class="form-row" style="margin-top: 6px; margin-bottom: 0;">
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="check-paciente-isento" style="width: auto; cursor: pointer;" onchange="alternarModoIsento()">
+                    <label for="check-paciente-isento" style="margin: 0; color: #c2410c; font-weight: bold; cursor: pointer;">Paciente Isento de Escores (NEWS / PEWS)</label>
+                </div>
+            </div>
+
             <div id="paciente-info" class="paciente-info-box">
                 Paciente: <span id="span-nome" style="font-weight: normal;">---</span> | Setor/Leito: <span id="span-setor" style="font-weight: normal;">---</span> <span id="span-idade-info" style="font-style: italic; opacity: 0.8;"></span>
             </div>
@@ -377,7 +385,7 @@
             <div class="news-preview-container" style="margin-top: 10px;">
                 <div>
                     <label style="margin: 0; font-size: 0.7rem;" id="lbl-titulo-escore-total">NEWS Total</label>
-                    <input type="number" id="news-total" class="news-preview-input" readonly>
+                    <input type="text" id="news-total" class="news-preview-input" readonly style="width: 75px !important;">
                 </div>
                 <div id="status-news-texto" class="status-alerta-texto">Aguardando...</div>
             </div>
@@ -523,12 +531,31 @@
             }
         }
 
+        function alternarModoIsento() {
+            const isIsento = document.getElementById('check-paciente-isento').checked;
+            const statusTexto = document.getElementById('status-news-texto');
+            const inputNewsTotal = document.getElementById('news-total');
+
+            if (isIsento) {
+                if (inputNewsTotal) inputNewsTotal.value = "ISENTO";
+                if (statusTexto) {
+                    statusTexto.innerHTML = `🛡️ PACIENTE ISENTO<span class="subtexto-conduta">Dispensado de pontuação NEWS/PEWS conforme conduta</span>`;
+                    statusTexto.style.backgroundColor = "#e2e8f0";
+                    statusTexto.style.color = "#475569";
+                    statusTexto.style.border = "1px solid #cbd5e1";
+                }
+            } else {
+                if (modoPediátricoAtivo) calcularPewsTecnico();
+                else calcularNewsTecnico();
+            }
+        }
+
         function verificarSetorOuIdade() {
             const setorSelect = document.getElementById('novo-setor-paciente').value;
             const dtNasc = document.getElementById('novo-dtnasc-paciente').value;
             const idade = calcularIdadeAnos(dtNasc);
 
-            if (setorSelect === 'enf-pediatria' || (idade !== null && idade < 13)) {
+            if (setorSelect === 'enf-pediatria' || (idade !== null && idade < 12)) {
                 alternarModoFormulario(true);
             } else {
                 alternarModoFormulario(false);
@@ -539,17 +566,19 @@
             verificarSetorOuIdade();
         }
 
-       async function buscarPacientePorProntuario() {
+        async function buscarPacientePorProntuario() {
             const prontuarioInput = document.getElementById('input-prontuario').value.trim();
             const infoBox = document.getElementById('paciente-info');
             const novoBox = document.getElementById('novo-paciente-container');
+            const checkboxIsento = document.getElementById('check-paciente-isento');
 
             dataNascimentoPacienteAtual = "";
-            window.pacienteHistoricoEncontrado = null; // Reseta
+            window.pacienteHistoricoEncontrado = null;
 
             if (!prontuarioInput) {
                 if (infoBox) infoBox.style.display = 'none';
                 if (novoBox) novoBox.style.display = 'none';
+                if (checkboxIsento) checkboxIsento.checked = false;
                 return;
             }
 
@@ -605,25 +634,34 @@
             }
 
             if (pacienteEncontrado && pacienteEncontrado.nome) {
-                window.pacienteHistoricoEncontrado = pacienteEncontrado; // Salva na memória global
+                window.pacienteHistoricoEncontrado = pacienteEncontrado;
 
                 document.getElementById('span-nome').textContent = pacienteEncontrado.nome;
                 document.getElementById('span-setor').textContent = `${setorEncontrado.toUpperCase()} (Leito ${leitoEncontrado})`;
+                
+                if (checkboxIsento) {
+                    checkboxIsento.checked = !!pacienteEncontrado.isento;
+                }
                 
                 let idadeTexto = "";
                 let ehPed = (setorEncontrado === 'enf-pediatria');
                 if (dataNascimentoPacienteAtual) {
                     const idadeVal = calcularIdadeAnos(dataNascimentoPacienteAtual);
                     idadeTexto = ` — ${idadeVal} anos`;
-                    if (idadeVal !== null && idadeVal < 13) ehPed = true;
+                    if (idadeVal !== null && idadeVal < 12) ehPed = true;
                 }
                 document.getElementById('span-idade-info').textContent = idadeTexto;
 
                 if (infoBox) infoBox.style.display = 'block';
                 if (novoBox) novoBox.style.display = 'none';
                 alternarModoFormulario(ehPed);
+                
+                if (pacienteEncontrado.isento) {
+                    alternarModoIsento();
+                }
             } else {
                 if (infoBox) infoBox.style.display = 'none';
+                if (checkboxIsento) checkboxIsento.checked = false;
                 if (novoBox) {
                     document.getElementById('novo-nome-paciente').value = "";
                     document.getElementById('novo-dtnasc-paciente').value = "";
@@ -638,6 +676,7 @@
         }
 
         function calcularNewsTecnico() {
+            if (document.getElementById('check-paciente-isento')?.checked) return;
             if (modoPediátricoAtivo) return;
 
             const pPas = document.getElementById('pas');
@@ -784,6 +823,7 @@
         }
 
         function calcularPewsTecnico() {
+            if (document.getElementById('check-paciente-isento')?.checked) return;
             if (!modoPediátricoAtivo) return;
 
             const dtNasc = dataNascimentoPacienteAtual || document.getElementById('novo-dtnasc-paciente')?.value || "";
@@ -792,16 +832,15 @@
             const inputPewsTotal = document.getElementById('news-total');
             const statusTexto = document.getElementById('status-news-texto');
 
-            // VALIDAÇÃO EXCLUSIVA PEWS (< 13 ANOS)
-            if (idadeEmAnos !== null && idadeEmAnos >= 13) {
+            if (idadeEmAnos !== null && idadeEmAnos >= 12) {
                 if (inputPewsTotal) inputPewsTotal.value = "";
                 if (statusTexto) {
-                    statusTexto.innerHTML = `⚠️ PEWS Apenas para < 13 Anos<span class="subtexto-conduta">Paciente com ${idadeEmAnos} anos - Utilizar tabela NEWS</span>`;
+                    statusTexto.innerHTML = `⚠️ PEWS Apenas para < 12 Anos<span class="subtexto-conduta">Paciente com ${idadeEmAnos} anos - Utilizar tabela NEWS</span>`;
                     statusTexto.style.backgroundColor = "#fff3cd";
                     statusTexto.style.color = "#856404";
                     statusTexto.style.border = "1px solid #ffeeba";
                 }
-                return; // Interrompe o cálculo do PEWS para maiores de 13 anos
+                return;
             }
 
             const faixaEtaria = obterFaixaEtariaPews(dtNasc);
@@ -925,10 +964,12 @@
         }
 
         async function enviarDadosParaPlanilha() {
+            const btnEnviarEl = document.querySelector('.btn-enviar');
             const prontuario = document.getElementById('input-prontuario').value.trim();
             const selectHora = document.getElementById('select-hora').value;
             const horaCustom = document.getElementById('input-hora-custom').value;
             const enfermeiro = document.getElementById('input-enfermeiro').value.trim();
+            const isIsento = document.getElementById('check-paciente-isento')?.checked || false;
 
             if (!prontuario) {
                 alert("⚠️ Por favor, informe o número do prontuário.");
@@ -942,173 +983,201 @@
                 return;
             }
 
-            const dataAtual = new Date();
-            const ano = dataAtual.getFullYear();
-            const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-            const dia = String(dataAtual.getDate()).padStart(2, '0');
-            const hojeStr = `${ano}-${mes}-${dia}`;
-
-            const { data: plantaoAtual, error } = await _supabase
-                .from('plantoes')
-                .select('dados_json')
-                .eq('data_chave', hojeStr)
-                .maybeSingle();
-
-            let listaPacientes = plantaoAtual && plantaoAtual.dados_json ? plantaoAtual.dados_json : [];
-
-            let valoresVitaisForm = [];
-            if (modoPediátricoAtivo) {
-                valoresVitaisForm = [
-                    "-",
-                    document.getElementById('pews-temp').value,
-                    document.getElementById('pews-fr').value,
-                    document.getElementById('pews-fc').value,
-                    "-",
-                    "-",
-                    document.getElementById('pews-comp').value,
-                    document.getElementById('glicemia-pews').value,
-                    document.getElementById('escala-dor').value,
-                    document.getElementById('news-total').value,
-                    ""
-                ];
-            } else {
-                valoresVitaisForm = [
-                    document.getElementById('pas').value,
-                    document.getElementById('temp').value,
-                    document.getElementById('fr').value,
-                    document.getElementById('fc').value,
-                    document.getElementById('o2').value,
-                    document.getElementById('sat').value,
-                    document.getElementById('consc').value,
-                    document.getElementById('glicemia').value,
-                    document.getElementById('escala-dor').value,
-                    document.getElementById('news-total').value,
-                    ""
-                ];
+            if (btnEnviarEl) {
+                btnEnviarEl.disabled = true;
+                btnEnviarEl.textContent = "Salvando...";
             }
 
-            let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
+            try {
+                const dataAtual = new Date();
+                const ano = dataAtual.getFullYear();
+                const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
+                const dia = String(dataAtual.getDate()).padStart(2, '0');
+                const hojeStr = `${ano}-${mes}-${dia}`;
 
-            if (pacienteAlvo) {
-                // Se já existe no plantão de hoje, apenas atualiza os sinais vitais
-                pacienteAlvo.tec = tecnicoLogadoGlobal;
-                if (enfermeiro) pacienteAlvo.enfermeiro = enfermeiro;
+                const { data: plantaoAtual, error: erroBusca } = await _supabase
+                    .from('plantoes')
+                    .select('dados_json')
+                    .eq('data_chave', hojeStr)
+                    .maybeSingle();
 
-                let linhaExistente = pacienteAlvo.vitais.find(v => v.hora === horaSelecionada);
-                if (linhaExistente) {
-                    linhaExistente.inputs = valoresVitaisForm;
-                } else {
-                    const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
-                    pacienteAlvo.vitais.push({
-                        hora: horaSelecionada,
-                        inputs: valoresVitaisForm,
-                        isExtra: !horasPadrao.includes(horaSelecionada)
-                    });
-                }
-            } else {
-                // Se veio do histórico (caixinha azul) ou é novo cadastro (caixinha laranja)
-                let nomePacienteFinal = "";
-                let dtNascFinal = "";
-                let setorFinal = "corredor";
-                let leitoFinal = "01";
-
-                const infoBoxVisivel = document.getElementById('paciente-info').style.display === 'block';
-
-                if (infoBoxVisivel && window.pacienteHistoricoEncontrado) {
-                    // Pega os dados direto do paciente recuperado do histórico
-                    nomePacienteFinal = window.pacienteHistoricoEncontrado.nome;
-                    dtNascFinal = window.pacienteHistoricoEncontrado.dtNasc || "";
-                    setorFinal = window.pacienteHistoricoEncontrado.setor || "corredor";
-                    leitoFinal = window.pacienteHistoricoEncontrado.leito || "01";
-                } else {
-                    // Pega os dados da caixa laranja de novo cadastro
-                    nomePacienteFinal = document.getElementById('novo-nome-paciente')?.value.trim();
-                    dtNascFinal = document.getElementById('novo-dtnasc-paciente')?.value || "";
-                    setorFinal = document.getElementById('novo-setor-paciente')?.value || 'corredor';
-                    leitoFinal = document.getElementById('novo-leito-paciente')?.value || '01';
+                if (erroBusca) {
+                    throw new Error("Erro ao sincronizar com o plantão de hoje: " + erroBusca.message);
                 }
 
-                if (!nomePacienteFinal) {
-                    alert("⚠️ Nome do paciente não identificado. Preencha ou selecione o prontuário corretamente.");
-                    return;
+                let listaPacientes = plantaoAtual && Array.isArray(plantaoAtual.dados_json) ? plantaoAtual.dados_json : [];
+
+                let valoresVitaisForm = [];
+                if (modoPediátricoAtivo) {
+                    valoresVitaisForm = [
+                        "-",
+                        document.getElementById('pews-temp').value,
+                        document.getElementById('pews-fr').value,
+                        document.getElementById('pews-fc').value,
+                        "-",
+                        "-",
+                        document.getElementById('pews-comp').value,
+                        document.getElementById('glicemia-pews').value,
+                        document.getElementById('escala-dor').value,
+                        document.getElementById('news-total').value,
+                        ""
+                    ];
+                } else {
+                    valoresVitaisForm = [
+                        document.getElementById('pas').value,
+                        document.getElementById('temp').value,
+                        document.getElementById('fr').value,
+                        document.getElementById('fc').value,
+                        document.getElementById('o2').value,
+                        document.getElementById('sat').value,
+                        document.getElementById('consc').value,
+                        document.getElementById('glicemia').value,
+                        document.getElementById('escala-dor').value,
+                        document.getElementById('news-total').value,
+                        ""
+                    ];
                 }
 
-                const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
-                let vitaisIniciais = horasPadrao.map(h => ({
-                    hora: h,
-                    inputs: Array(11).fill(""), 
-                    isExtra: false
-                }));
+                let pacienteAlvo = listaPacientes.find(p => p.prontuario && p.prontuario.toString().trim() === prontuario);
 
-                const isHoraExtra = !horasPadrao.includes(horaSelecionada);
-                
-                if (isHoraExtra) {
-                    vitaisIniciais.push({
-                        hora: horaSelecionada,
-                        inputs: valoresVitaisForm,
-                        isExtra: true
-                    });
-                } else {
-                    let indexPadrao = vitaisIniciais.findIndex(v => v.hora === horaSelecionada);
-                    if (indexPadrao !== -1) {
-                        vitaisIniciais[indexPadrao].inputs = valoresVitaisForm;
+                if (pacienteAlvo) {
+                    pacienteAlvo.tec = tecnicoLogadoGlobal;
+                    if (enfermeiro) pacienteAlvo.enfermeiro = enfermeiro;
+                    pacienteAlvo.isento = isIsento;
+
+                    if (!Array.isArray(pacienteAlvo.vitais)) {
+                        pacienteAlvo.vitais = [];
                     }
+
+                    let linhaExistente = pacienteAlvo.vitais.find(v => v.hora === horaSelecionada);
+                    if (linhaExistente) {
+                        linhaExistente.inputs = valoresVitaisForm;
+                    } else {
+                        const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
+                        pacienteAlvo.vitais.push({
+                            hora: horaSelecionada,
+                            inputs: valoresVitaisForm,
+                            isExtra: !horasPadrao.includes(horaSelecionada)
+                        });
+                    }
+                } else {
+                    let nomePacienteFinal = "";
+                    let dtNascFinal = "";
+                    let setorFinal = "corredor";
+                    let leitoFinal = "01";
+
+                    const infoBoxVisivel = document.getElementById('paciente-info').style.display === 'block';
+
+                    if (infoBoxVisivel && window.pacienteHistoricoEncontrado) {
+                        nomePacienteFinal = window.pacienteHistoricoEncontrado.nome;
+                        dtNascFinal = window.pacienteHistoricoEncontrado.dtNasc || "";
+                        setorFinal = window.pacienteHistoricoEncontrado.setor || "corredor";
+                        leitoFinal = window.pacienteHistoricoEncontrado.leito || "01";
+                    } else {
+                        nomePacienteFinal = document.getElementById('novo-nome-paciente')?.value.trim();
+                        dtNascFinal = document.getElementById('novo-dtnasc-paciente')?.value || "";
+                        setorFinal = document.getElementById('novo-setor-paciente')?.value || 'corredor';
+                        leitoFinal = document.getElementById('novo-leito-paciente')?.value || '01';
+                    }
+
+                    if (!nomePacienteFinal) {
+                        alert("⚠️ Nome do paciente não identificado. Aguarde a busca do prontuário ou preencha os dados do novo cadastro.");
+                        return;
+                    }
+
+                    const horasPadrao = ['08:00', '12:00', '16:00', '20:00', '00:00', '04:00'];
+                    let vitaisIniciais = horasPadrao.map(h => ({
+                        hora: h,
+                        inputs: Array(11).fill(""), 
+                        isExtra: false
+                    }));
+
+                    const isHoraExtra = !horasPadrao.includes(horaSelecionada);
+                    
+                    if (isHoraExtra) {
+                        vitaisIniciais.push({
+                            hora: horaSelecionada,
+                            inputs: valoresVitaisForm,
+                            isExtra: true
+                        });
+                    } else {
+                        let indexPadrao = vitaisIniciais.findIndex(v => v.hora === horaSelecionada);
+                        if (indexPadrao !== -1) {
+                            vitaisIniciais[indexPadrao].inputs = valoresVitaisForm;
+                        }
+                    }
+
+                    const novoPacienteObj = {
+                        setor: setorFinal,
+                        leito: leitoFinal,
+                        nome: nomePacienteFinal,
+                        dtNasc: dtNascFinal,
+                        prontuario: prontuario,
+                        tec: tecnicoLogadoGlobal,
+                        enfermeiro: enfermeiro || "",
+                        isento: isIsento,
+                        desfecho: "Internado",
+                        vitais: vitaisIniciais
+                    };
+                    listaPacientes.push(novoPacienteObj);
                 }
 
-                const novoPacienteObj = {
-                    setor: setorFinal,
-                    leito: leitoFinal,
-                    nome: nomePacienteFinal,
-                    dtNasc: dtNascFinal,
-                    prontuario: prontuario,
-                    tec: tecnicoLogadoGlobal,
-                    enfermeiro: enfermeiro || "",
-                    isento: false,
-                    desfecho: "Internado",
-                    vitais: vitaisIniciais
-                };
-                listaPacientes.push(novoPacienteObj);
-            }
+                const { error: erroSave } = await _supabase
+                    .from('plantoes')
+                    .upsert({
+                        data_chave: hojeStr,
+                        dados_json: listaPacientes,
+                        mes_ano: hojeStr.substring(0, 7),
+                        updated_at: new Date()
+                    }, { onConflict: 'data_chave' });
 
-            const { error: erroSave } = await _supabase
-                .from('plantoes')
-                .upsert({
-                    data_chave: hojeStr,
-                    dados_json: listaPacientes,
-                    mes_ano: hojeStr.substring(0, 7),
-                    updated_at: new Date()
-                }, { onConflict: 'data_chave' });
+                if (erroSave) {
+                    throw new Error(erroSave.message);
+                }
 
-            if (erroSave) {
-                alert("❌ Erro ao enviar dados para a planilha: " + erroSave.message);
-            } else {
                 alert("✅ Sinais vitais enviados com sucesso para a planilha do plantão!");
                 limparFormularioTecnico();
+
+            } catch (erro) {
+                console.error("Erro ao enviar dados:", erro);
+                alert("❌ Erro ao enviar dados para a planilha: " + erro.message);
+            } finally {
+                if (btnEnviarEl) {
+                    btnEnviarEl.disabled = false;
+                    btnEnviarEl.textContent = "Enviar p/ Planilha";
+                }
             }
         }
 
         function gerarRelatorioTecnico() {
             const hora = document.getElementById('select-hora').value === 'outro' ? document.getElementById('input-hora-custom').value : document.getElementById('select-hora').value;
             const enfermeiro = document.getElementById('input-enfermeiro').value.trim() || "[Nome do Enfermeiro]";
+            const isIsento = document.getElementById('check-paciente-isento')?.checked || false;
             
             const selectDor = document.getElementById('escala-dor');
             const dor = selectDor && selectDor.selectedOptions[0] ? selectDor.selectedOptions[0].text : "Não avaliado";
-            const escoreVal = parseInt(document.getElementById('news-total').value) || 0;
+            const escoreVal = document.getElementById('news-total').value || "0";
 
             let texto = "";
-            if (modoPediátricoAtivo) {
-                const fc = document.getElementById('pews-fc').value || "-";
-                const fr = document.getElementById('pews-fr').value || "-";
-                const temp = document.getElementById('pews-temp').value || "-";
-                texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${temp}°C, FC ${fc}bpm, FR ${fr}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
+            const pas = document.getElementById('pas').value || "-";
+            const temp = document.getElementById('temp').value || "-";
+            const fr = document.getElementById('fr').value || "-";
+            const fc = document.getElementById('fc').value || "-";
+            const sat = document.getElementById('sat').value || "-";
+            const o2SimNao = document.getElementById('o2').value || "Não";
+            const consc = document.getElementById('consc').value || "Alerta";
+            const usoO2Texto = o2SimNao.toUpperCase() === "SIM" ? "Usa O₂ suplementar" : "Não usa O₂ suplementar";
+            const sinaisVitaisStr = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}% (${usoO2Texto}), Nív Consc: ${consc}, Dor: ${dor}`;
+
+            if (isIsento) {
+                texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente encontra-se isento de aplicação de escores (NEWS/PEWS). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
+            } else if (modoPediátricoAtivo) {
+                const fcPed = document.getElementById('pews-fc').value || "-";
+                const frPed = document.getElementById('pews-fr').value || "-";
+                const tempPed = document.getElementById('pews-temp').value || "-";
+                texto = `Em tempo, às ${hora} horas, comunico sinais vitais pediátricos: Temp ${tempPed}°C, FC ${fcPed}bpm, FR ${frPed}irpm, Dor: ${dor}. Valor de PEWS: ${escoreVal}. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
             } else {
-                const pas = document.getElementById('pas').value || "-";
-                const temp = document.getElementById('temp').value || "-";
-                const fr = document.getElementById('fr').value || "-";
-                const fc = document.getElementById('fc').value || "-";
-                const sat = document.getElementById('sat').value || "-";
-                const o2SimNao = document.getElementById('o2').value || "Não";
-                const consc = document.getElementById('consc').value || "Alerta";
+                const escoreNum = parseInt(escoreVal) || 0;
 
                 let temIsoladoTres = false;
                 const fVal = parseFloat(fr) || 0;
@@ -1132,19 +1201,16 @@
                 
                 const isAlertaSepse = (sirsCount >= 2 || pConscVal >= 3 || (pVal > 0 && pVal < 90) || sepseSat);
 
-                const usoO2Texto = o2SimNao.toUpperCase() === "SIM" ? "Usa O₂ suplementar" : "Não usa O₂ suplementar";
-                const sinaisVitaisStr = `PA: ${pas} mmHg, Temp: ${temp} °C, FC: ${fc} bpm, FR: ${fr} irpm, SatO₂: ${sat}% (${usoO2Texto}), Nív Consc: ${consc}, Dor: ${dor}`;
-
                 if (isAlertaSepse) {
-                    texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreVal}. Segue orientações conforme protocolo da unidade.`;
-                } else if (escoreVal === 0) {
-                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente apresenta NEWS com Escore 0 (Estável), encontrando-se estável hemodinamicamente. Oriento manter monitorização e avaliar novos sinais a cada 04 horas conforme rotina da unidade. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
-                } else if (escoreVal >= 1 && escoreVal <= 3 && !temIsoladoTres) {
-                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}) e aplicação do escore NEWS, classificado como Baixo Risco (${escoreVal}). Paciente estável, sem queixas no momento. Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
-                } else if ((escoreVal >= 4 && escoreVal <= 5) || (temIsoladoTres && escoreVal < 6)) {
-                    texto = `Em tempo, às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Médio Risco (${escoreVal}). Sinais vitais e parâmetros: ${sinaisVitaisStr}. Mantido em vigilância conforme orientação.`;
+                    texto = `Às ${hora} horas, identifico sinais de alerta de sepse. Comunico ao(à) enfermeiro(a) ${enfermeiro}. Sinais vitais e parâmetros: ${sinaisVitaisStr}, NEWS: ${escoreNum}.`;
+                } else if (escoreNum === 0) {
+                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}). Paciente apresenta NEWS com Escore 0 (Estável). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
+                } else if (escoreNum >= 1 && escoreNum <= 3 && !temIsoladoTres) {
+                    texto = `Às ${hora} horas, realizo aferição de sinais vitais (${sinaisVitaisStr}) e aplicação do escore NEWS, classificado como Baixo Risco (${escoreNum}). Comunicado ao(à) enfermeiro(a) ${enfermeiro}.`;
+                } else if ((escoreNum >= 4 && escoreNum <= 5) || (temIsoladoTres && escoreNum < 6)) {
+                    texto = `Em tempo, às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Médio Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`;
                 } else {
-                    texto = `Às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Alto Risco (${escoreVal}). Sinais vitais e parâmetros: ${sinaisVitaisStr}. Aguardando condutas.`;
+                    texto = `Às ${hora} horas, comunico ao(à) enfermeiro(a) ${enfermeiro} que o paciente apresenta NEWS Alto Risco (${escoreNum}). Sinais vitais e parâmetros: ${sinaisVitaisStr}.`;
                 }
             }
 
@@ -1161,12 +1227,12 @@
             if (textarea) {
                 navigator.clipboard.writeText(textarea.value).then(() => {
                     if (btnCopiar) {
-                        const textoOriginal = btnCopiar.textContent;
+                        const textareaOriginalTexto = btnCopiar.textContent;
                         btnCopiar.textContent = "✅ Copiado com sucesso!";
                         btnCopiar.style.backgroundColor = "#15803d";
 
                         setTimeout(() => {
-                            btnCopiar.textContent = textoOriginal;
+                            btnCopiar.textContent = textareaOriginalTexto;
                             btnCopiar.style.backgroundColor = "#28a745";
                         }, 2000);
                     }
@@ -1184,6 +1250,8 @@
         function limparFormularioTecnico() {
             document.getElementById('input-prontuario').value = "";
             document.getElementById('input-enfermeiro').value = "";
+            const checkboxIsento = document.getElementById('check-paciente-isento');
+            if (checkboxIsento) checkboxIsento.checked = false;
             
             document.getElementById('novo-nome-paciente').value = "";
             document.getElementById('novo-dtnasc-paciente').value = "";
